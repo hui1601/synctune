@@ -52,7 +52,7 @@ public class EventBus {
                     Class<? extends BaseEvent> eventType = (Class<? extends BaseEvent>) parameterTypes[0];
                     method.setAccessible(true); // private 메서드도 접근 가능하도록 설정
                     // 해당 이벤트 타입의 리스너 리스트를 가져오거나 새로 생성
-                    listeners.computeIfAbsent(eventType, _ -> new CopyOnWriteArrayList<>())
+                    listeners.computeIfAbsent(eventType, ignored -> new CopyOnWriteArrayList<>())
                             .add(new EventListenerMethod(listenerInstance, method));
                     log.info("[EventBus] Registered listener: {}.{}({})",
                             listenerInstance.getClass().getSimpleName(), method.getName(), eventType.getSimpleName());

@@ -4,19 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat: Add initial module structure and event handling classes for SyncTune application">
-      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/log/LogManager.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/resources/logback.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="chore: Reformat code">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/module-info.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sdk/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sdk/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/src/main/java/module-info.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/ac/cwnu/synctune/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/ac/cwnu/synctune/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/module-info.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -85,6 +74,9 @@
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "프로젝트",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.0",
     "run.code.analysis.last.selected.profile": "pProject Default",
     "vue.rearranger.settings.migration": "true"
   }
@@ -130,7 +122,7 @@
       <option name="presentableId" value="Default" />
       <updated>1748390937285</updated>
       <workItem from="1748390938928" duration="5066000" />
-      <workItem from="1748607831246" duration="3678000" />
+      <workItem from="1748607831246" duration="4409000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -140,15 +132,44 @@
       <option name="project" value="LOCAL" />
       <updated>1748609390150</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="feat: Integrate SLF4J logging framework and update CoreModule for enhanced logging">
+      <option name="closed" value="true" />
+      <created>1748611661260</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1748611661260</updated>
+    </task>
+    <task id="LOCAL-00003" summary="chore: Reformat code">
+      <option name="closed" value="true" />
+      <created>1748611707709</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1748611707709</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="feat: Add initial project structure with core modules and event handling&#10;&#10;- Create .gitignore to exclude build artifacts and IDE files&#10;- Implement BaseEvent and various event classes for system and media control&#10;- Set up CoreModule for module initialization and event dispatching&#10;- Add EventBus for managing event listeners and asynchronous event handling&#10;- Define SyncTuneModule as a base class for all modules&#10;- Establish gradle build configuration and wrapper scripts" />
     <MESSAGE value="feat: Add initial module structure and event handling classes for SyncTune application" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: Add initial module structure and event handling classes for SyncTune application" />
+    <MESSAGE value="feat: Integrate SLF4J logging framework and update CoreModule for enhanced logging" />
+    <MESSAGE value="chore: Reformat code" />
+    <option name="LAST_COMMIT_MESSAGE" value="chore: Reformat code" />
   </component>
 </project>
