@@ -3,10 +3,11 @@ package ac.cwnu.synctune.core;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.event.BaseEvent;
 import ac.cwnu.synctune.sdk.event.ErrorEvent;
+import ac.cwnu.synctune.sdk.log.LogManager;
+import org.slf4j.Logger;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,10 +16,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class EventBus {
-    // 이벤트 타입별 리스너 메서드 목록을 저장하는 맵
-    // Key: 이벤트 클래스, Value: 해당 이벤트를 처리하는 리스너 메서드 정보 리스트
     private final Map<Class<? extends BaseEvent>, List<EventListenerMethod>> listeners = new ConcurrentHashMap<>();
-    private final ExecutorService eventExecutor; // 비동기 이벤트 처리를 위한 스레드 풀
+    private final ExecutorService eventExecutor;
+
+    private static final Logger log = LogManager.getLogger(EventBus.class);
 
     public EventBus(boolean asyncEventDispatch) {
         if (asyncEventDispatch) {
@@ -51,14 +52,13 @@ public class EventBus {
                     Class<? extends BaseEvent> eventType = (Class<? extends BaseEvent>) parameterTypes[0];
                     method.setAccessible(true); // private 메서드도 접근 가능하도록 설정
                     // 해당 이벤트 타입의 리스너 리스트를 가져오거나 새로 생성
-                    listeners.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>())
+                    listeners.computeIfAbsent(eventType, _ -> new CopyOnWriteArrayList<>())
                             .add(new EventListenerMethod(listenerInstance, method));
-                    System.out.println("[EventBus] Registered listener: " + listenerInstance.getClass().getSimpleName() +
-                            "." + method.getName() + "(" + eventType.getSimpleName() + ")");
+                    log.info("[EventBus] Registered listener: {}.{}({})",
+                            listenerInstance.getClass().getSimpleName(), method.getName(), eventType.getSimpleName());
                 } else {
-                    System.err.println("[EventBus] Warning: @EventListener method " +
-                            listenerInstance.getClass().getSimpleName() + "." + method.getName() +
-                            " must have exactly one parameter that extends BaseEvent.");
+                    log.warn("[EventBus] Warning: @EventListener method {}.{} must have exactly one parameter that extends BaseEvent.",
+                            listenerInstance.getClass().getSimpleName(), method.getName());
                 }
             }
         }
@@ -72,7 +72,7 @@ public class EventBus {
         listeners.values().forEach(list ->
                 list.removeIf(listenerMethod -> listenerMethod.getTargetInstance() == listenerInstance)
         );
-        System.out.println("[EventBus] Unregistered all listeners for: " + listenerInstance.getClass().getSimpleName());
+        log.info("[EventBus] Unregistered all listeners for: {}", listenerInstance.getClass().getSimpleName());
     }
 
     /**
@@ -81,17 +81,15 @@ public class EventBus {
      */
     public void post(BaseEvent event) {
         if (event == null) {
-            System.err.println("[EventBus] Warning: Cannot post a null event.");
+            log.warn("Cannot post a null event.");
             return;
         }
-        // System.out.println("[EventBus] Posting event: " + event.toString()); // 이벤트 발행 시 로그 (CoreModule에서 로깅 담당)
-
         List<EventListenerMethod> eventListenerMethods = listeners.get(event.getClass());
         if (eventListenerMethods != null) {
             for (EventListenerMethod listenerMethod : eventListenerMethods) {
-                if (eventExecutor != null) { // 비동기 처리
+                if (eventExecutor != null) { // Asynchronous event dispatch
                     eventExecutor.submit(() -> invokeListener(listenerMethod, event));
-                } else { // 동기 처리
+                } else { // Synchronous event dispatch
                     invokeListener(listenerMethod, event);
                 }
             }
@@ -103,19 +101,17 @@ public class EventBus {
             listenerMethod.invoke(event);
         } catch (InvocationTargetException e) {
             Throwable targetException = e.getTargetException();
-            System.err.println("[EventBus] Error in event listener " +
-                    listenerMethod.getTargetInstance().getClass().getSimpleName() + "." +
-                    listenerMethod.getMethod().getName() + ": " + targetException.getMessage());
-            targetException.printStackTrace(System.err);
+            log.error("[EventBus] Error in event listener {}.{}: {}",
+                    listenerMethod.getTargetInstance().getClass().getSimpleName(),
+                    listenerMethod.getMethod().getName(), targetException.getMessage());
             // 리스너 실행 중 발생한 예외를 ErrorEvent로 다시 발행 (무한 루프 방지 필요)
             if (!(event instanceof ErrorEvent)) { // ErrorEvent 처리 중 발생한 오류는 다시 ErrorEvent로 발행하지 않음
                 post(new ErrorEvent("Error in listener " + listenerMethod.getMethod().getName(), targetException, false));
             }
         } catch (IllegalAccessException e) {
-            System.err.println("[EventBus] Illegal access trying to invoke event listener " +
-                    listenerMethod.getTargetInstance().getClass().getSimpleName() + "." +
-                    listenerMethod.getMethod().getName() + ": " + e.getMessage());
-            e.printStackTrace(System.err);
+            log.error("[EventBus] Illegal access trying to invoke event listener {}.{}: {}",
+                    listenerMethod.getTargetInstance().getClass().getSimpleName(),
+                    listenerMethod.getMethod().getName(), e.getMessage());
         }
     }
 
@@ -125,7 +121,7 @@ public class EventBus {
     public void shutdown() {
         if (eventExecutor != null) {
             eventExecutor.shutdown();
-            System.out.println("[EventBus] Event executor shutdown.");
+            log.info("[EventBus] Event executor shutdown.");
         }
     }
 
