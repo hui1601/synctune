@@ -1,5 +1,6 @@
 package ac.cwnu.synctune.core;
 
+import ac.cwnu.synctune.core.exception.ModuleInitializationException;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.ModuleStart;
 import ac.cwnu.synctune.sdk.event.BaseEvent;
@@ -7,9 +8,7 @@ import ac.cwnu.synctune.sdk.event.ErrorEvent;
 import ac.cwnu.synctune.sdk.event.SystemEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
-import ac.cwnu.synctune.core.exception.ModuleInitializationException;
-
-import org.reflections.Reflections; // Reflections 라이브러리 임포트
+import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 import org.reflections.util.ClasspathHelper;
 import org.reflections.util.ConfigurationBuilder;
@@ -41,6 +40,7 @@ public class CoreModule extends SyncTuneModule {
     /**
      * CoreModule의 싱글톤 인스턴스를 반환합니다.
      * 이 메서드가 처음 호출될 때 CoreModule이 초기화됩니다.
+     *
      * @param basePackageToScan 모듈을 스캔할 루트 패키지 이름
      * @return CoreModule 인스턴스
      */
@@ -60,6 +60,7 @@ public class CoreModule extends SyncTuneModule {
     /**
      * 이미 초기화된 CoreModule 인스턴스를 반환합니다.
      * 반드시 initialize()가 먼저 호출되어야 합니다.
+     *
      * @return CoreModule 인스턴스
      * @throws IllegalStateException CoreModule이 아직 초기화되지 않은 경우
      */
@@ -163,7 +164,7 @@ public class CoreModule extends SyncTuneModule {
         eventBus.shutdown();
         running.set(false);
         log.info("SyncTune Core Module stopped successfully.");
-         instance = null;
+        instance = null;
     }
 
     public void publishEvent(BaseEvent event) {

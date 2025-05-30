@@ -5,9 +5,12 @@ package ac.cwnu.synctune.sdk.event;
  */
 public class SystemEvent {
 
-    private SystemEvent() {} // 인스턴스화 방지
+    private SystemEvent() {
+    } // 인스턴스화 방지
 
-    public static class ApplicationReadyEvent extends BaseEvent {} // Core 모듈 초기화 완료 등
+    public static class ApplicationReadyEvent extends BaseEvent {
+    } // Core 모듈 초기화 완료 등
 
-    public static class ApplicationShutdownEvent extends BaseEvent {} // 종료 요청 또는 진행
+    public static class ApplicationShutdownEvent extends BaseEvent {
+    } // 종료 요청 또는 진행
 }

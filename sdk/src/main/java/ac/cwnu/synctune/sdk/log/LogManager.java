@@ -19,6 +19,7 @@ public final class LogManager {
      * ```java
      * Logger logger = LogManager.getLogger(MyClass.class);
      * ```
+     *
      * @param clazz Logger를 생성할 클래스
      * @return 해당 클래스에 대한 Logger 인스턴스
      */
@@ -31,6 +32,7 @@ public final class LogManager {
      * ```java
      * Logger logger = LogManager.getLogger("MyLogger");
      * ```
+     *
      * @param name Logger를 생성할 이름
      * @return 해당 이름에 대한 Logger 인스턴스
      */

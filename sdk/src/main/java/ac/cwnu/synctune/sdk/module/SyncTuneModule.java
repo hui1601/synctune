@@ -22,6 +22,7 @@ public abstract class SyncTuneModule {
 
     /**
      * 모듈의 이름을 반환합니다. 로깅이나 디버깅에 사용될 수 있습니다.
+     *
      * @return 모듈 이름
      */
     public String getModuleName() {

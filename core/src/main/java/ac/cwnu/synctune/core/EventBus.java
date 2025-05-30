@@ -16,10 +16,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class EventBus {
+    private static final Logger log = LogManager.getLogger(EventBus.class);
     private final Map<Class<? extends BaseEvent>, List<EventListenerMethod>> listeners = new ConcurrentHashMap<>();
     private final ExecutorService eventExecutor;
-
-    private static final Logger log = LogManager.getLogger(EventBus.class);
 
     public EventBus(boolean asyncEventDispatch) {
         if (asyncEventDispatch) {
@@ -40,6 +39,7 @@ public class EventBus {
     /**
      * 리스너 객체를 등록합니다.
      * 객체 내 @EventListener 어노테이션이 붙은 메서드를 찾아 리스너로 등록합니다.
+     *
      * @param listenerInstance 등록할 리스너 객체
      */
     public void register(Object listenerInstance) {
@@ -66,6 +66,7 @@ public class EventBus {
 
     /**
      * 리스너 객체의 등록을 해제합니다. (구현 간소화를 위해 모든 메서드 제거)
+     *
      * @param listenerInstance 등록 해제할 리스너 객체
      */
     public void unregister(Object listenerInstance) {
@@ -77,6 +78,7 @@ public class EventBus {
 
     /**
      * 이벤트를 발행합니다. 등록된 리스너 중 해당 이벤트 타입을 처리하는 메서드를 호출합니다.
+     *
      * @param event 발행할 이벤트 객체
      */
     public void post(BaseEvent event) {
