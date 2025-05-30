@@ -1,0 +1,4 @@
+rootProject.name = 'synctune'
+include 'core'
+include 'player'
+include 'sdk'

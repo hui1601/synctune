@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat: Add initial module structure and event handling classes for SyncTune application">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/build.gradle" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/exception/ModuleInitializationException.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/core/src/main/java/module-info.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.jar" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/gradlew.bat" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/build.gradle" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/annotation/EventListener.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/annotation/ModuleStart.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/BaseEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/ErrorEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/LyricsEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/MediaControlEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/MediaInfoEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/PlayerUIEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/PlaylistEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/SystemEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/model/MusicInfo.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/model/Playlist.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/module/SyncTuneModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/module-info.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/ac/cwnu/synctune/Main.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/module-info.java" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
+        <projects_view />
+      </state>
+    </system>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;customColor&quot;: &quot;&quot;,
+  &quot;associatedIndex&quot;: 1
+}</component>
+  <component name="ProjectId" id="2xhWlVRKUJJbHrPjie4mOpIc1CD" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.synctune [build run].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.synctune.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RunManager">
+    <configuration name="synctune [build run]" type="GradleRunConfiguration" factoryName="Gradle" nameIsGenerated="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value="build" />
+            <option value="run" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.25410.129" />
+        <option value="bundled-js-predefined-d6986cc7102b-6a121458b545-JavaScript-IU-251.25410.129" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="디폴트 작업">
+      <changelist id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="" />
+      <created>1748390937285</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1748390937285</updated>
+      <workItem from="1748390938928" duration="5066000" />
+      <workItem from="1748607831246" duration="1504000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="feat: Add initial project structure with core modules and event handling&#10;&#10;- Create .gitignore to exclude build artifacts and IDE files&#10;- Implement BaseEvent and various event classes for system and media control&#10;- Set up CoreModule for module initialization and event dispatching&#10;- Add EventBus for managing event listeners and asynchronous event handling&#10;- Define SyncTuneModule as a base class for all modules&#10;- Establish gradle build configuration and wrapper scripts" />
+    <MESSAGE value="feat: Add initial module structure and event handling classes for SyncTune application" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: Add initial module structure and event handling classes for SyncTune application" />
+  </component>
+</project>
