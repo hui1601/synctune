@@ -2,6 +2,7 @@ package ac.cwnu.synctune.core.initializer;
 
 import ac.cwnu.synctune.core.EventBus;
 import ac.cwnu.synctune.core.error.ModuleInitializationException;
+import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.ErrorEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
@@ -49,6 +50,7 @@ public class ModuleLoader {
      * @return 성공적으로 시작된 모듈 인스턴스들의 리스트
      * @throws ModuleInitializationException 모듈 초기화 중 치명적인 오류 발생 시
      */
+
     public List<SyncTuneModule> loadAndStartModules(Set<Class<? extends SyncTuneModule>> moduleClasses) {
         List<SyncTuneModule> startedModules = new ArrayList<>();
         if (moduleClasses == null || moduleClasses.isEmpty()) {
@@ -58,45 +60,55 @@ public class ModuleLoader {
 
         log.info("Attempting to load and start {} module(s)...", moduleClasses.size());
         for (Class<? extends SyncTuneModule> moduleClass : moduleClasses) {
+            Module moduleAnnotation = moduleClass.getAnnotation(Module.class);
+            String moduleNameFromAnnotation = (moduleAnnotation != null && !moduleAnnotation.name().isEmpty())
+                    ? moduleAnnotation.name()
+                    : moduleClass.getSimpleName(); // 어노테이션 없거나 이름 비어있으면 클래스명 사용
+            String moduleVersionFromAnnotation = (moduleAnnotation != null && !moduleAnnotation.version().isEmpty())
+                    ? moduleAnnotation.version()
+                    : "N/A"; // 어노테이션 없거나 버전 비어있으면 "N/A"
+
             ac.cwnu.synctune.sdk.model.ModuleInfo moduleInfo =
                     new ac.cwnu.synctune.sdk.model.ModuleInfo(
-                            moduleClass.getSimpleName(), "N/A", moduleClass); // 버전은 어노테이션 등에서 가져올 수 있음
+                            moduleNameFromAnnotation, moduleVersionFromAnnotation, moduleClass);
 
             invokeBeforeModuleLoadListeners(moduleInfo);
             SyncTuneModule moduleInstance = null;
             try {
                 log.debug("Instantiating module: {}", moduleClass.getName());
                 Constructor<? extends SyncTuneModule> constructor = moduleClass.getDeclaredConstructor();
-                constructor.setAccessible(true); // public이 아닌 생성자도 허용 (권장되지는 않음)
+                constructor.setAccessible(true);
                 moduleInstance = constructor.newInstance();
-                log.info("Module instantiated: {} ({})", moduleInstance.getModuleName(), moduleClass.getName());
+                log.info("Module instantiated: {} (Version: {}, Class: {})",
+                        moduleInstance.getModuleName(), moduleInfo.getVersion(), moduleClass.getName());
+
 
                 invokeAfterModuleLoadListeners(moduleInfo, moduleInstance);
                 invokeBeforeModuleStartListeners(moduleInstance);
 
                 log.info("Initializing and starting module: {}", moduleInstance.getModuleName());
-                eventBus.register(moduleInstance); // 이벤트 리스너 등록
-                moduleInstance.start(); // 모듈 시작 메소드 호출
+                eventBus.register(moduleInstance);
+                moduleInstance.start();
                 startedModules.add(moduleInstance);
                 log.info("Successfully started and registered module: {}", moduleInstance.getModuleName());
 
                 invokeAfterModuleStartListeners(moduleInstance);
 
             } catch (NoSuchMethodException e) {
-                handleModuleError(moduleClass, "must have a public no-arg constructor", e, true);
+                handleModuleError(moduleClass, "must have a public no-arg constructor", e, true, moduleNameFromAnnotation);
             } catch (InvocationTargetException e) {
-                handleModuleError(moduleClass, "error during instantiation or start method invocation", e.getTargetException(), true);
+                handleModuleError(moduleClass, "error during instantiation or start method invocation", e.getTargetException(), true, moduleNameFromAnnotation);
             } catch (InstantiationException | IllegalAccessException e) {
-                handleModuleError(moduleClass, "failed to instantiate (check constructor visibility or abstract class)", e, true);
-            } catch (Exception e) { // 모듈의 start() 메소드 내에서 발생한 일반 예외 포함
-                handleModuleError(moduleClass, "an unexpected error occurred during loading or starting", e, true);
+                handleModuleError(moduleClass, "failed to instantiate (check constructor visibility or abstract class)", e, true, moduleNameFromAnnotation);
+            } catch (Exception e) {
+                handleModuleError(moduleClass, "an unexpected error occurred during loading or starting", e, true, moduleNameFromAnnotation);
             }
         }
         return startedModules;
     }
 
-    private void handleModuleError(Class<?> moduleClass, String errorMessageFragment, Throwable cause, boolean isFatal) {
-        String fullErrorMessage = String.format("Module %s %s.", moduleClass.getName(), errorMessageFragment);
+    private void handleModuleError(Class<?> moduleClass, String errorMessageFragment, Throwable cause, boolean isFatal, String moduleName) {
+        String fullErrorMessage = String.format("Module %s (Class: %s) %s.", moduleName, moduleClass.getName(), errorMessageFragment);
         log.error(fullErrorMessage, cause);
         eventBus.post(new ErrorEvent(fullErrorMessage, cause, isFatal));
         if (isFatal) {
@@ -107,7 +119,7 @@ public class ModuleLoader {
     /**
      * 등록된 모듈들을 중지시키고 이벤트 버스에서 등록 해제합니다.
      *
-     * @param modules 중지할 모듈 인스턴스들의 리스트 (역순으로 처리하는 것이 일반적)
+     * @param modules 중지할 모듈 인스턴스들의 리스트
      */
     public void stopAndUnloadModules(List<SyncTuneModule> modules) {
         if (modules == null || modules.isEmpty()) {
@@ -117,28 +129,35 @@ public class ModuleLoader {
         log.info("Attempting to stop and unload {} module(s)...", modules.size());
 
         for (SyncTuneModule module : modules) {
+            Class<?> moduleClass = module.getClass();
+            Module moduleAnnotation = moduleClass.getAnnotation(Module.class);
+            String moduleNameFromAnnotation = (moduleAnnotation != null && !moduleAnnotation.name().isEmpty())
+                    ? moduleAnnotation.name()
+                    : module.getModuleName();
+            String moduleVersionFromAnnotation = (moduleAnnotation != null && !moduleAnnotation.version().isEmpty())
+                    ? moduleAnnotation.version()
+                    : "N/A";
+
             ac.cwnu.synctune.sdk.model.ModuleInfo moduleInfo =
                     new ac.cwnu.synctune.sdk.model.ModuleInfo(
-                            module.getModuleName(), "N/A", module.getClass());
+                            moduleNameFromAnnotation, moduleVersionFromAnnotation, moduleClass);
             try {
                 log.info("Stopping module: {}", module.getModuleName());
                 invokeBeforeModuleStopListeners(module);
-                module.stop(); // 모듈 중지 메소드 호출
+                module.stop();
                 invokeAfterModuleStopListeners(module);
 
                 invokeBeforeModuleUnloadListeners(module);
-                eventBus.unregister(module); // 이벤트 리스너 해제
+                eventBus.unregister(module);
                 invokeAfterModuleUnloadListeners(moduleInfo);
                 log.info("Module stopped and unregistered: {}", module.getModuleName());
             } catch (Exception e) {
-                // 모듈 중지 실패는 일반적으로 fatal이 아닐 수 있음, 로깅 후 계속 진행
                 String errorMsg = String.format("Error stopping module %s", module.getModuleName());
                 log.error(errorMsg, e);
                 eventBus.post(new ErrorEvent(errorMsg, e, false));
             }
         }
     }
-
     // Lifecycle listener invocation helpers
     private void invokeBeforeModuleLoadListeners(ac.cwnu.synctune.sdk.model.ModuleInfo moduleInfo) {
         lifecycleListeners.forEach(listener -> {
