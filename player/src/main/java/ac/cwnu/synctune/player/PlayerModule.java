@@ -29,7 +29,14 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
 
     @EventListener
-    public void onPlayerEvent(PlayerUIEvent event) {
-        log.debug("Received player event: {}", event);
+    public void onMainWindowClosed(PlayerUIEvent.MainWindowClosedEvent event) {
+        log.debug("[{}] Received MainWindowClosedEvent: {}", getModuleName(), event);
+        // Example: Maybe save window state or initiate cleanup
+    }
+
+    @EventListener
+    public void onMainWindowRestored(PlayerUIEvent.MainWindowRestoredEvent event) {
+        log.debug("[{}] Received MainWindowRestoredEvent: {}", getModuleName(), event);
+        // Example: Maybe refresh UI elements
     }
 }
