@@ -4,10 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="docs: Add initial design document">
-      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/logging/EventLogger.java" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Implement EventLogger for centralized event logging">
+      <change afterPath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/player/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sdk/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sdk/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/src/main/java/module-info.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,6 +38,7 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Class" />
+        <option value="module-info" />
       </list>
     </option>
   </component>
@@ -125,7 +131,7 @@
       <updated>1748390937285</updated>
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
-      <workItem from="1748674262697" duration="1567000" />
+      <workItem from="1748674262697" duration="3226000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -167,7 +173,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748675860996</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="feat(core): Implement EventLogger for centralized event logging">
+      <option name="closed" value="true" />
+      <created>1748676605182</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1748676605182</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -191,6 +205,7 @@
     <MESSAGE value="chore: Reformat code" />
     <MESSAGE value="fix(core): Remove experimental unnamed variables" />
     <MESSAGE value="docs: Add initial design document" />
-    <option name="LAST_COMMIT_MESSAGE" value="docs: Add initial design document" />
+    <MESSAGE value="feat(core): Implement EventLogger for centralized event logging" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(core): Implement EventLogger for centralized event logging" />
   </component>
 </project>

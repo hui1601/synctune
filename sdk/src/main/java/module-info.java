@@ -1,5 +1,5 @@
 module synctune.sdk.main {
-    requires org.slf4j;
+    requires transitive org.slf4j;
     exports ac.cwnu.synctune.sdk.annotation;
     exports ac.cwnu.synctune.sdk.event;
     exports ac.cwnu.synctune.sdk.log;
