@@ -11,15 +11,16 @@
         * `PlaybackStatusEvent.java`<br>실제 재생 상태 변경 알림
         * `PlaylistEvent.java`<br>플레이리스트 변경 요청/알림
         * `LyricsEvent.java`<br>파싱된 가사, 현재 가사 라인 등
-        * `SystemEvent.java`<br>애플리케이션 시작, 종료 등
-        * `FileScanEvent.java`<br>파일 스캔 시작, 완료, 파일 발견 등
+        * `SystemEvent.java`<br>애플리케이션 시작, 종료 등 (예: `ApplicationReadyEvent`, `ApplicationShutdownEvent`)
+        * `FileScanEvent.java`<br>파일 스캔 시작, 완료, 파일 발견 등 (예: `ScanStartedEvent`, `FileFoundEvent`)
+        * `PlayerUIEvent.java`<br>플레이어 UI 관련 이벤트를 위한 네임스페이스 클래스. 내부 정적 클래스들 (예: `MainWindowClosedEvent`)이 실제 이벤트이며 `BaseEvent`를 상속합니다.
     * `model`
         * `MusicInfo.java`<br>음악 메타데이터 DTO
         * `Playlist.java`<br>플레이리스트 DTO
         * `LrcLine.java`<br>LRC 가사 한 줄 DTO - 시간, 가사
         * `ModuleInfo.java`<br>스캔된 모듈 정보
     * `module`
-        * `SyncTuneModule.java`<br>모든 모듈이 구현해야 할 인터페이스 - `initialize()`, `shutdown()` 등
+        * `SyncTuneModule.java`<br>모든 모듈이 구현해야 할 인터페이스 - `start()`, `stop()` 등
         * `ModuleLifecycleListener.java`<br>모듈 생명주기 이벤트를 받을 리스너 인터페이스
 
 ## 2. `core` Module
@@ -29,18 +30,18 @@
     * `EventBus.java`<br>이벤트 발행 및 구독 관리
     * `initializer`
         * `ModuleScanner.java`<br>클래스패스 등에서 `@Module` 어노테이션 스캔
-        * `ModuleLoader.java`<br>스캔된 모듈 인스턴스화 및 `initialize` 호출
+        * `ModuleLoader.java`<br>스캔된 모듈 인스턴스화 및 `start()` 호출
     * `error`
         * `ModuleInitializationException.java`<br>모듈 초기화 실패 예외
         * `GlobalExceptionHandler.java`<br>처리되지 않은 예외 중앙 처리, 로깅
         * `FatalErrorReporter.java`<br>심각한 오류 발생 시 처리
-    * **`logging`**
+    * `logging`
         * `EventLogger.java`<br>모든 주요 이벤트를 파일/콘솔에 로깅
 
 ## 3. `player` Module
 담당: 김민재
 * `ac.cwnu.synctune.player`
-    * `PlayerModule.java`<br>`SyncTuneModule` 구현, 이벤트 리스너 등록
+    * `PlayerModule.java`<br>`SyncTuneModule` 구현, 이벤트 리스너 등록.<br>예를 들어 `@EventListener public void onMainWindowClosed(PlayerUIEvent.MainWindowClosedEvent event)` 와 같이 SDK의 `PlayerUIEvent` 내부 클래스 구독.
     * `playback`<br>음악 재생 핵심 로직
         * `AudioEngine.java`<br>실제 오디오 파일 재생/정지/탐색 담당 - JLayer, JavaFX MediaPlayer 등 라이브러리 편한거 써요
         * `PlaybackStateManager.java`<br>현재 재생 상태 관리: 재생중, 일시정지, 정지 등
@@ -52,7 +53,7 @@
         * `CoverArtService.java`<br>앨범 커버 이미지 로드/캐싱
     * `scanner`<br>음악 파일 스캐닝
         * `MusicFileScanner.java`<br>지정된 디렉토리에서 음악 파일 탐색
-        * `FileDiscoveryReporter.java`<br>발견된 파일 정보를 `FileScanEvent`로 발행
+        * `FileDiscoveryReporter.java`<br>발견된 파일 정보를 `FileScanEvent`로 발행 (또는 `MediaInfoEvent` 사용)
 
 ## 4. `lyrics` Module
 담당: 김대영
