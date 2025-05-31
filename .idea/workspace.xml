@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="fix(sdk): Update dependencies and module-info for SLF4J integration">
-      <change afterPath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/player/src/main/java/module-info.java" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(player): Add Stub PlayerModule">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -126,7 +124,7 @@
       <updated>1748390937285</updated>
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
-      <workItem from="1748674262697" duration="3912000" />
+      <workItem from="1748674262697" duration="6480000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -184,7 +182,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748678770185</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="feat(player): Add Stub PlayerModule">
+      <option name="closed" value="true" />
+      <created>1748680296577</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1748680296577</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -210,6 +216,7 @@
     <MESSAGE value="docs: Add initial design document" />
     <MESSAGE value="feat(core): Implement EventLogger for centralized event logging" />
     <MESSAGE value="fix(sdk): Update dependencies and module-info for SLF4J integration" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix(sdk): Update dependencies and module-info for SLF4J integration" />
+    <MESSAGE value="feat(player): Add Stub PlayerModule" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(player): Add Stub PlayerModule" />
   </component>
 </project>
