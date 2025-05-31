@@ -2,11 +2,11 @@
 ## 1. `sdk` Module
 
 *   `ac.cwnu.synctune.sdk`
-    *   **`annotation`**
+    *   `annotation`
         *   `Module.java`<br>모듈 식별용 어노테이션, Core가 스캔할 대상
         *   `EventListener.java`<br>이벤트 리스너 메소드 지정용
         *   `ModuleStart.java`<br>모듈 초기화 메소드 지정용
-    *   **`event`**
+    *   `event`
         *   `BaseEvent.java`<br>모든 이벤트의 부모 클래스
         *   `ErrorEvent.java`
         *   `MediaControlEvent.java`<br>재생, 정지, 다음곡 등 사용자 요청
@@ -15,7 +15,7 @@
         *   `LyricsEvent.java`<br>파싱된 가사, 현재 가사 라인 등
         *   `SystemEvent.java`<br>애플리케이션 시작, 종료 등
         *   `FileScanEvent.java`<br>파일 스캔 시작, 완료, 파일 발견 등
-    *   **`model`**
+    *   `model`
         *   `MusicInfo.java`<br>음악 메타데이터 DTO
         *   `Playlist.java`<br>플레이리스트 DTO
         *   `LrcLine.java`<br>LRC 가사 한 줄 DTO - 시간, 가사
