@@ -18,6 +18,7 @@ dependencies {
     implementation project(':core')
     implementation project(':player')
     implementation project(':lyrics')
+    implementation project(':ui')
     // for testing
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'

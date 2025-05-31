@@ -12,6 +12,7 @@
             <option value="$PROJECT_DIR$/lyrics" />
             <option value="$PROJECT_DIR$/player" />
             <option value="$PROJECT_DIR$/sdk" />
+            <option value="$PROJECT_DIR$/ui" />
           </set>
         </option>
       </GradleProjectSettings>
