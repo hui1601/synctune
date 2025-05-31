@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 @Module(name = "Core", version = "1.0.0")
 public class CoreModule extends SyncTuneModule implements ModuleLifecycleListener, EventPublisher {
     private static final Logger log = LogManager.getLogger(CoreModule.class);
@@ -155,16 +156,20 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
 
     private synchronized void unregisterShutdownHook() {
         if (shutdownHookThread != null) {
-            try {
-                if (Runtime.getRuntime().removeShutdownHook(shutdownHookThread)) {
-                    log.debug("JVM ShutdownHook unregistered successfully.");
-                } else {
-                    log.warn("Failed to unregister JVM ShutdownHook. It might have already started or was not registered by this instance.");
+            if (Thread.currentThread() == shutdownHookThread) {
+                log.debug("Skipping explicit unregistration of JVM ShutdownHook as it is currently executing or called from it.");
+            } else {
+                try {
+                    if (Runtime.getRuntime().removeShutdownHook(shutdownHookThread)) {
+                        log.debug("JVM ShutdownHook unregistered successfully (likely due to explicit stop() call).");
+                    } else {
+                        log.warn("Failed to unregister JVM ShutdownHook. It might have already run, not been registered, or been previously unregistered.");
+                    }
+                } catch (IllegalStateException e) {
+                    log.warn("Cannot unregister JVM ShutdownHook, JVM shutdown is already in progress: {}", e.getMessage());
                 }
-            } catch (IllegalStateException e) {
-                log.warn("Cannot unregister JVM ShutdownHook during shutdown: {}", e.getMessage());
             }
-            shutdownHookThread = null;
+            this.shutdownHookThread = null;
         }
     }
 
