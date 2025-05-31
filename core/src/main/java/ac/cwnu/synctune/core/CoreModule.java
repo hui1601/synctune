@@ -1,6 +1,6 @@
 package ac.cwnu.synctune.core;
 
-import ac.cwnu.synctune.core.exception.ModuleInitializationException;
+import ac.cwnu.synctune.core.error.ModuleInitializationException;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.ModuleStart;
 import ac.cwnu.synctune.sdk.event.BaseEvent;

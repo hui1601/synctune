@@ -1,4 +1,4 @@
-package ac.cwnu.synctune.core.exception;
+package ac.cwnu.synctune.core.error;
 
 public class ModuleInitializationException extends RuntimeException {
     public ModuleInitializationException(String message) {
