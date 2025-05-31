@@ -2,41 +2,78 @@
 담당: 동헌희
 * `ac.cwnu.synctune.sdk`
     * `annotation`
-        * `Module.java`<br>모듈 식별용 어노테이션, Core가 스캔할 대상
-        * `EventListener.java`<br>이벤트 리스너 메소드 지정용
+        * `Module.java`<br>모듈 클래스를 식별하기 위한 어노테이션. 모듈 이름과 버전을 속성으로 가짐. Core가 스캔할 대상.
+        * `EventListener.java`<br>이벤트 리스너 메서드를 식별하기 위한 어노테이션.
     * `event`
-        * `BaseEvent.java`<br>모든 이벤트의 부모 클래스
-        * `ErrorEvent.java`
-        * `MediaControlEvent.java`<br>재생, 정지, 다음곡 등 사용자 요청
-        * `PlaybackStatusEvent.java`<br>실제 재생 상태 변경 알림
-        * `PlaylistEvent.java`<br>플레이리스트 변경 요청/알림
-        * `LyricsEvent.java`<br>파싱된 가사, 현재 가사 라인 등
-        * `SystemEvent.java`<br>애플리케이션 시작, 종료 등 (예: `ApplicationReadyEvent`, `ApplicationShutdownEvent`)
-        * `FileScanEvent.java`<br>파일 스캔 시작, 완료, 파일 발견 등 (예: `ScanStartedEvent`, `FileFoundEvent`)
-        * `PlayerUIEvent.java`<br>플레이어 UI 관련 이벤트를 위한 네임스페이스 클래스. 내부 정적 클래스들 (예: `MainWindowClosedEvent`)이 실제 이벤트이며 `BaseEvent`를 상속합니다.
+        * `BaseEvent.java`<br>모든 이벤트의 부모 추상 클래스. 이벤트 발생 시간을 기록.
+        * `ErrorEvent.java`<br>예외 및 오류 발생 시 사용되는 이벤트. 오류 메시지, 예외 객체, 치명적 오류 여부 포함.
+        * `EventPublisher.java`<br>이벤트를 발행하는 기능을 정의한 인터페이스. 모듈이 이벤트를 시스템 전체에 알릴 때 사용.
+        * `FileScanEvent.java`<br>파일 스캔 관련 이벤트 네임스페이스.
+            * `ScanStartedEvent`<br>지정된 디렉토리에 대한 파일 스캔 시작 알림.
+            * `FileFoundEvent`<br>스캔 중 개별 파일을 발견했을 때 발생.
+            * `ScanCompletedEvent`<br>파일 스캔 완료 알림. 스캔된 디렉토리 경로와 찾은 파일 총 개수 포함.
+            * `ScanErrorEvent`<br>파일 스캔 중 오류 발생 알림.
+        * `LyricsEvent.java`<br>가사 처리 관련 이벤트 네임스페이스.
+            * `LyricsFoundEvent`<br>음악 파일에 대한 가사 파일 발견 알림.
+            * `LyricsNotFoundEvent`<br>음악 파일에 대한 가사 파일을 찾지 못했을 때 알림.
+            * `NextLyricsEvent`<br>현재 재생 시간에 맞는 다음 가사 라인 알림. 가사 내용과 시작 시간 포함.
+            * `LyricsParseCompleteEvent`<br>LRC 파일 파싱 완료 알림. 성공 여부 포함.
+        * `MediaControlEvent.java`<br>미디어 재생 제어 "요청" 관련 이벤트 네임스페이스.
+            * `RequestPlayEvent`<br>재생 요청. 특정 곡 정보 포함 가능.
+            * `RequestPauseEvent`<br>일시 정지 요청.
+            * `RequestStopEvent`<br>정지 요청.
+            * `RequestNextMusicEvent`<br>다음 곡 재생 요청.
+            * `RequestPreviousMusicEvent`<br>이전 곡 재생 요청.
+            * `RequestSeekEvent`<br>특정 시간으로 탐색 요청. 밀리초 단위 시간 포함.
+        * `MediaInfoEvent.java`<br>미디어 정보 스캔 및 메타데이터 관련 이벤트 네임스페이스.
+            * `MediaScanStartedEvent`<br>미디어 스캔 시작 알림.
+            * `MediaScanProgressEvent`<br>미디어 스캔 진행 상태 알림. (스캔한 파일 수, 전체 파일 수)
+            * `MediaScanCompletedEvent`<br>미디어 스캔 완료 알림. 스캔된 `MusicInfo` 리스트 포함.
+            * `MetadataUpdatedEvent`<br>음악 메타데이터 업데이트 알림. (예: LRC 파일 정보 추가)
+        * `PlaybackStatusEvent.java`<br>미디어 재생 "상태 변경" 관련 이벤트 네임스페이스.
+            * `PlaybackStartedEvent`<br>재생 시작 알림. 현재 곡 정보 포함.
+            * `PlaybackPausedEvent`<br>일시 정지됨 알림.
+            * `PlaybackStoppedEvent`<br>정지됨 알림.
+            * `MusicChangedEvent`<br>재생 곡 변경 알림. 새 곡 정보 포함.
+            * `PlaybackProgressUpdateEvent`<br>재생 시간 업데이트 알림. 현재 재생 시간, 전체 길이 포함.
+        * `PlayerUIEvent.java`<br>플레이어 UI 관련 이벤트를 위한 네임스페이스 클래스.
+            * `MainWindowClosedEvent`<br>플레이어 메인 UI 창 닫힘 이벤트.
+            * `MainWindowRestoredEvent`<br>플레이어 메인 UI 창 복구(최소화 해제 등) 이벤트.
+        * `PlaylistEvent.java`<br>플레이리스트 관련 이벤트 네임스페이스.
+            * `PlaylistCreatedEvent`<br>플레이리스트 생성 알림.
+            * `PlaylistDeletedEvent`<br>플레이리스트 삭제 알림.
+            * `MusicAddedToPlaylistEvent`<br>플레이리스트에 곡 추가 알림.
+            * `MusicRemovedFromPlaylistEvent`<br>플레이리스트에서 곡 제거 알림.
+            * `PlaylistOrderChangedEvent`<br>플레이리스트 순서 변경 알림.
+            * `AllPlaylistsLoadedEvent`<br>모든 플레이리스트 로드 완료 알림.
+        * `SystemEvent.java`<br>시스템 레벨 이벤트 네임스페이스 (예: 애플리케이션 시작, 종료).
+            * `ApplicationReadyEvent`<br>애플리케이션 준비 완료 (모든 모듈 로드 및 시작 완료) 알림.
+            * `ApplicationShutdownEvent`<br>애플리케이션 종료 시작/진행 알림.
+    * `log`
+        * `LogManager.java`<br>SLF4J Logger 인스턴스를 생성하고 관리하는 유틸리티 클래스.
     * `model`
-        * `MusicInfo.java`<br>음악 메타데이터 DTO
-        * `Playlist.java`<br>플레이리스트 DTO
-        * `LrcLine.java`<br>LRC 가사 한 줄 DTO - 시간, 가사
-        * `ModuleInfo.java`<br>스캔된 모듈 정보
+        * `LrcLine.java`<br>LRC 가사 한 줄을 나타내는 DTO. 시간(밀리초)과 가사 텍스트 포함. `Comparable` 구현.
+        * `ModuleInfo.java`<br>스캔된 모듈의 정보를 담는 DTO. 모듈 이름, 버전, 클래스 정보 포함.
+        * `MusicInfo.java`<br>음악 파일 메타데이터(제목, 아티스트, 앨범, 파일 경로, 길이, LRC 경로 등) DTO. 파일 경로 기반으로 동등성 비교.
+        * `Playlist.java`<br>플레이리스트(이름, 곡 목록) DTO. 이름 기반으로 동등성 비교.
     * `module`
-        * `SyncTuneModule.java`<br>모든 모듈이 구현해야 할 인터페이스 - `start()`, `stop()` 등
-        * `ModuleLifecycleListener.java`<br>모듈 생명주기 이벤트를 받을 리스너 인터페이스
+        * `SyncTuneModule.java`<br>모든 모듈이 상속해야 하는 추상 클래스. `start()`, `stop()` 추상/일반 메서드 및 `eventPublisher`를 통한 이벤트 발행 편의 메서드(`publish`) 제공. 모듈 이름을 `@Module` 어노테이션 또는 클래스명에서 가져옴.
+        * `ModuleLifecycleListener.java`<br>모듈 생명주기(로드 전/후, 시작 전/후, 중지 전/후, 언로드 전/후) 이벤트를 수신하기 위한 리스너 인터페이스.
 
 ## 2. `core` Module
 담당: 동헌희
 * `ac.cwnu.synctune.core`
-    * `CoreModule.java`<br>이 모듈의 진입점 및 메인 로직, `SyncTuneModule` 구현
-    * `EventBus.java`<br>이벤트 발행 및 구독 관리
+    * `CoreModule.java`<br>애플리케이션의 핵심 모듈. `SyncTuneModule` 구현, `ModuleLifecycleListener`, `EventPublisher` 구현. 모듈 스캔 및 로딩, 애플리케이션 생명주기(시작, 종료, 셧다운 훅) 관리. `ErrorEvent`를 구독하여 치명적 오류 처리.
+    * `EventBus.java`<br>이벤트 발행 및 구독 관리. `@EventListener` 어노테이션 기반으로 리스너 등록/해제. 동기/비동기 이벤트 처리 지원 (생성자 파라미터로 제어, 기본은 동기). 리스너 실행 중 예외 발생 시 `ErrorEvent` 발행.
     * `initializer`
-        * `ModuleScanner.java`<br>클래스패스 등에서 `@Module` 어노테이션 스캔
-        * `ModuleLoader.java`<br>스캔된 모듈 인스턴스화 및 `start()` 호출
+        * `ModuleScanner.java`<br>클래스패스에서 지정된 기본 패키지 내 `@Module` 어노테이션이 붙은 `SyncTuneModule` 구현 클래스 스캔. `CoreModule` 자체는 결과에서 제외.
+        * `ModuleLoader.java`<br>스캔된 모듈 클래스들을 인스턴스화하고 초기화 (`start()`) 및 종료 (`stop()`). 모듈 생명주기 이벤트를 `ModuleLifecycleListener`에게 알림. 모듈 로딩/시작/중지 시 발생하는 오류를 `ErrorEvent`로 발행.
     * `error`
-        * `ModuleInitializationException.java`<br>모듈 초기화 실패 예외
-        * `GlobalExceptionHandler.java`<br>처리되지 않은 예외 중앙 처리, 로깅
-        * `FatalErrorReporter.java`<br>심각한 오류 발생 시 처리
+        * `ModuleInitializationException.java`<br>모듈 초기화 과정에서 심각한 오류 발생 시 사용되는 `RuntimeException`.
+        * `GlobalExceptionHandler.java`<br>처리되지 않은 예외(Uncaught Exception)를 중앙에서 처리. 모든 스레드의 예외 로깅. `VirtualMachineError` 등 치명적 예외 발생 시 `FatalErrorReporter` 호출, 그 외에는 `ErrorEvent` 발행. `Thread.setDefaultUncaughtExceptionHandler`로 등록.
+        * `FatalErrorReporter.java`<br>심각한(Fatal) 오류 발생 시 이를 로깅하고, `CoreModule`의 `stop()`을 호출하여 안전한 종료를 시도한 후, `System.exit(1)`로 애플리케이션 강제 종료.
     * `logging`
-        * `EventLogger.java`<br>모든 주요 이벤트를 파일/콘솔에 로깅
+        * `EventLogger.java`<br>모든 `BaseEvent`를 구독하여 DEBUG 레벨로 로깅하는 기본 이벤트 리스너.
 
 ## 3. `player` Module
 담당: 김민재
