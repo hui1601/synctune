@@ -13,7 +13,7 @@
         </encoder>
     </appender>
 
-    <logger name="ac.cwnu.synctune" level="INFO" additivity="false">
+    <logger name="ac.cwnu.synctune" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT"/>
         <appender-ref ref="FILE"/>
     </logger>
