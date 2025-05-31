@@ -48,16 +48,16 @@ public class EventBus {
                 Class<?>[] parameterTypes = method.getParameterTypes();
                 // @EventListener 메서드는 반드시 BaseEvent를 상속받는 파라미터 하나만 가져야 함
                 if (parameterTypes.length == 1 && BaseEvent.class.isAssignableFrom(parameterTypes[0])) {
-                    @SuppressWarnings("unchecked") // 타입 검사 완료
+                    @SuppressWarnings("unchecked")
                     Class<? extends BaseEvent> eventType = (Class<? extends BaseEvent>) parameterTypes[0];
                     method.setAccessible(true); // private 메서드도 접근 가능하도록 설정
                     // 해당 이벤트 타입의 리스너 리스트를 가져오거나 새로 생성
                     listeners.computeIfAbsent(eventType, ignored -> new CopyOnWriteArrayList<>())
                             .add(new EventListenerMethod(listenerInstance, method));
-                    log.info("[EventBus] Registered listener: {}.{}({})",
+                    log.debug("[EventBus] Registered listener: {}.{}({})",
                             listenerInstance.getClass().getSimpleName(), method.getName(), eventType.getSimpleName());
                 } else {
-                    log.warn("[EventBus] Warning: @EventListener method {}.{} must have exactly one parameter that extends BaseEvent.",
+                    log.debug("[EventBus] Warning: @EventListener method {}.{} must have exactly one parameter that extends BaseEvent.",
                             listenerInstance.getClass().getSimpleName(), method.getName());
                 }
             }
@@ -65,7 +65,7 @@ public class EventBus {
     }
 
     /**
-     * 리스너 객체의 등록을 해제합니다. (구현 간소화를 위해 모든 메서드 제거)
+     * 리스너 객체의 등록을 해제합니다.
      *
      * @param listenerInstance 등록 해제할 리스너 객체
      */
@@ -106,7 +106,7 @@ public class EventBus {
             log.error("[EventBus] Error in event listener {}.{}: {}",
                     listenerMethod.getTargetInstance().getClass().getSimpleName(),
                     listenerMethod.getMethod().getName(), targetException.getMessage());
-            // 리스너 실행 중 발생한 예외를 ErrorEvent로 다시 발행 (무한 루프 방지 필요)
+            // 리스너 실행 중 발생한 예외를 ErrorEvent로 다시 발행 (무한 루프 방지를 위해 ErrorEvent는 제외)
             if (!(event instanceof ErrorEvent)) { // ErrorEvent 처리 중 발생한 오류는 다시 ErrorEvent로 발행하지 않음
                 post(new ErrorEvent("Error in listener " + listenerMethod.getMethod().getName(), targetException, false));
             }
@@ -118,7 +118,7 @@ public class EventBus {
     }
 
     /**
-     * EventBus 종료 시 ExecutorService를 종료합니다.
+     * EventBus 종료 시 ExecutorService를 종료
      */
     public void shutdown() {
         if (eventExecutor != null) {
@@ -128,7 +128,7 @@ public class EventBus {
     }
 
     /**
-     * 리스너 메서드와 해당 메서드를 가진 객체를 캡슐화하는 내부 클래스입니다.
+     * 리스너 메서드와 해당 메서드를 가진 객체를 캡슐화하는 내부 클래스
      */
     private static class EventListenerMethod {
         private final Object targetInstance;
