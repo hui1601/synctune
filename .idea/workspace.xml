@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="docs: Update Design.md to include module responsibilities and maintainers">
-      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/PlaybackStatusEvent.java" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Enhance module loading and unloading with annotation-based name and version retrieval">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/MediaControlEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/MediaControlEvent.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/module/SyncTuneModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/module/SyncTuneModule.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -136,7 +135,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="4800000" />
+      <workItem from="1748689268640" duration="5164000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -298,7 +297,23 @@
       <option name="project" value="LOCAL" />
       <updated>1748692411674</updated>
     </task>
-    <option name="localTasksCounter" value="21" />
+    <task id="LOCAL-00021" summary="feat(sdk): Define media control and playback status events for improved event handling">
+      <option name="closed" value="true" />
+      <created>1748730886667</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1748730886667</updated>
+    </task>
+    <task id="LOCAL-00022" summary="feat(core): Enhance module loading and unloading with annotation-based name and version retrieval">
+      <option name="closed" value="true" />
+      <created>1748731163715</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1748731163715</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -337,6 +352,8 @@
     <MESSAGE value="docs: Update Design.md formatting" />
     <MESSAGE value="refactor: Replace @ModuleStart annotation with @Module for improved module definition" />
     <MESSAGE value="docs: Update Design.md to include module responsibilities and maintainers" />
-    <option name="LAST_COMMIT_MESSAGE" value="docs: Update Design.md to include module responsibilities and maintainers" />
+    <MESSAGE value="feat(sdk): Define media control and playback status events for improved event handling" />
+    <MESSAGE value="feat(core): Enhance module loading and unloading with annotation-based name and version retrieval" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(core): Enhance module loading and unloading with annotation-based name and version retrieval" />
   </component>
 </project>

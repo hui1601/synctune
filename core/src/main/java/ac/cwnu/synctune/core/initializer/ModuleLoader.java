@@ -158,6 +158,7 @@ public class ModuleLoader {
             }
         }
     }
+
     // Lifecycle listener invocation helpers
     private void invokeBeforeModuleLoadListeners(ac.cwnu.synctune.sdk.model.ModuleInfo moduleInfo) {
         lifecycleListeners.forEach(listener -> {
