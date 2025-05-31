@@ -4,6 +4,7 @@ import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.ModuleStart;
 import ac.cwnu.synctune.sdk.event.PlayerUIEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
+import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import org.slf4j.Logger;
 
@@ -12,8 +13,9 @@ import org.slf4j.Logger;
  * 샘플 코드입니다.
  */
 @ModuleStart
-public class PlayerModule extends SyncTuneModule {
+public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListener {
     private static final Logger logger = LogManager.getLogger(PlayerModule.class);
+
     @Override
     public void start() {
         logger.info("PlayerModule이 시작되었습니다.");
