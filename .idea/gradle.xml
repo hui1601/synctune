@@ -9,6 +9,7 @@
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/core" />
+            <option value="$PROJECT_DIR$/lyrics" />
             <option value="$PROJECT_DIR$/player" />
             <option value="$PROJECT_DIR$/sdk" />
           </set>
