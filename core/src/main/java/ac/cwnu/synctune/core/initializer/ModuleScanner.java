@@ -1,6 +1,6 @@
 package ac.cwnu.synctune.core.initializer;
 
-import ac.cwnu.synctune.sdk.annotation.ModuleStart;
+import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import org.reflections.Reflections;
@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 클래스패스에서 {@link ModuleStart} 어노테이션이 붙은 {@link SyncTuneModule} 구현 클래스를 스캔합니다.
+ * 클래스패스에서 {@link Module} 어노테이션이 붙은 {@link SyncTuneModule} 구현 클래스를 스캔합니다.
  */
 public class ModuleScanner {
     private static final Logger log = LogManager.getLogger(ModuleScanner.class);
@@ -28,13 +28,13 @@ public class ModuleScanner {
     }
 
     /**
-     * 지정된 기본 패키지에서 {@link ModuleStart} 어노테이션이 붙은 모듈 클래스들을 찾습니다.
+     * 지정된 기본 패키지에서 {@link Module} 어노테이션이 붙은 모듈 클래스들을 찾습니다.
      * CoreModule 자체는 이 스캔 결과에서 제외됩니다.
      *
      * @return 스캔된 {@link SyncTuneModule}의 자식 클래스들의 집합.
      */
     public Set<Class<? extends SyncTuneModule>> scanForModules() {
-        log.info("Scanning for modules annotated with @ModuleStart in package: '{}'", basePackageToScan);
+        log.info("Scanning for modules annotated with @Module in package: '{}'", basePackageToScan);
 
         ConfigurationBuilder configBuilder = new ConfigurationBuilder()
                 .setUrls(ClasspathHelper.forPackage(basePackageToScan))
@@ -42,9 +42,9 @@ public class ModuleScanner {
 
         Reflections reflections = new Reflections(configBuilder);
 
-        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(ModuleStart.class);
+        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Module.class);
         if (annotatedClasses.isEmpty()) {
-            log.info("No classes found annotated with @ModuleStart in package '{}'.", basePackageToScan);
+            log.info("No classes found annotated with @Module in package '{}'.", basePackageToScan);
             return new HashSet<>();
         }
 
@@ -56,7 +56,7 @@ public class ModuleScanner {
                 .collect(Collectors.toSet());
 
         if (moduleClasses.isEmpty()) {
-            log.info("Found classes annotated with @ModuleStart, but none extend SyncTuneModule (or they are CoreModule itself).");
+            log.info("Found classes annotated with @Module, but none extend SyncTuneModule (or they are CoreModule itself).");
         } else {
             log.info("Module scan completed. Found {} SyncTuneModule(s) (excluding CoreModule): {}",
                     moduleClasses.size(),
@@ -65,7 +65,7 @@ public class ModuleScanner {
 
         annotatedClasses.stream()
                 .filter(clazz -> !SyncTuneModule.class.isAssignableFrom(clazz))
-                .forEach(clazz -> log.warn("Class {} is annotated with @ModuleStart but does not extend SyncTuneModule. It will be ignored.", clazz.getName()));
+                .forEach(clazz -> log.warn("Class {} is annotated with @Module but does not extend SyncTuneModule. It will be ignored.", clazz.getName()));
 
         return moduleClasses;
     }

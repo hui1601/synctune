@@ -4,21 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Implement GlobalExceptionHandler and FatalErrorReporter for improved error handling">
-      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/error/FatalErrorReporter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/error/GlobalExceptionHandler.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleLoader.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleScanner.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.github/workflows/gradle.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.github/workflows/gradle.yml" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="docs: Update Design.md formatting">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/logging/EventLogger.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/logging/EventLogger.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/module-info.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/Design.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/Design.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleScanner.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleScanner.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lyrics/src/main/java/ac/cwnu/synctune/lyrics/LyricsModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/lyrics/src/main/java/ac/cwnu/synctune/lyrics/LyricsModule.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/ac/cwnu/synctune/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/ac/cwnu/synctune/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/logback.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/logback.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ui/src/main/java/ac/cwnu/synctune/ui/UIModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/ui/src/main/java/ac/cwnu/synctune/ui/UIModule.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -148,7 +138,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="2200000" />
+      <workItem from="1748689268640" duration="2891000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -262,7 +252,39 @@
       <option name="project" value="LOCAL" />
       <updated>1748690485875</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="feat(core): Implement GlobalExceptionHandler and FatalErrorReporter for improved error handling">
+      <option name="closed" value="true" />
+      <created>1748691550210</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1748691550210</updated>
+    </task>
+    <task id="LOCAL-00016" summary="chore: Change log level from INFO to DEBUG for improved debugging">
+      <option name="closed" value="true" />
+      <created>1748691567188</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1748691567188</updated>
+    </task>
+    <task id="LOCAL-00017" summary="feat: Implement ModuleLifecycleListener in LyricsModule, PlayerModule, and UIModule for lifecycle management">
+      <option name="closed" value="true" />
+      <created>1748691585615</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1748691585615</updated>
+    </task>
+    <task id="LOCAL-00018" summary="docs: Update Design.md formatting">
+      <option name="closed" value="true" />
+      <created>1748691614358</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1748691614358</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -296,6 +318,9 @@
     <MESSAGE value="feat(sdk): Add Event, Model, Interfaces" />
     <MESSAGE value="refactor(core): Rename exception package and update import paths" />
     <MESSAGE value="feat(core): Implement GlobalExceptionHandler and FatalErrorReporter for improved error handling" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(core): Implement GlobalExceptionHandler and FatalErrorReporter for improved error handling" />
+    <MESSAGE value="chore: Change log level from INFO to DEBUG for improved debugging" />
+    <MESSAGE value="feat: Implement ModuleLifecycleListener in LyricsModule, PlayerModule, and UIModule for lifecycle management" />
+    <MESSAGE value="docs: Update Design.md formatting" />
+    <option name="LAST_COMMIT_MESSAGE" value="docs: Update Design.md formatting" />
   </component>
 </project>
