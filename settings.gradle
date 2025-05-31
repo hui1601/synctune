@@ -4,3 +4,4 @@ include 'player'
 include 'sdk'
 include 'lyrics'
 include 'ui'
+include 'stub' // Stub module for testing purposes

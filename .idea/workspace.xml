@@ -4,7 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Introduce EventPublisher interface and update modules for event handling" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events">
+      <change afterPath="$PROJECT_DIR$/stub/src/main/java/ac/cwnu/synctune/stub/StubModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/stub/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -28,9 +34,9 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
-        <option value="module-info" />
         <option value="AnnotationType" />
         <option value="Class" />
+        <option value="module-info" />
       </list>
     </option>
   </component>
@@ -62,28 +68,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Gradle.synctune [build run].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.synctune.executor&quot;: &quot;Run&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/data/projects/synctune/lyrics/src/main/java&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;onboarding.tips.debug.path&quot;: &quot;/data/projects/synctune/ui/src/main/java/ac/cwnu/Main.java&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;모듈&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
-    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.synctune [build run].executor": "Run",
+    "Gradle.synctune.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "master",
+    "last_opened_file_path": "/data/projects/synctune/lyrics/src/main/java",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "onboarding.tips.debug.path": "/data/projects/synctune/stub/src/main/java/ac/cwnu/Main.java",
+    "project.structure.last.edited": "모듈",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.0",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/lyrics/src/main/java" />
@@ -132,7 +138,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="8190000" />
+      <workItem from="1748689268640" duration="8971000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -342,7 +348,31 @@
       <option name="project" value="LOCAL" />
       <updated>1748734845458</updated>
     </task>
-    <option name="localTasksCounter" value="27" />
+    <task id="LOCAL-00027" summary="fix(core): Improve JVM ShutdownHook unregistration logic for better safety">
+      <option name="closed" value="true" />
+      <created>1748735126444</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1748735126444</updated>
+    </task>
+    <task id="LOCAL-00028" summary="docs: Enhance Design.md with detailed descriptions of event classes and module interfaces">
+      <option name="closed" value="true" />
+      <created>1748735318204</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1748735318204</updated>
+    </task>
+    <task id="LOCAL-00029" summary="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events">
+      <option name="closed" value="true" />
+      <created>1748735564295</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1748735564295</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -360,9 +390,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Integrate SLF4J logging framework and update CoreModule for enhanced logging" />
-    <MESSAGE value="chore: Reformat code" />
-    <MESSAGE value="fix(core): Remove experimental unnamed variables" />
     <MESSAGE value="docs: Add initial design document" />
     <MESSAGE value="feat(core): Implement EventLogger for centralized event logging" />
     <MESSAGE value="fix(sdk): Update dependencies and module-info for SLF4J integration" />
@@ -385,6 +412,9 @@
     <MESSAGE value="fix(core): Correct thread ID retrieval in uncaught exception logging" />
     <MESSAGE value="docs: Update Design.md to clarify event classes and module interface methods" />
     <MESSAGE value="feat(core): Introduce EventPublisher interface and update modules for event handling" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(core): Introduce EventPublisher interface and update modules for event handling" />
+    <MESSAGE value="fix(core): Improve JVM ShutdownHook unregistration logic for better safety" />
+    <MESSAGE value="docs: Enhance Design.md with detailed descriptions of event classes and module interfaces" />
+    <MESSAGE value="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events" />
   </component>
 </project>

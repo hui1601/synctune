@@ -19,6 +19,7 @@ dependencies {
     implementation project(':player')
     implementation project(':lyrics')
     implementation project(':ui')
+//    implementation project(':stub') // Include the stub module for testing purposes
     // for testing
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
