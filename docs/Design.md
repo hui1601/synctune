@@ -1,10 +1,9 @@
 ## 1. `sdk` Module
-
+담당: 동헌희
 * `ac.cwnu.synctune.sdk`
     * `annotation`
         * `Module.java`<br>모듈 식별용 어노테이션, Core가 스캔할 대상
         * `EventListener.java`<br>이벤트 리스너 메소드 지정용
-        * `ModuleStart.java`<br>모듈 초기화 메소드 지정용
     * `event`
         * `BaseEvent.java`<br>모든 이벤트의 부모 클래스
         * `ErrorEvent.java`
@@ -24,7 +23,7 @@
         * `ModuleLifecycleListener.java`<br>모듈 생명주기 이벤트를 받을 리스너 인터페이스
 
 ## 2. `core` Module
-
+담당: 동헌희
 * `ac.cwnu.synctune.core`
     * `CoreModule.java`<br>이 모듈의 진입점 및 메인 로직, `SyncTuneModule` 구현
     * `EventBus.java`<br>이벤트 발행 및 구독 관리
@@ -39,7 +38,7 @@
         * `EventLogger.java`<br>모든 주요 이벤트를 파일/콘솔에 로깅
 
 ## 3. `player` Module
-
+담당: 김민재
 * `ac.cwnu.synctune.player`
     * `PlayerModule.java`<br>`SyncTuneModule` 구현, 이벤트 리스너 등록
     * `playback`<br>음악 재생 핵심 로직
@@ -56,7 +55,7 @@
         * `FileDiscoveryReporter.java`<br>발견된 파일 정보를 `FileScanEvent`로 발행
 
 ## 4. `lyrics` Module
-
+담당: 김대영
 * `ac.cwnu.synctune.lyrics`
     * `LyricsModule.java`<br>`SyncTuneModule` 구현, 이벤트 리스너 등록
     * `parser`<br>가사 파일 파싱
@@ -70,7 +69,7 @@
         * `LyricsCache.java`<br>파싱된 LRC 파일 캐싱하여 재파싱 방지
 
 ## 5. `ui` Module
-
+담당: 임민수
 * `ac.cwnu.synctune.ui`<br>JavaFX, Swing 등 UI 프레임워크 사용<br>자유롭게 편한거 골라주세요
     * `UIModule.java`<br>`SyncTuneModule` 구현, UI 초기화 및 이벤트 리스너 등록
     * `view`<br>화면 구성 요소

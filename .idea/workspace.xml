@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="docs: Update Design.md formatting">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleScanner.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleScanner.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lyrics/src/main/java/ac/cwnu/synctune/lyrics/LyricsModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/lyrics/src/main/java/ac/cwnu/synctune/lyrics/LyricsModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/src/main/java/ac/cwnu/synctune/ui/UIModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/ui/src/main/java/ac/cwnu/synctune/ui/UIModule.java" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="refactor: Replace @ModuleStart annotation with @Module for improved module definition">
+      <change beforePath="$PROJECT_DIR$/docs/Design.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/Design.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -138,7 +134,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="2891000" />
+      <workItem from="1748689268640" duration="3090000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -284,7 +280,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748691614358</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="refactor: Replace @ModuleStart annotation with @Module for improved module definition">
+      <option name="closed" value="true" />
+      <created>1748692208550</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1748692208550</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -321,6 +325,7 @@
     <MESSAGE value="chore: Change log level from INFO to DEBUG for improved debugging" />
     <MESSAGE value="feat: Implement ModuleLifecycleListener in LyricsModule, PlayerModule, and UIModule for lifecycle management" />
     <MESSAGE value="docs: Update Design.md formatting" />
-    <option name="LAST_COMMIT_MESSAGE" value="docs: Update Design.md formatting" />
+    <MESSAGE value="refactor: Replace @ModuleStart annotation with @Module for improved module definition" />
+    <option name="LAST_COMMIT_MESSAGE" value="refactor: Replace @ModuleStart annotation with @Module for improved module definition" />
   </component>
 </project>
