@@ -29,7 +29,7 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-        log.error("UNCAUGHT EXCEPTION in thread \"{}\" [ID:{}]: {}", t.getName(), t.getId(), e.getMessage(), e);
+        log.error("UNCAUGHT EXCEPTION in thread \"{}\" [ID:{}]: {}", t.getName(), t.threadId(), e.getMessage(), e);
 
         // 특정 유형의 예외는 치명적인 오류로 간주하여 애플리케이션 종료
         if (isFatal(e)) {
