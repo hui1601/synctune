@@ -10,8 +10,10 @@ import org.slf4j.Logger;
  */
 public class EventLogger {
     private static final Logger log = LogManager.getLogger(EventLogger.class);
+
     /**
      * 이벤트를 로깅합니다.
+     *
      * @param event 로깅할 이벤트 객체
      */
     @EventListener
