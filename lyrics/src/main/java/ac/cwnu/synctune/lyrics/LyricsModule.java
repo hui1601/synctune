@@ -1,6 +1,7 @@
 package ac.cwnu.synctune.lyrics;
 
 import ac.cwnu.synctune.sdk.annotation.Module;
+import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
@@ -15,7 +16,8 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
     private static final Logger log = LogManager.getLogger(LyricsModule.class);
 
     @Override
-    public void start() {
+    public void start(EventPublisher publisher) {
+        super.eventPublisher = publisher;
         log.info("LyricsModule이 시작되었습니다.");
         // 여기에 가사 모듈 초기화 코드를 추가합니다.
     }

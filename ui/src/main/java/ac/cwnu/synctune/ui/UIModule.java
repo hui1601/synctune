@@ -1,6 +1,7 @@
 package ac.cwnu.synctune.ui;
 
 import ac.cwnu.synctune.sdk.annotation.Module;
+import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
@@ -15,7 +16,8 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     private final static Logger log = LogManager.getLogger(UIModule.class);
 
     @Override
-    public void start() {
+    public void start(EventPublisher publisher) {
+        super.eventPublisher = publisher;
         log.info("UIModule이 시작되었습니다.");
         // 여기에 UI 모듈 초기화 코드를 추가합니다.
     }

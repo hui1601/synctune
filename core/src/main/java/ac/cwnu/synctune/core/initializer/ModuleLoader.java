@@ -4,7 +4,9 @@ import ac.cwnu.synctune.core.EventBus;
 import ac.cwnu.synctune.core.error.ModuleInitializationException;
 import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.ErrorEvent;
+import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.log.LogManager;
+import ac.cwnu.synctune.sdk.model.ModuleInfo;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import org.slf4j.Logger;
@@ -51,7 +53,7 @@ public class ModuleLoader {
      * @throws ModuleInitializationException 모듈 초기화 중 치명적인 오류 발생 시
      */
 
-    public List<SyncTuneModule> loadAndStartModules(Set<Class<? extends SyncTuneModule>> moduleClasses) {
+    public List<SyncTuneModule> loadAndStartModules(Set<Class<? extends SyncTuneModule>> moduleClasses, EventPublisher eventPublisher) {
         List<SyncTuneModule> startedModules = new ArrayList<>();
         if (moduleClasses == null || moduleClasses.isEmpty()) {
             log.info("No external modules found to load and start.");
@@ -68,9 +70,7 @@ public class ModuleLoader {
                     ? moduleAnnotation.version()
                     : "N/A"; // 어노테이션 없거나 버전 비어있으면 "N/A"
 
-            ac.cwnu.synctune.sdk.model.ModuleInfo moduleInfo =
-                    new ac.cwnu.synctune.sdk.model.ModuleInfo(
-                            moduleNameFromAnnotation, moduleVersionFromAnnotation, moduleClass);
+            ModuleInfo moduleInfo = new ModuleInfo(moduleNameFromAnnotation, moduleVersionFromAnnotation, moduleClass);
 
             invokeBeforeModuleLoadListeners(moduleInfo);
             SyncTuneModule moduleInstance = null;
@@ -88,7 +88,7 @@ public class ModuleLoader {
 
                 log.info("Initializing and starting module: {}", moduleInstance.getModuleName());
                 eventBus.register(moduleInstance);
-                moduleInstance.start();
+                moduleInstance.start(eventPublisher);
                 startedModules.add(moduleInstance);
                 log.info("Successfully started and registered module: {}", moduleInstance.getModuleName());
 

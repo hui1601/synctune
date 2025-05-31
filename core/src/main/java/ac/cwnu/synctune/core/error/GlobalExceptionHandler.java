@@ -36,7 +36,7 @@ public class GlobalExceptionHandler implements Thread.UncaughtExceptionHandler {
             FatalErrorReporter.reportFatalError("Uncaught fatal exception in thread " + t.getName(), e);
         } else {
             // ErrorEvent를 생성하여 CoreModule에 게시
-            CoreModule.getInstance().publishEvent(new ErrorEvent("Uncaught non-fatal exception", e, false));
+            CoreModule.getInstance().publish(new ErrorEvent("Uncaught non-fatal exception", e, false));
         }
 
         if (previousDefaultHandler != null && previousDefaultHandler != this) {

@@ -6,8 +6,10 @@ import ac.cwnu.synctune.core.error.ModuleInitializationException;
 import ac.cwnu.synctune.core.initializer.ModuleLoader;
 import ac.cwnu.synctune.core.initializer.ModuleScanner;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
+import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.BaseEvent;
 import ac.cwnu.synctune.sdk.event.ErrorEvent;
+import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.SystemEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
@@ -19,8 +21,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-public class CoreModule extends SyncTuneModule implements ModuleLifecycleListener {
+@Module(name = "Core", version = "1.0.0")
+public class CoreModule extends SyncTuneModule implements ModuleLifecycleListener, EventPublisher {
     private static final Logger log = LogManager.getLogger(CoreModule.class);
     private static volatile CoreModule instance;
     private final EventBus eventBus;
@@ -72,7 +74,8 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
      */
     public static CoreModule getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("CoreModule has not been initialized. Call CoreModule.initialize(basePackage) first.");
+            log.warn("CoreModule.getInstance() called. Consider using injected EventPublisher for event publishing.");
+            throw new IllegalStateException("CoreModule has not been initialized. Call CoreModule.initialize() first.");
         }
         return instance;
     }
@@ -86,7 +89,7 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
         GlobalExceptionHandler.register();
         try {
             CoreModule core = CoreModule.initialize(basePackage);
-            core.start();
+            core.start(core);
         } catch (Exception e) {
             // CoreModule.initialize 또는 start() 에서 발생한 예외
             log.error("Critical failure during CoreModule bootstrap: {}. Application will exit.", e.getMessage(), e);
@@ -97,7 +100,13 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
 
 
     @Override
-    public void start() {
+    public void start(EventPublisher publisher) {
+        // 절대 일어나지 않아야 하는 상황. 발생하면 심각한 오류로 간주.
+        if (publisher == null) {
+            log.error("CoreModule received null EventPublisher on start. This should not happen.");
+            return;
+        }
+        this.eventPublisher = publisher;
         if (!running.compareAndSet(false, true)) {
             log.info("CoreModule is already running or starting.");
             return;
@@ -107,10 +116,10 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
 
         try {
             Set<Class<? extends SyncTuneModule>> moduleClasses = moduleScanner.scanForModules();
-            List<SyncTuneModule> startedModules = moduleLoader.loadAndStartModules(moduleClasses);
+            List<SyncTuneModule> startedModules = moduleLoader.loadAndStartModules(moduleClasses, this);
             registeredModules.addAll(startedModules);
 
-            publishEvent(new SystemEvent.ApplicationReadyEvent());
+            publish(new SystemEvent.ApplicationReadyEvent());
             log.debug("All discovered modules started. SyncTune application is ready.");
 
             registerShutdownHook();
@@ -118,11 +127,11 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
         } catch (ModuleInitializationException e) {
             String errMsg = "Fatal error during module initialization process. CoreModule startup aborted.";
             log.error(errMsg, e);
-            publishEvent(new ErrorEvent(errMsg, e.getCause() != null ? e.getCause() : e, true));
+            publish(new ErrorEvent(errMsg, e.getCause() != null ? e.getCause() : e, true));
         } catch (Exception e) {
             String errMsg = "Unexpected error during CoreModule startup. CoreModule startup aborted.";
             log.error(errMsg, e);
-            publishEvent(new ErrorEvent(errMsg, e, true));
+            publish(new ErrorEvent(errMsg, e, true));
         }
     }
 
@@ -178,7 +187,7 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
         }
 
         log.info("Stopping SyncTune Core Module...");
-        publishEvent(new SystemEvent.ApplicationShutdownEvent());
+        publish(new SystemEvent.ApplicationShutdownEvent());
 
         List<SyncTuneModule> reversedModules = new ArrayList<>(registeredModules);
         Collections.reverse(reversedModules);
@@ -194,10 +203,12 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
 
         running.set(false);
         shuttingDown.set(false);
+        super.stop();
         log.debug("SyncTune Core Module stopped successfully.");
     }
 
-    public void publishEvent(BaseEvent event) {
+    @Override
+    public void publish(BaseEvent event) {
         if (event == null) {
             log.warn("Cannot publish a null event.");
             return;

@@ -4,7 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="fix(core): Correct thread ID retrieval in uncaught exception logging" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="docs: Update Design.md to clarify event classes and module interface methods">
+      <change afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/EventPublisher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/error/GlobalExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/error/GlobalExceptionHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleLoader.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/initializer/ModuleLoader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lyrics/src/main/java/ac/cwnu/synctune/lyrics/LyricsModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/lyrics/src/main/java/ac/cwnu/synctune/lyrics/LyricsModule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/player/src/main/java/ac/cwnu/synctune/player/PlayerModule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/module/SyncTuneModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/module/SyncTuneModule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/src/main/java/ac/cwnu/synctune/ui/UIModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/ui/src/main/java/ac/cwnu/synctune/ui/UIModule.java" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -132,7 +142,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="5572000" />
+      <workItem from="1748689268640" duration="7887000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -326,7 +336,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748731320525</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="docs: Update Design.md to clarify event classes and module interface methods">
+      <option name="closed" value="true" />
+      <created>1748731903725</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1748731903725</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -344,7 +362,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Add initial project structure with core modules and event handling&#10;&#10;- Create .gitignore to exclude build artifacts and IDE files&#10;- Implement BaseEvent and various event classes for system and media control&#10;- Set up CoreModule for module initialization and event dispatching&#10;- Add EventBus for managing event listeners and asynchronous event handling&#10;- Define SyncTuneModule as a base class for all modules&#10;- Establish gradle build configuration and wrapper scripts" />
     <MESSAGE value="feat: Add initial module structure and event handling classes for SyncTune application" />
     <MESSAGE value="feat: Integrate SLF4J logging framework and update CoreModule for enhanced logging" />
     <MESSAGE value="chore: Reformat code" />
@@ -369,6 +386,7 @@
     <MESSAGE value="feat(core): Enhance module loading and unloading with annotation-based name and version retrieval" />
     <MESSAGE value="feat(sdk): Implement annotation-based module name retrieval in SyncTuneModule" />
     <MESSAGE value="fix(core): Correct thread ID retrieval in uncaught exception logging" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix(core): Correct thread ID retrieval in uncaught exception logging" />
+    <MESSAGE value="docs: Update Design.md to clarify event classes and module interface methods" />
+    <option name="LAST_COMMIT_MESSAGE" value="docs: Update Design.md to clarify event classes and module interface methods" />
   </component>
 </project>
