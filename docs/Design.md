@@ -1,5 +1,5 @@
 
-## 1. `sdk` Module (동헌희)
+## 1. `sdk` Module
 
 *   `ac.cwnu.synctune.sdk`
     *   **`annotation`**
