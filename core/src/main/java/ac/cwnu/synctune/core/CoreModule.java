@@ -5,6 +5,7 @@ import ac.cwnu.synctune.core.error.GlobalExceptionHandler;
 import ac.cwnu.synctune.core.error.ModuleInitializationException;
 import ac.cwnu.synctune.core.initializer.ModuleLoader;
 import ac.cwnu.synctune.core.initializer.ModuleScanner;
+import ac.cwnu.synctune.core.logging.EventLogger;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.BaseEvent;
@@ -118,6 +119,8 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
         try {
             Set<Class<? extends SyncTuneModule>> moduleClasses = moduleScanner.scanForModules();
             List<SyncTuneModule> startedModules = moduleLoader.loadAndStartModules(moduleClasses, this);
+            this.eventBus.register(new EventLogger());
+            log.debug("EventBus registered with EventLogger for detailed event logging.");
             registeredModules.addAll(startedModules);
 
             publish(new SystemEvent.ApplicationReadyEvent());

@@ -8,8 +8,10 @@ import org.slf4j.Logger;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
@@ -86,9 +88,18 @@ public class EventBus {
             log.warn("Cannot post a null event.");
             return;
         }
-        List<EventListenerMethod> eventListenerMethods = listeners.get(event.getClass());
-        if (eventListenerMethods != null) {
-            for (EventListenerMethod listenerMethod : eventListenerMethods) {
+        // 동일한 이벤트 타입의 리스너를 중복 호출하지 않도록 Set을 사용
+        Set<EventListenerMethod> uniqueListenersToInvoke = new HashSet<>();
+
+        listeners.forEach((registeredType, listenerMethods) -> {
+            // registeredType이 event.getClass()의 슈퍼클래스이거나 같은 클래스인 경우
+            if (registeredType.isAssignableFrom(event.getClass())) {
+                uniqueListenersToInvoke.addAll(listenerMethods);
+            }
+        });
+
+        if (!uniqueListenersToInvoke.isEmpty()) {
+            for (EventListenerMethod listenerMethod : uniqueListenersToInvoke) {
                 if (eventExecutor != null) { // Asynchronous event dispatch
                     eventExecutor.submit(() -> invokeListener(listenerMethod, event));
                 } else { // Synchronous event dispatch

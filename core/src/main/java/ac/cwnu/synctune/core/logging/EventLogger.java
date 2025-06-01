@@ -17,7 +17,7 @@ public class EventLogger {
      * @param event 로깅할 이벤트 객체
      */
     @EventListener
-    public static void baseEventListener(BaseEvent event) {
+    public void baseEventListener(BaseEvent event) {
         if (event == null) {
             log.warn("Received null event in EventLogger");
             return;
