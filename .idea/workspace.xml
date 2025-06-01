@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events">
-      <change afterPath="$PROJECT_DIR$/stub/src/main/java/ac/cwnu/synctune/stub/StubModule.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/stub/src/main/java/module-info.java" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(stub): Add StubModule for event handling and testing integration">
+      <change afterPath="$PROJECT_DIR$/docs/SDK.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -138,7 +135,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="8971000" />
+      <workItem from="1748689268640" duration="9975000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -372,7 +369,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748735564295</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="feat(stub): Add StubModule for event handling and testing integration">
+      <option name="closed" value="true" />
+      <created>1748735993939</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1748735993939</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -390,7 +395,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="docs: Add initial design document" />
     <MESSAGE value="feat(core): Implement EventLogger for centralized event logging" />
     <MESSAGE value="fix(sdk): Update dependencies and module-info for SLF4J integration" />
     <MESSAGE value="feat(player): Add Stub PlayerModule" />
@@ -415,6 +419,7 @@
     <MESSAGE value="fix(core): Improve JVM ShutdownHook unregistration logic for better safety" />
     <MESSAGE value="docs: Enhance Design.md with detailed descriptions of event classes and module interfaces" />
     <MESSAGE value="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events" />
+    <MESSAGE value="feat(stub): Add StubModule for event handling and testing integration" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(stub): Add StubModule for event handling and testing integration" />
   </component>
 </project>
