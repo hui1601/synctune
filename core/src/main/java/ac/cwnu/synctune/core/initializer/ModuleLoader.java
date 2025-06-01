@@ -95,11 +95,11 @@ public class ModuleLoader {
                 invokeAfterModuleStartListeners(moduleInstance);
 
             } catch (NoSuchMethodException e) {
-                handleModuleError(moduleClass, "must have a public no-arg constructor", e, true, moduleNameFromAnnotation);
+                handleModuleError(moduleClass, "must have a public no-arg constructor", e, false, moduleNameFromAnnotation);
             } catch (InvocationTargetException e) {
                 handleModuleError(moduleClass, "error during instantiation or start method invocation", e.getTargetException(), true, moduleNameFromAnnotation);
             } catch (InstantiationException | IllegalAccessException e) {
-                handleModuleError(moduleClass, "failed to instantiate (check constructor visibility or abstract class)", e, true, moduleNameFromAnnotation);
+                handleModuleError(moduleClass, "failed to instantiate (check constructor visibility or abstract class)", e, false, moduleNameFromAnnotation);
             } catch (Exception e) {
                 handleModuleError(moduleClass, "an unexpected error occurred during loading or starting", e, true, moduleNameFromAnnotation);
             }
