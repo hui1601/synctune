@@ -79,6 +79,14 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
             log.warn("CoreModule.getInstance() called. Consider using injected EventPublisher for event publishing.");
             throw new IllegalStateException("CoreModule has not been initialized. Call CoreModule.initialize() first.");
         }
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        if (stackTrace.length > 2) {
+            StackTraceElement caller = stackTrace[2];
+            if (!caller.getClassName().startsWith("ac.cwnu.synctune.core")) {
+                // CoreModule 외부에서 호출된 경우 경고 로그
+                log.warn("CoreModule.getInstance() called from {}. Consider using injected EventPublisher for event publishing.", caller);
+            }
+        }
         return instance;
     }
 

@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="docs: Add SDK guide with detailed descriptions of components, annotations, modules, events, and logging">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Integrate EventLogger for detailed event logging and prevent duplicate listener invocations">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/EventBus.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/logging/EventLogger.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/logging/EventLogger.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -138,7 +135,7 @@
       <workItem from="1748390938928" duration="5066000" />
       <workItem from="1748607831246" duration="7787000" />
       <workItem from="1748674262697" duration="7726000" />
-      <workItem from="1748689268640" duration="13115000" />
+      <workItem from="1748689268640" duration="15283000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -388,7 +385,15 @@
       <option name="project" value="LOCAL" />
       <updated>1748737057606</updated>
     </task>
-    <option name="localTasksCounter" value="32" />
+    <task id="LOCAL-00032" summary="feat(core): Integrate EventLogger for detailed event logging and prevent duplicate listener invocations">
+      <option name="closed" value="true" />
+      <created>1748749390393</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1748749390393</updated>
+    </task>
+    <option name="localTasksCounter" value="33" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -406,7 +411,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="fix(sdk): Update dependencies and module-info for SLF4J integration" />
     <MESSAGE value="feat(player): Add Stub PlayerModule" />
     <MESSAGE value="fix: Increase logger name length in logback configuration" />
     <MESSAGE value="docs: remove name" />
@@ -431,6 +435,7 @@
     <MESSAGE value="feat(player): Update event listeners for MainWindowClosed and MainWindowRestored events" />
     <MESSAGE value="feat(stub): Add StubModule for event handling and testing integration" />
     <MESSAGE value="docs: Add SDK guide with detailed descriptions of components, annotations, modules, events, and logging" />
-    <option name="LAST_COMMIT_MESSAGE" value="docs: Add SDK guide with detailed descriptions of components, annotations, modules, events, and logging" />
+    <MESSAGE value="feat(core): Integrate EventLogger for detailed event logging and prevent duplicate listener invocations" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(core): Integrate EventLogger for detailed event logging and prevent duplicate listener invocations" />
   </component>
 </project>
