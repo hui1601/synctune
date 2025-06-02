@@ -5,15 +5,15 @@ import ac.cwnu.synctune.sdk.log.LogManager;
 import org.slf4j.Logger;
 
 /**
- * 심각한(Fatal) 오류 발생 시 이를 처리하고 애플리케이션을 안전하게 종료하는 역할을 합니다.
+ * 심각한(Fatal) 오류 발생 시 이를 처리하고 애플리케이션을 안전하게 종료하는 역할
  */
 public class FatalErrorReporter {
     private static final Logger log = LogManager.getLogger(FatalErrorReporter.class);
     private static volatile boolean shutdownInProgress = false; // shutdown 중복 방지 플래그
 
     /**
-     * 심각한 오류를 보고하고 애플리케이션 종료를 시도합니다.
-     * 이 메서드는 동기화되어 여러 스레드에서 동시에 호출되어도 한 번만 종료 로직이 실행되도록 합니다.
+     * 심각한 오류를 보고하고 애플리케이션 종료를 시도
+     * 이 메서드는 동기화되어 여러 스레드에서 동시에 호출되어도 한 번만 종료 로직이 실행되도록
      *
      * @param message 오류 메시지
      * @param cause   오류의 원인이 된 Throwable

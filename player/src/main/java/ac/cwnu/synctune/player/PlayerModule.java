@@ -13,8 +13,8 @@ import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import org.slf4j.Logger;
 
 /**
- * PlayerModule은 SyncTune의 플레이어 기능을 구현합니다.
- * 이벤트 처리와 컴포넌트 조율을 담당하는 메인 모듈입니다.
+ * PlayerModule은 SyncTune의 플레이어 기능을 구현
+ * 이벤트 처리와 컴포넌트 조율을 담당하는 메인 모듈
  */
 @Module(name = "Player", version = "1.0.0")
 public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListener {
@@ -38,7 +38,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
     
     /**
-     * 플레이어 컴포넌트들을 초기화합니다
+     * 플레이어 컴포넌트들을 초기화
      */
     private void initializeComponents() {
         // 재생 상태 관리자 생성
@@ -67,7 +67,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
     
     /**
-     * 모든 컴포넌트를 안전하게 해제합니다
+     * 모든 컴포넌트를 안전하게 해제
      */
     private void disposeComponents() {
         try {
@@ -97,7 +97,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         }
     }
 
-    // ========== 미디어 제어 이벤트 리스너들 ==========
+    // ========== 미디어 제어 이벤트 리스너 ==========
     
     @EventListener
     public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
@@ -167,7 +167,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         }
     }
 
-    // ========== UI 이벤트 리스너들 ==========
+    // ========== UI 이벤트 리스너 ==========
     
     @EventListener
     public void onMainWindowClosed(PlayerUIEvent.MainWindowClosedEvent event) {
@@ -194,7 +194,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     // ========== 재생 처리 헬퍼 메서드들 ==========
     
     /**
-     * 새로운 음악을 재생합니다
+     * 새로운 음악을 재생
      */
     private void handlePlayNewMusic(MusicInfo music) {
         // 기존 재생 중단
@@ -212,7 +212,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
     
     /**
-     * 현재 음악을 재생/재개합니다
+     * 현재 음악을 재생/재개
      */
     private void handlePlayCurrentMusic() {
         boolean success = false;
@@ -235,42 +235,42 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     // ========== 상태 조회 메서드들 (외부 접근용) ==========
     
     /**
-     * 현재 재생 중인지 확인합니다
+     * 현재 재생 중인지 확인
      */
     public boolean isCurrentlyPlaying() {
         return playbackState != null && playbackState.isPlaying();
     }
     
     /**
-     * 현재 일시정지 중인지 확인합니다
+     * 현재 일시정지 중인지 확인
      */
     public boolean isCurrentlyPaused() {
         return playbackState != null && playbackState.isPaused();
     }
     
     /**
-     * 현재 재생 중인 음악 정보를 반환합니다
+     * 현재 재생 중인 음악 정보를 반환
      */
     public MusicInfo getCurrentMusic() {
         return playbackState != null ? playbackState.getCurrentMusic() : null;
     }
     
     /**
-     * 현재 재생 위치를 밀리초로 반환합니다
+     * 현재 재생 위치를 밀리초로 반환
      */
     public long getCurrentPositionMillis() {
         return audioEngine != null ? audioEngine.getCurrentPositionMillis() : 0;
     }
     
     /**
-     * 총 재생 시간을 밀리초로 반환합니다
+     * 총 재생 시간을 밀리초로 반환
      */
     public long getTotalDurationMillis() {
         return audioEngine != null ? audioEngine.getTotalDurationMillis() : 0;
     }
     
     /**
-     * 현재 재생 상태를 문자열로 반환합니다 (디버깅용)
+     * 현재 재생 상태를 문자열로 반환 (디버깅용)
      */
     public String getPlaybackStateDescription() {
         if (playbackState == null) {
@@ -282,28 +282,28 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     // ========== 컴포넌트 접근자 (테스트 또는 고급 사용자용) ==========
     
     /**
-     * PlaybackState 인스턴스를 반환합니다 (주로 테스트용)
+     * PlaybackState 인스턴스를 반환 (주로 테스트용)
      */
     protected PlaybackState getPlaybackState() {
         return playbackState;
     }
     
     /**
-     * AudioEngine 인스턴스를 반환합니다 (주로 테스트용)
+     * AudioEngine 인스턴스를 반환 (주로 테스트용)
      */
     protected AudioEngine getAudioEngine() {
         return audioEngine;
     }
     
     /**
-     * ProgressTracker 인스턴스를 반환합니다 (주로 테스트용)
+     * ProgressTracker 인스턴스를 반환 (주로 테스트용)
      */
     protected ProgressTracker getProgressTracker() {
         return progressTracker;
     }
     
     /**
-     * PlaybackMonitor 인스턴스를 반환합니다 (주로 테스트용)
+     * PlaybackMonitor 인스턴스를 반환 (주로 테스트용)
      */
     protected PlaybackMonitor getPlaybackMonitor() {
         return playbackMonitor;

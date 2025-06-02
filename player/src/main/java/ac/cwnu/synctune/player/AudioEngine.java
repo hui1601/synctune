@@ -30,7 +30,7 @@ public class AudioEngine {
     }
     
     /**
-     * 음악 파일을 로드하고 재생을 시작합니다
+     * 음악 파일을 로드하고 재생을 시작
      */
     public boolean loadAndPlay(MusicInfo music) {
         try {
@@ -95,7 +95,7 @@ public class AudioEngine {
     }
     
     /**
-     * 현재 로드된 음악의 재생을 시작합니다
+     * 현재 로드된 음악의 재생을 시작
      */
     public boolean start() {
         if (audioClip == null) {
@@ -123,7 +123,7 @@ public class AudioEngine {
     }
     
     /**
-     * 재생을 일시정지합니다
+     * 재생을 일시정지
      */
     public boolean pause() {
         if (audioClip == null || !playbackState.isPlaying()) {
@@ -150,7 +150,7 @@ public class AudioEngine {
     }
     
     /**
-     * 일시정지된 재생을 재개합니다
+     * 일시정지된 재생을 재개
      */
     public boolean resume() {
         if (audioClip == null || !playbackState.isPaused()) {
@@ -177,7 +177,7 @@ public class AudioEngine {
     }
     
     /**
-     * 재생을 완전히 정지하고 리소스를 해제합니다
+     * 재생을 완전히 정지하고 리소스를 해제
      */
     public boolean stop() {
         if (audioClip == null) {
@@ -209,7 +209,7 @@ public class AudioEngine {
     }
     
     /**
-     * 특정 위치로 탐색합니다
+     * 특정 위치로 탐색
      */
     public boolean seekTo(long positionMillis) {
         if (audioClip == null) {
@@ -246,7 +246,7 @@ public class AudioEngine {
     }
     
     /**
-     * 현재 재생 위치를 밀리초로 반환합니다
+     * 현재 재생 위치를 밀리초로 반환
      */
     public long getCurrentPositionMillis() {
         if (audioClip == null) {
@@ -264,7 +264,7 @@ public class AudioEngine {
     }
     
     /**
-     * 총 재생 시간을 밀리초로 반환합니다
+     * 총 재생 시간을 밀리초로 반환
      */
     public long getTotalDurationMillis() {
         if (audioClip == null) {
@@ -284,14 +284,14 @@ public class AudioEngine {
     }
     
     /**
-     * 오디오 클립이 현재 실행 중인지 확인합니다
+     * 오디오 클립이 현재 실행 중인지 확인합
      */
     public boolean isAudioClipRunning() {
         return audioClip != null && audioClip.isRunning();
     }
     
     /**
-     * 리소스를 안전하게 해제합니다
+     * 리소스를 안전하게 해제
      */
     public void dispose() {
         stop();

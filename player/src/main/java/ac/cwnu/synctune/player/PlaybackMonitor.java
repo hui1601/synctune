@@ -32,7 +32,7 @@ public class PlaybackMonitor {
     }
     
     /**
-     * 재생 완료 모니터링을 시작합니다
+     * 재생 완료 모니터링을 시작
      */
     public void startMonitoring() {
         if (shouldMonitor.get()) {
@@ -50,7 +50,7 @@ public class PlaybackMonitor {
     }
     
     /**
-     * 재생 완료 모니터링을 중지합니다
+     * 재생 완료 모니터링을 중지
      */
     public void stopMonitoring() {
         if (!shouldMonitor.get()) {
@@ -105,7 +105,7 @@ public class PlaybackMonitor {
     }
     
     /**
-     * 재생 완료를 처리합니다
+     * 재생 완료를 처리
      */
     private void handlePlaybackCompleted() {
         MusicInfo completedMusic = playbackState.getCurrentMusic();
@@ -124,7 +124,7 @@ public class PlaybackMonitor {
     }
     
     /**
-     * 강제로 재생 완료를 트리거합니다 (테스트 또는 특수 상황용)
+     * 강제로 재생 완료를 트리거 (테스트 또는 특수 상황용)
      */
     public void forceCompletion() {
         if (playbackState.getCurrentMusic() != null) {
@@ -133,7 +133,7 @@ public class PlaybackMonitor {
     }
     
     /**
-     * 현재 모니터링 중인지 확인합니다
+     * 현재 모니터링 중인지 확인
      */
     public boolean isMonitoring() {
         return shouldMonitor.get();

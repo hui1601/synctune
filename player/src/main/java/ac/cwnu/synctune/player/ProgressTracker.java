@@ -34,7 +34,7 @@ public class ProgressTracker {
     }
     
     /**
-     * 진행 상황 추적을 시작합니다
+     * 진행 상황 추적을 시작
      */
     public void startTracking() {
         if (isTracking.get()) {
@@ -58,7 +58,7 @@ public class ProgressTracker {
     }
     
     /**
-     * 진행 상황 추적을 중지합니다
+     * 진행 상황 추적을 중지
      */
     public void stopTracking() {
         if (!isTracking.get()) {
@@ -70,7 +70,7 @@ public class ProgressTracker {
     }
     
     /**
-     * 진행 상황을 업데이트하고 이벤트를 발행합니다
+     * 진행 상황을 업데이트하고 이벤트를 발행
      */
     private void updateProgress() {
         try {
@@ -95,7 +95,7 @@ public class ProgressTracker {
     }
     
     /**
-     * 즉시 현재 진행 상황을 업데이트합니다
+     * 즉시 현재 진행 상황을 업데이트
      */
     public void forceUpdate() {
         if (playbackState.getCurrentMusic() != null) {
@@ -104,7 +104,7 @@ public class ProgressTracker {
     }
     
     /**
-     * 리소스를 해제하고 스케줄러를 종료합니다
+     * 리소스를 해제하고 스케줄러를 종료
      */
     public void dispose() {
         stopTracking();
@@ -127,14 +127,14 @@ public class ProgressTracker {
     }
     
     /**
-     * 현재 추적 중인지 확인합니다
+     * 현재 추적 중인지 확인
      */
     public boolean isTracking() {
         return isTracking.get();
     }
     
     /**
-     * 업데이트 간격을 반환합니다 (밀리초)
+     * 업데이트 간격을 반환 (밀리초)
      */
     public long getUpdateInterval() {
         return UPDATE_INTERVAL_MS;
