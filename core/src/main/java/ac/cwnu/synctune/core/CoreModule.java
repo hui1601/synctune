@@ -70,21 +70,27 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
 
     /**
      * 이미 초기화된 CoreModule 인스턴스를 반환합니다.
+     * core 모듈의 외부에서 호출하는 것은 금지되어 있습니다.
      *
      * @return CoreModule 인스턴스
      * @throws IllegalStateException CoreModule이 아직 초기화되지 않은 경우
+     * @throws IllegalStateException CoreModule의 외부에서 호출된 경우
      */
     public static CoreModule getInstance() {
         if (instance == null) {
             log.warn("CoreModule.getInstance() called. Consider using injected EventPublisher for event publishing.");
             throw new IllegalStateException("CoreModule has not been initialized. Call CoreModule.initialize() first.");
         }
+        // 반드시 내부에서 사용하는 경우에만 호출되도록 강제하기 위한 검사.
+        // 성능 저하가 있을 수 있으나, 외부에서 호출하는 경우가 없어야 하기 때문에 tradeoff임.
+        // DI framework를 사용할 수 있겠지만 여기서만 쓰는데 굳이 그렇게 하기에는 복잡도가 높아서 배제함.
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         if (stackTrace.length > 2) {
             StackTraceElement caller = stackTrace[2];
             if (!caller.getClassName().startsWith("ac.cwnu.synctune.core")) {
                 // CoreModule 외부에서 호출된 경우 경고 로그
                 log.warn("CoreModule.getInstance() called from {}. Consider using injected EventPublisher for event publishing.", caller);
+                throw new IllegalStateException("CoreModule.getInstance() should only be called from within CoreModule or its modules. Use injected EventPublisher instead.");
             }
         }
         return instance;
