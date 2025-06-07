@@ -25,16 +25,12 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
 
         playbackTimeReceiver = new PlaybackTimeReceiver();
 
-        publisher.register(playbackTimeReceiver);
     }
 
     @Override
     public void stop() {
         log.info("LyricsModule이 종료되었습니다.");
         
-        if(playbackTimeReceiver != null){
-            eventPublisher.unregister(playbackTimeReceiver);
-        }
     }
 
     @Override

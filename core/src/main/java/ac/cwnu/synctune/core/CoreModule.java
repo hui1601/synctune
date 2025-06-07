@@ -245,24 +245,6 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
         }
     }
 
-    @Override
-    public void register(Object listener){
-        if(eventBus != null){
-            eventBus.register(listener);
-        } else {
-            log.warn("EventBus is null. Cannot register listener: {}", listener);
-        }
-    }
-
-    @Override
-    public void unregister(Object listener){
-        if(eventBus != null){
-            eventBus.unregister(listener);
-        } else {
-            log.warn("EventBus is null. Cannot unregister listener: {}", listener);
-        }
-    }
-
     @EventListener
     public void onErrorOccurred(ErrorEvent event) {
         // 이 리스너는 CoreModule이 EventBus에 등록되어 있을 때만 호출됨
