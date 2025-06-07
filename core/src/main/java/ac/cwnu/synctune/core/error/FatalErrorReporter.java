@@ -30,7 +30,7 @@ public class FatalErrorReporter {
 
         try {
             // CoreModule 인스턴스를 가져와서 종료 시도
-            CoreModule coreModule = CoreModule.getInstance();
+            CoreModule coreModule = CoreModule.getInternalInstance();
             if (coreModule != null && coreModule.isRunning()) {
                 log.debug("Attempting to gracefully stop CoreModule...");
                 // 별도 스레드에서 CoreModule.stop()을 호출하여 Deadlock 방지
