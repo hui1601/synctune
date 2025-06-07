@@ -12,15 +12,17 @@ repositories {
 dependencies {
     implementation project(':sdk')
 
-    // JavaFX dependencies (필요한 모듈만 추가)
     def javafxVersion = '21.0.1'
     def osName = org.gradle.internal.os.OperatingSystem.current()
 
-    def platform = {
-        if (osName.isWindows()) return 'win'
-        if (osName.isMacOsX()) return 'mac'
-        if (osName.isLinux()) return 'linux'
-    }()
+    def platform = ''
+    if (osName.isWindows()) {
+        platform = 'win'
+    } else if (osName.isMacOsX()) {
+        platform = 'mac'
+    } else if (osName.isLinux()) {
+        platform = 'linux'
+    }
 
     ['base', 'graphics', 'controls', 'fxml'].each { mod ->
         implementation "org.openjfx:javafx-${mod}:${javafxVersion}:${platform}"
@@ -31,12 +33,12 @@ dependencies {
 }
 
 application {
-    mainClass = 'ac.cwnu.synctune.ui.MainApplication' // 아래에서 정의할 진입점
+    mainClass = 'ac.cwnu.synctune.ui.MainApplication'
 }
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21) // Java 21 이상 사용해야 JavaFX 21 호환됨
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
