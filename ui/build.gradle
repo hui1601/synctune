@@ -15,20 +15,20 @@ dependencies {
     def javafxVersion = '21.0.1'
     def osName = org.gradle.internal.os.OperatingSystem.current()
 
-    def platform = ''
+    def javafxPlatform = ''
     if (osName.isWindows()) {
-        platform = 'win'
+        javafxPlatform = 'win'
     } else if (osName.isMacOsX()) {
-        platform = 'mac'
+        javafxPlatform = 'mac'
     } else if (osName.isLinux()) {
-        platform = 'linux'
+        javafxPlatform = 'linux'
     }
 
     ['base', 'graphics', 'controls', 'fxml'].each { mod ->
-        implementation "org.openjfx:javafx-${mod}:${javafxVersion}:${platform}"
+        implementation "org.openjfx:javafx-${mod}:${javafxVersion}:${javafxPlatform}"
     }
 
-    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation platform('org.junit:junit-bom:5.10.0') // 이제 오류 없음
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
