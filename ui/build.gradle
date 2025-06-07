@@ -1,18 +1,43 @@
 plugins {
-    id 'java-library'
+    id 'application'
 }
 
-group = 'ac.cwnu'
-version = '1.0-SNAPSHOT'
+group = 'ac.cwnu.synctune'
+version = '1.0.0'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    api project(':sdk')
+    implementation project(':sdk')
+
+    // JavaFX dependencies (필요한 모듈만 추가)
+    def javafxVersion = '21.0.1'
+    def osName = org.gradle.internal.os.OperatingSystem.current()
+
+    def platform = {
+        if (osName.isWindows()) return 'win'
+        if (osName.isMacOsX()) return 'mac'
+        if (osName.isLinux()) return 'linux'
+    }()
+
+    ['base', 'graphics', 'controls', 'fxml'].each { mod ->
+        implementation "org.openjfx:javafx-${mod}:${javafxVersion}:${platform}"
+    }
+
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+application {
+    mainClass = 'ac.cwnu.synctune.ui.MainApplication' // 아래에서 정의할 진입점
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21) // Java 21 이상 사용해야 JavaFX 21 호환됨
+    }
 }
 
 test {
