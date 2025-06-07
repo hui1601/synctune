@@ -42,9 +42,9 @@ public class FatalErrorReporter {
                         log.error("Exception during graceful shutdown of CoreModule after fatal error.", e);
                     } finally {
                         log.error("Exiting application (System.exit(1)) after attempting graceful shutdown.");
-                        // 강제 종료
-                        System.exit(1);
                     }
+                    // 강제 종료
+                    System.exit(1);
                 }, "FatalError-GracefulShutdownThread");
                 shutdownThread.start();
                 try {
