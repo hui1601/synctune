@@ -31,7 +31,10 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
     @Override
     public void stop() {
         log.info("LyricsModule이 종료되었습니다.");
-        // 여기에 가사 모듈 정리 코드를 추가합니다.
+        
+        if(playbackTimeReceiver != null){
+            eventPublisher.unregister(playbackTimeReceiver);
+        }
     }
 
     @Override
