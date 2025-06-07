@@ -1,3 +1,3 @@
 module synctune.stub.main {
-    requires synctune.sdk.main;
+    requires transitive synctune.sdk.main;
 }

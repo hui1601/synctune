@@ -1,3 +1,3 @@
 module synctune.lyrics.main {
-    requires synctune.sdk.main;
+    requires transitive synctune.sdk.main;
 }

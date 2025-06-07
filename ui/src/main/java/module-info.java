@@ -3,7 +3,7 @@ module ac.cwnu.synctune.ui {
     requires javafx.controls;
 
     // SyncTune SDK for EventPublisher, annotations, logging
-    requires ac.cwnu.synctune.sdk;
+    requires transitive synctune.sdk.main;
 
     // Export UI packages
     exports ac.cwnu.synctune.ui;

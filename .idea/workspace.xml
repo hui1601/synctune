@@ -6,6 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="revert(core): Revert modified FatalErrorReporter due to aeefc20 commit">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lyrics/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/lyrics/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/player/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/player/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/stub/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/stub/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/ui/src/main/java/module-info.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -138,6 +142,7 @@
       <workItem from="1748843907508" duration="35000" />
       <workItem from="1748845828212" duration="4729000" />
       <workItem from="1749285205401" duration="994000" />
+      <workItem from="1749315383539" duration="978000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
