@@ -2,8 +2,8 @@ plugins {
     id 'application'
 }
 
-group = 'ac.cwnu.synctune'
-version = '1.0.0'
+group = 'ac.cwnu'
+version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
@@ -30,10 +30,6 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:5.10.0') // 이제 오류 없음
     testImplementation 'org.junit.jupiter:junit-jupiter'
-}
-
-application {
-    mainClass = 'ac.cwnu.synctune.ui.MainApplication'
 }
 
 java {

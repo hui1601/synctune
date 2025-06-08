@@ -1,4 +1,4 @@
-module ac.cwnu.synctune.ui {
+module synctune.ui.main {
     // JavaFX modules
     requires javafx.controls;
 
