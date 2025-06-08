@@ -184,6 +184,7 @@ SDK는 다음과 같은 주요 구성 요소로 이루어져 있습니다:
 *   **`SystemEvent`**: 시스템 수준 이벤트.
     *   `ApplicationReadyEvent()`: 모든 모듈 로드 및 시작 완료.
     *   `ApplicationShutdownEvent()`: 애플리케이션 종료 시작.
+    *   `RequestApplicationShutdownEvent()`: 애플리케이션 종료 요청. Core 모듈이 이를 수신하고 안전하게 종료를 시도합니다.
 
 #### 4.4. 이벤트 발행 및 구독 방법
 

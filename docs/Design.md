@@ -49,6 +49,7 @@
         * `SystemEvent.java`<br>시스템 레벨 이벤트 네임스페이스 (예: 애플리케이션 시작, 종료).
             * `ApplicationReadyEvent`<br>애플리케이션 준비 완료 (모든 모듈 로드 및 시작 완료) 알림.
             * `ApplicationShutdownEvent`<br>애플리케이션 종료 시작/진행 알림.
+            * `RequestApplicationShutdownEvent`<br>애플리케이션 종료 요청 이벤트. 해당 이벤트를 발행하면 core 모듈이 이를 수신하고 안전하게 종료를 시도합니다.
     * `log`
         * `LogManager.java`<br>SLF4J Logger 인스턴스를 생성하고 관리하는 유틸리티 클래스.
     * `model`

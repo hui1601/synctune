@@ -13,4 +13,6 @@ public class SystemEvent {
 
     public static class ApplicationShutdownEvent extends BaseEvent {
     } // 종료 요청 또는 진행
+    public static class RequestApplicationShutdownEvent extends BaseEvent {
+    } // 종료 요청 이벤트, 예: 사용자가 앱을 종료하려고 할 때
 }
