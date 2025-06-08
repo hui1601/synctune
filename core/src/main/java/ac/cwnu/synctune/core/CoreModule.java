@@ -233,6 +233,18 @@ public class CoreModule extends SyncTuneModule implements ModuleLifecycleListene
         }
     }
 
+
+    @EventListener
+    public void onRequestShutdown(SystemEvent.RequestApplicationShutdownEvent event) {
+        // 지금은 바로 stop()을 호출하지만, 과연 바로 종료될지 고민해볼 필요가 있을 듯…
+        log.info("[CoreModule-RequestShutdownListener] RequestApplicationShutdownEvent received. Initiating shutdown...");
+        if (running.get() && !shuttingDown.get()) {
+            stop();
+        } else {
+            log.warn("CoreModule is not running or already shutting down. Ignoring RequestApplicationShutdownEvent.");
+        }
+    }
+
     @EventListener
     public void onErrorOccurred(ErrorEvent event) {
         // 이 리스너는 CoreModule이 EventBus에 등록되어 있을 때만 호출됨

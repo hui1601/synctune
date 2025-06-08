@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="fix(core): Adjust placement of System.exit(1) in FatalErrorReporter for clarity">
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/Design.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/Design.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/SDK.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/SDK.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/SystemEvent.java" beforeDir="false" afterPath="$PROJECT_DIR$/sdk/src/main/java/ac/cwnu/synctune/sdk/event/SystemEvent.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -146,7 +144,7 @@
       <workItem from="1749315383539" duration="1269000" />
       <workItem from="1749317241360" duration="85000" />
       <workItem from="1749317337640" duration="627000" />
-      <workItem from="1749345726912" duration="1612000" />
+      <workItem from="1749345726912" duration="2250000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -460,7 +458,15 @@
       <option name="project" value="LOCAL" />
       <updated>1749316637039</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests">
+      <option name="closed" value="true" />
+      <created>1749347347365</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1749347347365</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -478,7 +484,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="chore: Change log level from INFO to DEBUG for improved debugging" />
     <MESSAGE value="feat: Implement ModuleLifecycleListener in LyricsModule, PlayerModule, and UIModule for lifecycle management" />
     <MESSAGE value="docs: Update Design.md formatting" />
     <MESSAGE value="refactor: Replace @ModuleStart annotation with @Module for improved module definition" />
@@ -503,6 +508,7 @@
     <MESSAGE value="fix: Change requires to transitive for synctune.sdk.main" />
     <MESSAGE value="refactor(core): Rename getInstance() to getInternalInstance() for clarity" />
     <MESSAGE value="fix(core): Adjust placement of System.exit(1) in FatalErrorReporter for clarity" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix(core): Adjust placement of System.exit(1) in FatalErrorReporter for clarity" />
+    <MESSAGE value="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests" />
   </component>
 </project>
