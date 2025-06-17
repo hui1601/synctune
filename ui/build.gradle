@@ -1,5 +1,5 @@
 plugins {
-    id 'application'
+    id 'java-library'
 }
 
 group = 'ac.cwnu'
@@ -10,8 +10,10 @@ repositories {
 }
 
 dependencies {
-    implementation project(':sdk')
-
+    // SyncTune SDK
+    api project(':sdk')
+    
+    // JavaFX 의존성
     def javafxVersion = '21.0.1'
     def osName = org.gradle.internal.os.OperatingSystem.current()
 
@@ -27,8 +29,9 @@ dependencies {
     ['base', 'graphics', 'controls', 'fxml'].each { mod ->
         implementation "org.openjfx:javafx-${mod}:${javafxVersion}:${javafxPlatform}"
     }
-
-    testImplementation platform('org.junit:junit-bom:5.10.0') // 이제 오류 없음
+    
+    // 테스트 의존성
+    testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
@@ -40,4 +43,13 @@ java {
 
 test {
     useJUnitPlatform()
+}
+
+// JavaFX 모듈 패스 설정
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ['--module-path', configurations.runtimeClasspath.asPath]
+}
+
+tasks.withType(Test) {
+    jvmArgs += ['--module-path', configurations.testRuntimeClasspath.asPath]
 }
