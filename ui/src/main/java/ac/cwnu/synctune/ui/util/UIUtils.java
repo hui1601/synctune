@@ -1,12 +1,12 @@
 package ac.cwnu.synctune.ui.util;
 
+import java.io.File;
+import java.util.List;
+
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-
-import java.io.File;
-import java.util.List;
 
 public class UIUtils {
     

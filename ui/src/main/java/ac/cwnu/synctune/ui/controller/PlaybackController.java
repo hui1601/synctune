@@ -1,13 +1,12 @@
 package ac.cwnu.synctune.ui.controller;
 
+import org.slf4j.Logger;
+
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.ui.view.PlayerControlsView;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.scene.control.Slider;
-import org.slf4j.Logger;
 
 public class PlaybackController {
     private static final Logger log = LogManager.getLogger(PlaybackController.class);
