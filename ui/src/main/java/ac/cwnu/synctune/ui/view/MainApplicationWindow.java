@@ -2,11 +2,13 @@ package ac.cwnu.synctune.ui.view;
 
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
-import ac.cwnu.synctune.ui.controller.*;
+import ac.cwnu.synctune.ui.controller.PlaybackController;
+import ac.cwnu.synctune.ui.controller.PlaylistActionHandler;
+import ac.cwnu.synctune.ui.controller.WindowStateManager;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.MenuBar;
 import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
@@ -60,7 +62,16 @@ public class MainApplicationWindow extends Stage {
         BorderPane.setMargin(lyricsView, new Insets(10));
         
         Scene scene = new Scene(root);
-        scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
+        
+        // CSS 파일 로드 (안전하게 처리)
+        try {
+            String cssFile = getClass().getResource("/styles.css").toExternalForm();
+            scene.getStylesheets().add(cssFile);
+        } catch (Exception e) {
+            // CSS 파일이 없어도 애플리케이션은 계속 실행
+            System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
+        }
+        
         setScene(scene);
     }
 

@@ -1,17 +1,19 @@
 package ac.cwnu.synctune.ui;
 
+import org.slf4j.Logger;
+
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.Module;
-import ac.cwnu.synctune.sdk.event.*;
+import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.LyricsEvent;
+import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
-import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import ac.cwnu.synctune.ui.view.MainApplicationWindow;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
-import org.slf4j.Logger;
 
 @Module(name = "UI", version = "1.0.0")
 public class UIModule extends SyncTuneModule implements ModuleLifecycleListener {
@@ -26,26 +28,26 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
         instance = this;
         log.info("UIModule이 시작되었습니다.");
 
-        // JavaFX 플랫폼이 이미 실행 중인지 확인
-        if (Platform.isFxApplicationThread()) {
-            initializeUI();
-        } else {
-            // JavaFX 애플리케이션을 별도 스레드에서 시작
-            Thread javafxThread = new Thread(() -> {
-                try {
+        // JavaFX 플랫폼 초기화를 별도 스레드에서 수행
+        Thread javafxThread = new Thread(() -> {
+            try {
+                // JavaFX 플랫폼이 이미 실행 중인지 확인
+                if (!Platform.isFxApplicationThread()) {
+                    // JavaFX 애플리케이션 시작
                     System.setProperty("javafx.platform.exitOnClose", "false");
                     Application.launch(JavaFXApp.class);
-                } catch (IllegalStateException e) {
-                    // 이미 JavaFX가 시작된 경우
-                    log.warn("JavaFX가 이미 시작되었습니다. Platform.runLater로 UI 초기화를 시도합니다.");
-                    Platform.runLater(this::initializeUI);
-                } catch (Exception e) {
-                    log.error("JavaFX 애플리케이션 시작 중 오류", e);
                 }
-            });
-            javafxThread.setDaemon(false);
-            javafxThread.start();
-        }
+            } catch (IllegalStateException e) {
+                // 이미 JavaFX가 시작된 경우
+                log.info("JavaFX가 이미 시작되었습니다. Platform.runLater로 UI 초기화를 시도합니다.");
+                Platform.runLater(this::initializeUI);
+            } catch (Exception e) {
+                log.error("JavaFX 애플리케이션 시작 중 오류", e);
+            }
+        });
+        javafxThread.setName("JavaFX-Init-Thread");
+        javafxThread.setDaemon(false); // 메인 스레드가 종료되어도 UI가 유지되도록
+        javafxThread.start();
     }
 
     private void initializeUI() {
@@ -64,11 +66,18 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     @Override
     public void stop() {
         log.info("UIModule이 종료됩니다.");
-        Platform.runLater(() -> {
+        if (Platform.isFxApplicationThread()) {
             if (mainWindow != null) {
                 mainWindow.close();
             }
-        });
+        } else {
+            Platform.runLater(() -> {
+                if (mainWindow != null) {
+                    mainWindow.close();
+                }
+                Platform.exit();
+            });
+        }
     }
 
     // 이벤트 리스너들

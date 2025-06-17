@@ -1,5 +1,7 @@
 plugins {
     id 'java-library'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'ac.cwnu'
@@ -13,26 +15,24 @@ dependencies {
     // SyncTune SDK
     api project(':sdk')
     
-    // JavaFX 의존성
-    def javafxVersion = '21.0.1'
-    def osName = org.gradle.internal.os.OperatingSystem.current()
-
-    def javafxPlatform = ''
-    if (osName.isWindows()) {
-        javafxPlatform = 'win'
-    } else if (osName.isMacOsX()) {
-        javafxPlatform = 'mac'
-    } else if (osName.isLinux()) {
-        javafxPlatform = 'linux'
-    }
-
-    ['base', 'graphics', 'controls', 'fxml'].each { mod ->
-        implementation "org.openjfx:javafx-${mod}:${javafxVersion}:${javafxPlatform}"
-    }
-    
     // 테스트 의존성
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+// JavaFX 설정
+javafx {
+    version = '21.0.1'
+    modules = ['javafx.controls', 'javafx.fxml']
+}
+
+// Application 설정
+application {
+    mainClass = 'ac.cwnu.synctune.ui.UIModule'
+    // JavaFX 실행을 위한 JVM 인수 추가
+    applicationDefaultJvmArgs = [
+        '--add-opens', 'javafx.graphics/com.sun.javafx.application=ALL-UNNAMED'
+    ]
 }
 
 java {
@@ -43,13 +43,4 @@ java {
 
 test {
     useJUnitPlatform()
-}
-
-// JavaFX 모듈 패스 설정
-tasks.withType(JavaCompile) {
-    options.compilerArgs += ['--module-path', configurations.runtimeClasspath.asPath]
-}
-
-tasks.withType(Test) {
-    jvmArgs += ['--module-path', configurations.testRuntimeClasspath.asPath]
 }
