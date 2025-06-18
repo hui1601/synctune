@@ -1,18 +1,18 @@
 package ac.cwnu.synctune.ui.controller;
 
+import java.util.Optional;
+
+import org.slf4j.Logger;
+
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.PlaylistEvent;
-import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
-import ac.cwnu.synctune.sdk.model.Playlist;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
+import ac.cwnu.synctune.sdk.model.Playlist;
 import ac.cwnu.synctune.ui.view.PlaylistView;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import org.slf4j.Logger;
-
-import java.util.Optional;
 
 public class PlaylistActionHandler {
     private static final Logger log = LogManager.getLogger(PlaylistActionHandler.class);
@@ -36,8 +36,8 @@ public class PlaylistActionHandler {
                 Playlist playlist = new Playlist(name);
                 publisher.publish(new PlaylistEvent.PlaylistCreatedEvent(playlist));
                 
-                // 입력 필드 초기화
-                Platform.runLater(() -> view.getPlaylistNameInput());
+                // 입력 필드 초기화 - 수정된 부분
+                Platform.runLater(() -> view.clearPlaylistNameInput());
             } else {
                 showAlert("오류", "플레이리스트 이름을 입력해주세요.", Alert.AlertType.WARNING);
             }

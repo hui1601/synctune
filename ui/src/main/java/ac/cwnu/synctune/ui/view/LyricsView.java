@@ -10,26 +10,27 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 public class LyricsView extends VBox {
-    private final MarqueeLabel currentLyricsLabel;
+    // 필드를 선언과 동시에 초기화
+    private final MarqueeLabel currentLyricsLabel = new MarqueeLabel("가사가 없습니다");
+    private final VBox lyricsContainer = new VBox(5);
     private final ScrollPane lyricsScrollPane;
-    private final VBox lyricsContainer;
 
     public LyricsView() {
+        // ScrollPane은 lyricsContainer가 필요하므로 생성자에서 초기화
+        lyricsScrollPane = new ScrollPane(lyricsContainer);
         initializeComponents();
         layoutComponents();
     }
 
     private void initializeComponents() {
-        // 현재 가사 표시 (스크롤 효과)
-        currentLyricsLabel = new MarqueeLabel("가사가 없습니다");
+        // 현재 가사 표시 설정
         currentLyricsLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
 
-        // 전체 가사 표시용 컨테이너
-        lyricsContainer = new VBox(5);
+        // 전체 가사 표시용 컨테이너 설정
         lyricsContainer.setAlignment(Pos.TOP_CENTER);
         lyricsContainer.setPadding(new Insets(10));
 
-        lyricsScrollPane = new ScrollPane(lyricsContainer);
+        // ScrollPane 설정
         lyricsScrollPane.setFitToWidth(true);
         lyricsScrollPane.setPrefHeight(400);
     }

@@ -4,18 +4,22 @@ import ac.cwnu.synctune.ui.component.StyledButton;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.Separator;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 public class PlaylistView extends VBox {
-    private final TextField playlistNameInput;
-    private final StyledButton createButton;
-    private final StyledButton deleteButton;
-    private final StyledButton addButton;
-    private final StyledButton removeButton;
-    private final ListView<String> playlistListView;
-    private final ListView<String> musicListView;
+    private TextField playlistNameInput;
+    private StyledButton createButton;
+    private StyledButton deleteButton;
+    private StyledButton addButton;
+    private StyledButton removeButton;
+    private ListView<String> playlistListView;
+    private ListView<String> musicListView;
     private final ObservableList<String> playlistItems;
 
     public PlaylistView() {
@@ -104,4 +108,9 @@ public class PlaylistView extends VBox {
     public String getSelectedPlaylist() { return playlistListView.getSelectionModel().getSelectedItem(); }
     public String getSelectedMusic() { return musicListView.getSelectionModel().getSelectedItem(); }
     public ObservableList<String> getPlaylistItems() { return playlistItems; }
+    
+    // 플레이리스트 이름 입력 필드 초기화를 위한 메서드 추가
+    public void clearPlaylistNameInput() {
+        playlistNameInput.clear();
+    }
 }

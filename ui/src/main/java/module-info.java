@@ -18,4 +18,5 @@ module synctune.ui.main {
     opens ac.cwnu.synctune.ui to javafx.fxml, javafx.graphics;
     opens ac.cwnu.synctune.ui.view to javafx.fxml;
     opens ac.cwnu.synctune.ui.controller to javafx.fxml;
+    opens ac.cwnu.synctune.ui.util to javafx.fxml;
 }

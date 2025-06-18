@@ -4,21 +4,26 @@ import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.component.StyledButton;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 public class PlayerControlsView extends VBox {
-    private final StyledButton playButton;
-    private final StyledButton pauseButton;
-    private final StyledButton stopButton;
-    private final StyledButton prevButton;
-    private final StyledButton nextButton;
-    private final Slider progressSlider;
-    private final Slider volumeSlider;
-    private final Label currentTimeLabel;
-    private final Label totalTimeLabel;
-    private final Label musicInfoLabel;
+    // 필드 선언 시 즉시 초기화
+    private final StyledButton playButton = new StyledButton("▶", StyledButton.ButtonStyle.PRIMARY);
+    private final StyledButton pauseButton = new StyledButton("⏸", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton stopButton = new StyledButton("⏹", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton prevButton = new StyledButton("⏮", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton nextButton = new StyledButton("⏭", StyledButton.ButtonStyle.CONTROL);
+    
+    private final Slider progressSlider = new Slider(0, 100, 0);
+    private final Slider volumeSlider = new Slider(0, 100, 50);
+    
+    private final Label currentTimeLabel = new Label("00:00");
+    private final Label totalTimeLabel = new Label("00:00");
+    private final Label musicInfoLabel = new Label("재생 중인 곡이 없습니다");
 
     public PlayerControlsView() {
         initializeComponents();
@@ -27,24 +32,9 @@ public class PlayerControlsView extends VBox {
     }
 
     private void initializeComponents() {
-        // 버튼들 생성
-        prevButton = new StyledButton("⏮", StyledButton.ButtonStyle.CONTROL);
-        playButton = new StyledButton("▶", StyledButton.ButtonStyle.PRIMARY);
-        pauseButton = new StyledButton("⏸", StyledButton.ButtonStyle.CONTROL);
-        stopButton = new StyledButton("⏹", StyledButton.ButtonStyle.CONTROL);
-        nextButton = new StyledButton("⏭", StyledButton.ButtonStyle.CONTROL);
-
-        // 슬라이더들
-        progressSlider = new Slider(0, 100, 0);
+        // 슬라이더 추가 설정
         progressSlider.setPrefWidth(400);
-        
-        volumeSlider = new Slider(0, 100, 50);
         volumeSlider.setPrefWidth(100);
-
-        // 라벨들
-        currentTimeLabel = new Label("00:00");
-        totalTimeLabel = new Label("00:00");
-        musicInfoLabel = new Label("재생 중인 곡이 없습니다");
     }
 
     private void layoutComponents() {
