@@ -14,6 +14,7 @@ import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 
 @Module(name = "Lyrics", version = "1.0.0")
@@ -30,14 +31,17 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
 
         // ★ 예시: 실제 사용할 LRC 경로
         File lrcFile = new File("sample/sample.lrc");
-
-        List<LrcLine> parsed = LrcParser.parse(lrcFile);
+        try {
+            List<LrcLine> parsed = LrcParser.parse(lrcFile);
         if (parsed == null || parsed.isEmpty()) {
             log.warn("가사 파일 파싱 실패 또는 비어 있음: {}", lrcFile.getPath());
             return;
         }
 
         provider = new CurrentLyricsProvider(parsed, publisher);
+        } catch (IOException e){
+            log.error("LRC 파일 파싱 중 오류 발생: {}", e.getMessage(), e);
+        }
     }
 
     @EventListener
