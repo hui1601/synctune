@@ -83,7 +83,15 @@ public class MainApplicationWindow extends Stage {
         MenuItem openFile = new MenuItem("파일 열기");
         MenuItem openFolder = new MenuItem("폴더 열기");
         MenuItem exit = new MenuItem("종료");
-        exit.setOnAction(e -> close());
+        
+        // 종료 메뉴 클릭 시에도 안전한 종료 이벤트 발행
+        exit.setOnAction(e -> {
+            if (windowStateManager != null) {
+                // WindowStateManager를 통해 안전한 종료 요청
+                windowStateManager.handleCloseRequest(null);
+            }
+        });
+        
         fileMenu.getItems().addAll(openFile, openFolder, exit);
         
         // 재생 메뉴
@@ -122,5 +130,24 @@ public class MainApplicationWindow extends Stage {
 
     public void updateLyrics(String lyrics) {
         lyricsView.updateLyrics(lyrics);
+    }
+
+    /**
+     * UIModule.stop()에서 호출되는 강제 종료 메서드
+     */
+    public void forceClose() {
+        if (windowStateManager != null) {
+            windowStateManager.forceClose();
+        }
+    }
+
+    @Override
+    public void close() {
+        // Core의 지시가 아닌 직접적인 close() 호출 시에도 안전한 종료 절차 진행
+        if (windowStateManager != null && !windowStateManager.isCloseRequested()) {
+            windowStateManager.handleCloseRequest(null);
+        } else {
+            super.close();
+        }
     }
 }

@@ -1,6 +1,5 @@
 plugins {
     id 'java-library'
-    id 'application'
     id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
@@ -24,21 +23,6 @@ dependencies {
 javafx {
     version = '21.0.1'
     modules = ['javafx.controls', 'javafx.fxml']
-}
-
-// Application 설정
-application {
-    mainClass = 'ac.cwnu.synctune.ui.UIModule'
-    // JavaFX 실행을 위한 JVM 인수 추가
-    applicationDefaultJvmArgs = [
-        '--add-opens', 'javafx.graphics/com.sun.javafx.application=ALL-UNNAMED'
-    ]
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
 }
 
 test {

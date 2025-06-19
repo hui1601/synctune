@@ -7,6 +7,7 @@ import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.LyricsEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
+import ac.cwnu.synctune.sdk.event.SystemEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
@@ -53,10 +54,13 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     private void initializeUI() {
         if (!isJavaFXInitialized) {
             try {
+                // Platform implicit exit를 false로 설정하여 창을 닫아도 즉시 종료되지 않도록 함
+                Platform.setImplicitExit(false);
+                
                 mainWindow = new MainApplicationWindow(eventPublisher);
                 mainWindow.show();
                 isJavaFXInitialized = true;
-                log.info("메인 윈도우가 성공적으로 표시되었습니다.");
+                log.info("메인 윈도우가 성공적으로 표시되었습니다. (ImplicitExit=false)");
             } catch (Exception e) {
                 log.error("UI 초기화 중 오류 발생", e);
             }
@@ -65,19 +69,39 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
 
     @Override
     public void stop() {
-        log.info("UIModule이 종료됩니다.");
+        log.info("UIModule이 종료됩니다. Core로부터 종료 신호를 받았습니다.");
+        
         if (Platform.isFxApplicationThread()) {
+            // UI 스레드에서 호출된 경우
+            cleanupAndExit();
+        } else {
+            // 다른 스레드에서 호출된 경우 UI 스레드에서 실행
+            Platform.runLater(this::cleanupAndExit);
+        }
+    }
+
+    private void cleanupAndExit() {
+        try {
+            // 메인 윈도우 정리
             if (mainWindow != null) {
+                log.debug("메인 윈도우를 닫습니다.");
                 mainWindow.close();
             }
-        } else {
-            Platform.runLater(() -> {
-                if (mainWindow != null) {
-                    mainWindow.close();
-                }
-                Platform.exit();
-            });
+            
+            log.info("Platform.exit()를 호출하여 JavaFX 애플리케이션을 종료합니다.");
+            Platform.exit();
+            
+        } catch (Exception e) {
+            log.error("UI 정리 및 종료 중 오류 발생", e);
         }
+    }
+
+    // SystemEvent.ApplicationShutdownEvent 리스너 추가
+    @EventListener
+    public void onApplicationShutdown(SystemEvent.ApplicationShutdownEvent event) {
+        log.info("ApplicationShutdownEvent를 수신했습니다. UI 종료를 준비합니다.");
+        // Core에서 전체 애플리케이션 종료를 알릴 때 받는 이벤트
+        // 실제 정리는 stop() 메서드에서 수행
     }
 
     // 이벤트 리스너들
