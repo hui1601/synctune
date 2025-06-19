@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests">
+    <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Add event listener for RequestApplicationShutdownEvent to handle shutdown requests">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/ac/cwnu/synctune/core/CoreModule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ui/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/ui/build.gradle" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -65,30 +66,30 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Gradle.synctune [build run].executor": "Run",
-    "Gradle.synctune.executor": "Run",
-    "Gradle.소스 다운로드.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "/data/projects/synctune/lyrics/src/main/java",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "onboarding.tips.debug.path": "/data/projects/synctune/stub/src/main/java/ac/cwnu/Main.java",
-    "project.structure.last.edited": "모듈",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.0",
-    "run.code.analysis.last.selected.profile": "pProject Default",
-    "settings.editor.selected.configurable": "preferences.lookFeel",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.synctune [build run].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.synctune.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.소스 다운로드.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/data/projects/synctune/lyrics/src/main/java&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;onboarding.tips.debug.path&quot;: &quot;/data/projects/synctune/stub/src/main/java/ac/cwnu/Main.java&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;모듈&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.lookFeel&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/lyrics/src/main/java" />
@@ -122,8 +123,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.25410.129" />
-        <option value="bundled-js-predefined-d6986cc7102b-6a121458b545-JavaScript-IU-251.25410.129" />
+        <option value="bundled-jdk-9823dce3aa75-fbdcb00ec9e3-intellij.indexing.shared.core-IU-251.26094.121" />
+        <option value="bundled-js-predefined-d6986cc7102b-b26f3e71634d-JavaScript-IU-251.26094.121" />
       </set>
     </attachedChunks>
   </component>
@@ -144,7 +145,10 @@
       <workItem from="1749315383539" duration="1269000" />
       <workItem from="1749317241360" duration="85000" />
       <workItem from="1749317337640" duration="627000" />
-      <workItem from="1749345726912" duration="2250000" />
+      <workItem from="1749345726912" duration="5031000" />
+      <workItem from="1750230023869" duration="46000" />
+      <workItem from="1750234299268" duration="517000" />
+      <workItem from="1750310977161" duration="1187000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
@@ -466,7 +470,15 @@
       <option name="project" value="LOCAL" />
       <updated>1749347347365</updated>
     </task>
-    <option name="localTasksCounter" value="41" />
+    <task id="LOCAL-00041" summary="feat(core): Add event listener for RequestApplicationShutdownEvent to handle shutdown requests">
+      <option name="closed" value="true" />
+      <created>1749348253236</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1749348253236</updated>
+    </task>
+    <option name="localTasksCounter" value="42" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -484,7 +496,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Implement ModuleLifecycleListener in LyricsModule, PlayerModule, and UIModule for lifecycle management" />
     <MESSAGE value="docs: Update Design.md formatting" />
     <MESSAGE value="refactor: Replace @ModuleStart annotation with @Module for improved module definition" />
     <MESSAGE value="docs: Update Design.md to include module responsibilities and maintainers" />
@@ -509,6 +520,7 @@
     <MESSAGE value="refactor(core): Rename getInstance() to getInternalInstance() for clarity" />
     <MESSAGE value="fix(core): Adjust placement of System.exit(1) in FatalErrorReporter for clarity" />
     <MESSAGE value="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat(sdk): Add RequestApplicationShutdownEvent for application shutdown requests" />
+    <MESSAGE value="feat(core): Add event listener for RequestApplicationShutdownEvent to handle shutdown requests" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat(core): Add event listener for RequestApplicationShutdownEvent to handle shutdown requests" />
   </component>
 </project>
