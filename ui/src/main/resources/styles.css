@@ -74,7 +74,9 @@
 .menu-bar .label {
     -fx-text-fill: white;
 }
-
+.menu-bar .label:hover {
+    -fx-text-fill: #ecf0f1;
+}
 .menu {
     -fx-background-color: #34495e;
 }

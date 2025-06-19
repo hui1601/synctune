@@ -1,19 +1,23 @@
 package ac.cwnu.synctune.player;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+
+import ac.cwnu.synctune.player.playback.AudioEngine;
+import ac.cwnu.synctune.player.playback.PlaybackStateManager;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.MediaControlEvent;
+import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
+import ac.cwnu.synctune.sdk.event.PlayerUIEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
-import ac.cwnu.synctune.player.playback.AudioEngine;
-import ac.cwnu.synctune.player.playback.PlaybackStateManager;
-import org.slf4j.Logger;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * PlayerModule은 SyncTune의 플레이어 기능을 구현합니다.
@@ -118,9 +122,9 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
                     audioEngine.updateCurrentPosition();
                     
                     // TODO: 진행 상황 업데이트 이벤트 발행 (이벤트 클래스 확인 후 구현)
-                    // long currentMs = stateManager.getCurrentPosition();
-                    // long totalMs = stateManager.getTotalDuration();
-                    // publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(currentMs, totalMs));
+                    long currentMs = stateManager.getCurrentPosition();
+                    long totalMs = stateManager.getTotalDuration();
+                    publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(currentMs, totalMs));
                 }
             } catch (Exception e) {
                 log.error("[{}] 진행 상황 업데이트 중 오류", getModuleName(), e);
@@ -131,88 +135,90 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     // ========== 이벤트 리스너들 (TODO: 실제 이벤트 클래스 확인 후 구현) ==========
     
     // TODO: 실제 이벤트 클래스들이 확인되면 아래 주석을 해제하고 구현
-    /*
-    @EventListener
-    public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
-        log.debug("[{}] 재생 요청 수신: {}", getModuleName(), event);
-        
-        try {
-            MusicInfo musicToPlay = event.getMusicToPlay();
-            if (musicToPlay != null) {
-                // 새로운 곡 재생
-                if (audioEngine.loadMusic(musicToPlay)) {
-                    audioEngine.play();
-                }
-            } else if (stateManager.getCurrentMusic() != null) {
-                // 현재 곡 재생/재개
-                if (stateManager.isPaused()) {
-                    audioEngine.play(); // 재개
-                } else {
-                    // 처음부터 재생
-                    audioEngine.seekTo(0);
-                    audioEngine.play();
-                }
-            } else {
-                log.warn("[{}] 재생할 곡이 없습니다.", getModuleName());
+
+@EventListener
+public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
+    log.debug("[{}] 재생 요청 수신: {}", getModuleName(), event);
+    
+    try {
+        MusicInfo musicToPlay = event.getMusicToPlay();
+        if (musicToPlay != null) {
+            // 새로운 곡 재생
+            if (audioEngine.loadMusic(musicToPlay)) {
+                audioEngine.play();
             }
-        } catch (Exception e) {
-            log.error("[{}] 재생 요청 처리 중 오류", getModuleName(), e);
+        } else if (stateManager.getCurrentMusic() != null) {
+            // 현재 곡 재생/재개
+            if (stateManager.isPaused()) {
+                audioEngine.play(); // 재개
+            } else {
+                // 처음부터 재생
+                audioEngine.seekTo(0);
+                audioEngine.play();
+            }
+        } else {
+            log.warn("[{}] 재생할 곡이 없습니다.", getModuleName());
         }
+    } catch (Exception e) {
+        log.error("[{}] 재생 요청 처리 중 오류", getModuleName(), e);
     }
+}
 
-    @EventListener
-    public void onPauseRequest(MediaControlEvent.RequestPauseEvent event) {
-        log.debug("[{}] 일시정지 요청 수신: {}", getModuleName(), event);
-        
-        try {
-            audioEngine.pause();
-        } catch (Exception e) {
-            log.error("[{}] 일시정지 요청 처리 중 오류", getModuleName(), e);
-        }
+@EventListener
+public void onPauseRequest(MediaControlEvent.RequestPauseEvent event) {
+    log.debug("[{}] 일시정지 요청 수신: {}", getModuleName(), event);
+    
+    try {
+        audioEngine.pause();
+    } catch (Exception e) {
+        log.error("[{}] 일시정지 요청 처리 중 오류", getModuleName(), e);
     }
+}
 
-    @EventListener
-    public void onStopRequest(MediaControlEvent.RequestStopEvent event) {
-        log.debug("[{}] 정지 요청 수신: {}", getModuleName(), event);
-        
-        try {
-            audioEngine.stop();
-        } catch (Exception e) {
-            log.error("[{}] 정지 요청 처리 중 오류", getModuleName(), e);
-        }
+@EventListener
+public void onStopRequest(MediaControlEvent.RequestStopEvent event) {
+    log.debug("[{}] 정지 요청 수신: {}", getModuleName(), event);
+    
+    try {
+        audioEngine.stop();
+    } catch (Exception e) {
+        log.error("[{}] 정지 요청 처리 중 오류", getModuleName(), e);
     }
+}
 
-    @EventListener
-    public void onSeekRequest(MediaControlEvent.RequestSeekEvent event) {
-        log.debug("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
-        
-        try {
-            audioEngine.seekTo(event.getPositionMillis());
-        } catch (Exception e) {
-            log.error("[{}] 탐색 요청 처리 중 오류", getModuleName(), e);
-        }
+@EventListener
+public void onSeekRequest(MediaControlEvent.RequestSeekEvent event) {
+    log.debug("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
+    
+    try {
+        audioEngine.seekTo(event.getPositionMillis());
+    } catch (Exception e) {
+        log.error("[{}] 탐색 요청 처리 중 오류", getModuleName(), e);
     }
+}
 
-    @EventListener
-    public void onMainWindowClosed(PlayerUIEvent.MainWindowClosedEvent event) {
-        log.debug("[{}] 메인 창 닫힘 이벤트 수신: {}", getModuleName(), event);
-        
-        // 창이 닫혀도 재생은 계속되도록 처리
-        if (stateManager.isPlaying()) {
-            log.info("[{}] 메인 창이 닫혔지만 재생은 계속됩니다.", getModuleName());
-        }
+@EventListener
+public void onMainWindowClosed(PlayerUIEvent.MainWindowClosedEvent event) {
+    log.debug("[{}] 메인 창 닫힘 이벤트 수신: {}", getModuleName(), event);
+    
+    // 창이 닫혀도 재생은 계속되도록 처리
+    if (stateManager.isPlaying()) {
+        log.info("[{}] 메인 창이 닫혔지만 재생은 계속됩니다.", getModuleName());
     }
+}
 
-    @EventListener
-    public void onMainWindowRestored(PlayerUIEvent.MainWindowRestoredEvent event) {
-        log.debug("[{}] 메인 창 복원 이벤트 수신: {}", getModuleName(), event);
-        
-        // 창 복원 시 현재 상태를 UI에 알리기 위해 강제 업데이트
-        if (stateManager.getCurrentMusic() != null) {
-            // TODO: 강제 진행 상황 업데이트 이벤트 발행
-        }
+@EventListener
+public void onMainWindowRestored(PlayerUIEvent.MainWindowRestoredEvent event) {
+    log.debug("[{}] 메인 창 복원 이벤트 수신: {}", getModuleName(), event);
+    
+    // 창 복원 시 현재 상태를 UI에 알리기 위해 강제 업데이트
+    if (stateManager.getCurrentMusic() != null) {
+        publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(
+            stateManager.getCurrentPosition(), 
+            stateManager.getTotalDuration()
+        ));
     }
-    */
+}
 
     // ========== 공개 API 메서드들 ==========
     

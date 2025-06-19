@@ -1,19 +1,17 @@
 package ac.cwnu.synctune.ui.controller;
 
-import java.util.Optional;
-
 import org.slf4j.Logger;
 
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.PlaylistEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
-import ac.cwnu.synctune.sdk.model.MusicInfo;
-import ac.cwnu.synctune.sdk.model.Playlist;
 import ac.cwnu.synctune.ui.view.PlaylistView;
-import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 
+/**
+ * 단순화된 PlaylistActionHandler
+ * 실제 UI 동작은 PlaylistView에서 직접 처리하고,
+ * 여기서는 이벤트 발행만 담당
+ */
 public class PlaylistActionHandler {
     private static final Logger log = LogManager.getLogger(PlaylistActionHandler.class);
     
@@ -23,104 +21,41 @@ public class PlaylistActionHandler {
     public PlaylistActionHandler(PlaylistView view, EventPublisher publisher) {
         this.view = view;
         this.publisher = publisher;
-        attachEventHandlers();
+        setupEventMonitoring();
         log.debug("PlaylistActionHandler 초기화 완료");
     }
 
-    private void attachEventHandlers() {
-        // 플레이리스트 생성
-        view.getCreateButton().setOnAction(e -> {
-            String name = view.getPlaylistNameInput();
-            if (name != null && !name.isEmpty()) {
-                log.debug("새 플레이리스트 생성 요청: {}", name);
-                Playlist playlist = new Playlist(name);
-                publisher.publish(new PlaylistEvent.PlaylistCreatedEvent(playlist));
-                
-                // 입력 필드 초기화 - 수정된 부분
-                Platform.runLater(() -> view.clearPlaylistNameInput());
-            } else {
-                showAlert("오류", "플레이리스트 이름을 입력해주세요.", Alert.AlertType.WARNING);
-            }
-        });
-
-        // 플레이리스트 삭제
-        view.getDeleteButton().setOnAction(e -> {
-            String selectedPlaylist = view.getSelectedPlaylist();
-            if (selectedPlaylist != null) {
-                // 삭제 확인 다이얼로그
-                Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-                confirmAlert.setTitle("플레이리스트 삭제");
-                confirmAlert.setHeaderText("플레이리스트를 삭제하시겠습니까?");
-                confirmAlert.setContentText("플레이리스트 '" + selectedPlaylist + "'를 삭제하시겠습니까?");
-                
-                Optional<ButtonType> result = confirmAlert.showAndWait();
-                if (result.isPresent() && result.get() == ButtonType.OK) {
-                    log.debug("플레이리스트 삭제 요청: {}", selectedPlaylist);
-                    publisher.publish(new PlaylistEvent.PlaylistDeletedEvent(selectedPlaylist));
-                }
-            } else {
-                showAlert("오류", "삭제할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            }
-        });
-
-        // 곡 추가 (현재는 샘플 구현)
-        view.getAddButton().setOnAction(e -> {
-            String selectedPlaylist = view.getSelectedPlaylist();
-            if (selectedPlaylist != null) {
-                // TODO: 파일 선택 다이얼로그 구현
-                log.debug("곡 추가 요청 - 플레이리스트: {}", selectedPlaylist);
-                showAlert("정보", "곡 추가 기능은 아직 구현 중입니다.", Alert.AlertType.INFORMATION);
-            } else {
-                showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            }
-        });
-
-        // 곡 제거
-        view.getRemoveButton().setOnAction(e -> {
-            String selectedPlaylist = view.getSelectedPlaylist();
-            String selectedMusic = view.getSelectedMusic();
-            
-            if (selectedPlaylist != null && selectedMusic != null) {
-                log.debug("곡 제거 요청 - 플레이리스트: {}, 곡: {}", selectedPlaylist, selectedMusic);
-                
-                // TODO: 실제 MusicInfo 객체 생성 필요
-                MusicInfo dummyMusic = new MusicInfo(selectedMusic, "Unknown", "Unknown", "", 0);
-                publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(selectedPlaylist, dummyMusic));
-                
-                // UI에서 즉시 제거
-                Platform.runLater(() -> view.getPlaylistItems().remove(selectedMusic));
-            } else {
-                showAlert("오류", "제거할 곡을 선택해주세요.", Alert.AlertType.WARNING);
-            }
-        });
+    private void setupEventMonitoring() {
+        // PlaylistView의 변경사항을 모니터링하여 이벤트 발행
+        // 실제 동작은 PlaylistView에서 처리되므로, 필요시에만 이벤트 발행
+        
+        log.debug("PlaylistView와 연동된 이벤트 모니터링 설정 완료");
     }
 
-    private void showAlert(String title, String message, Alert.AlertType type) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(type);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+    /**
+     * 외부에서 플레이리스트 생성 이벤트를 발행하고 싶을 때 사용
+     */
+    public void publishPlaylistCreatedEvent(String playlistName) {
+        var playlist = new ac.cwnu.synctune.sdk.model.Playlist(playlistName);
+        publisher.publish(new PlaylistEvent.PlaylistCreatedEvent(playlist));
+        log.debug("PlaylistCreatedEvent 발행: {}", playlistName);
     }
 
-    public void addMusicToCurrentPlaylist(MusicInfo music) {
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist != null && music != null) {
-            Platform.runLater(() -> {
-                view.getPlaylistItems().add(music.getTitle() + " - " + music.getArtist());
-            });
-            publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(selectedPlaylist, music));
-        }
+    /**
+     * 외부에서 플레이리스트 삭제 이벤트를 발행하고 싶을 때 사용
+     */
+    public void publishPlaylistDeletedEvent(String playlistName) {
+        publisher.publish(new PlaylistEvent.PlaylistDeletedEvent(playlistName));
+        log.debug("PlaylistDeletedEvent 발행: {}", playlistName);
     }
 
-    public void updatePlaylistItems(java.util.List<MusicInfo> musicList) {
-        Platform.runLater(() -> {
-            view.getPlaylistItems().clear();
-            musicList.forEach(music -> 
-                view.getPlaylistItems().add(music.getTitle() + " - " + music.getArtist())
-            );
-        });
+    /**
+     * 플레이리스트 데이터 동기화 (필요시 사용)
+     */
+    public void syncPlaylistData() {
+        var playlists = view.getPlaylists();
+        log.debug("현재 플레이리스트 개수: {}", playlists.size());
+        
+        // 필요시 다른 모듈과 데이터 동기화 로직 추가
     }
 }
