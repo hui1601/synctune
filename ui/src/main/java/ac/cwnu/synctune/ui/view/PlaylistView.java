@@ -1,5 +1,6 @@
 package ac.cwnu.synctune.ui.view;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,7 @@ public class PlaylistView extends VBox {
     
     // 데이터 저장
     private final Map<String, List<MusicInfo>> playlistData = new HashMap<>();
-    private List<MusicInfo> musicLibrary = FXCollections.observableArrayList();
+    private List<MusicInfo> musicLibrary = new ArrayList<>();
 
     public PlaylistView() {
         playlistItems = FXCollections.observableArrayList();
@@ -135,7 +136,6 @@ public class PlaylistView extends VBox {
             if (event.getClickCount() == 2) {
                 String selectedSong = musicListView.getSelectionModel().getSelectedItem();
                 if (selectedSong != null) {
-                    // TODO: 곡 재생 이벤트 발행
                     playSelectedMusic(selectedSong);
                 }
             }
@@ -149,9 +149,9 @@ public class PlaylistView extends VBox {
         playlistNames.addAll("즐겨찾기", "최근 재생", "내가 만든 목록");
         
         // 기본 데이터 초기화
-        playlistData.put("즐겨찾기", FXCollections.observableArrayList());
-        playlistData.put("최근 재생", FXCollections.observableArrayList());
-        playlistData.put("내가 만든 목록", FXCollections.observableArrayList());
+        playlistData.put("즐겨찾기", new ArrayList<>());
+        playlistData.put("최근 재생", new ArrayList<>());
+        playlistData.put("내가 만든 목록", new ArrayList<>());
     }
 
     private void loadPlaylistSongs(String playlistName) {
@@ -250,12 +250,23 @@ public class PlaylistView extends VBox {
         playlistNameInput.clear();
     }
 
+    /**
+     * 현재 모든 플레이리스트를 Playlist 객체 리스트로 반환
+     */
+    public List<Playlist> getPlaylists() {
+        List<Playlist> playlists = new ArrayList<>();
+        for (Map.Entry<String, List<MusicInfo>> entry : playlistData.entrySet()) {
+            playlists.add(new Playlist(entry.getKey(), entry.getValue()));
+        }
+        return playlists;
+    }
+
     // ========== 데이터 업데이트 메서드들 ==========
 
     public void addPlaylist(String playlistName) {
         if (!playlistNames.contains(playlistName)) {
             playlistNames.add(playlistName);
-            playlistData.put(playlistName, FXCollections.observableArrayList());
+            playlistData.put(playlistName, new ArrayList<>());
         }
     }
 
@@ -297,7 +308,7 @@ public class PlaylistView extends VBox {
     }
 
     public void updatePlaylistOrder(Playlist playlist) {
-        playlistData.put(playlist.getName(), playlist.getMusicList());
+        playlistData.put(playlist.getName(), new ArrayList<>(playlist.getMusicList()));
         
         // 현재 선택된 플레이리스트라면 UI 업데이트
         if (playlist.getName().equals(getSelectedPlaylist())) {
@@ -312,14 +323,14 @@ public class PlaylistView extends VBox {
         
         playlists.forEach(playlist -> {
             playlistNames.add(playlist.getName());
-            playlistData.put(playlist.getName(), playlist.getMusicList());
+            playlistData.put(playlist.getName(), new ArrayList<>(playlist.getMusicList()));
         });
         
         playlistInfoLabel.setText("플레이리스트 " + playlists.size() + "개 로드됨");
     }
 
     public void updateMusicLibrary(List<MusicInfo> musicList) {
-        this.musicLibrary = musicList;
+        this.musicLibrary = new ArrayList<>(musicList);
         libraryCountLabel.setText("라이브러리: " + musicList.size() + "곡");
         
         // "최근 재생" 플레이리스트에 최근 스캔된 곡들 일부 추가 (시뮬레이션)

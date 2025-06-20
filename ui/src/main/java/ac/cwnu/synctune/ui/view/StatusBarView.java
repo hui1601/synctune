@@ -2,6 +2,8 @@ package ac.cwnu.synctune.ui.view;
 
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.util.UIUtils;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -9,13 +11,14 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.util.Duration;
 
 public class StatusBarView extends HBox {
-    private final Label statusLabel;
-    private final Label musicInfoLabel;
-    private final Label timeLabel;
-    private final Label playbackStateLabel;
-    private final ProgressBar miniProgressBar;
+    private final Label statusLabel = new Label("준비됨");
+    private final Label musicInfoLabel = new Label("재생 중인 곡 없음");
+    private final Label timeLabel = new Label("00:00 / 00:00");
+    private final Label playbackStateLabel = new Label("⏹");
+    private final ProgressBar miniProgressBar = new ProgressBar(0);
 
     public StatusBarView() {
         initializeComponents();
@@ -24,12 +27,7 @@ public class StatusBarView extends HBox {
     }
 
     private void initializeComponents() {
-        statusLabel = new Label("준비됨");
-        musicInfoLabel = new Label("재생 중인 곡 없음");
-        timeLabel = new Label("00:00 / 00:00");
-        playbackStateLabel = new Label("⏹");
-        
-        miniProgressBar = new ProgressBar(0);
+        // 추가 설정만 수행 (객체는 이미 필드에서 생성됨)
         miniProgressBar.setPrefWidth(100);
         miniProgressBar.setPrefHeight(8);
         
@@ -139,9 +137,9 @@ public class StatusBarView extends HBox {
         statusLabel.setStyle("-fx-text-fill: #dc3545; -fx-font-size: 11px;");
         
         // 3초 후 원래 스타일로 복원
-        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
-            new javafx.animation.KeyFrame(
-                javafx.util.Duration.seconds(3),
+        Timeline timeline = new Timeline(
+            new KeyFrame(
+                Duration.seconds(3),
                 e -> statusLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 11px;")
             )
         );
@@ -153,9 +151,9 @@ public class StatusBarView extends HBox {
         statusLabel.setStyle("-fx-text-fill: #28a745; -fx-font-size: 11px;");
         
         // 3초 후 원래 스타일로 복원
-        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
-            new javafx.animation.KeyFrame(
-                javafx.util.Duration.seconds(3),
+        Timeline timeline = new Timeline(
+            new KeyFrame(
+                Duration.seconds(3),
                 e -> statusLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 11px;")
             )
         );
