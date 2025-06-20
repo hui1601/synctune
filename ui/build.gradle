@@ -1,6 +1,5 @@
 plugins {
-    id 'java'
-    id 'application'
+    id 'java-library'
     id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
@@ -11,40 +10,21 @@ repositories {
     mavenCentral()
 }
 
-javafx {
-    version = '21.0.1' // Must match the version used in :ui module
-    modules = ['javafx.controls', 'javafx.fxml', 'javafx.graphics']
-}
-
 dependencies {
-    // main dependencies
-    implementation 'ch.qos.logback:logback-classic:1.5.18'
-
-    // for the main application
-    implementation project(':core')
-    implementation project(':player')
-    implementation project(':lyrics')
-    implementation project(':ui')
-    implementation project(':stub') // Include the stub module for testing purposes
-
-    // for testing
+    // SyncTune SDK
+    api project(':sdk')
+    
+    // 테스트 의존성
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
-application {
-    mainClass = 'ac.cwnu.synctune.Main'
-    // JavaFX 실행을 위한 JVM 인수 추가
-    applicationDefaultJvmArgs = [
-            '--add-modules', 'javafx.controls,javafx.fxml,javafx.graphics',
-            '--add-opens', 'javafx.graphics/com.sun.javafx.application=ALL-UNNAMED',
-            '--add-opens', 'javafx.fxml/javafx.fxml=ALL-UNNAMED'
-    ]
+// JavaFX 설정
+javafx {
+    version = '21.0.1'
+    modules = ['javafx.controls', 'javafx.fxml']
 }
 
 test {
     useJUnitPlatform()
-}
-java {
-    modularity.inferModulePath = true
 }
