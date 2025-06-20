@@ -23,6 +23,7 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
 
     private long currentTimeMillis = 0;
     private CurrentLyricsProvider provider;
+    private PlaybackTimeReceiver receiver;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -39,16 +40,10 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
         }
 
         provider = new CurrentLyricsProvider(parsed, publisher);
+        receiver = new PlaybackTimeReceiver(provider);
+
         } catch (IOException e){
             log.error("LRC 파일 파싱 중 오류 발생: {}", e.getMessage(), e);
-        }
-    }
-
-    @EventListener
-    public void onPlaybackProgress(PlaybackProgressUpdateEvent event) {
-        this.currentTimeMillis = event.getCurrentTimeMillis();
-        if (provider != null) {
-            provider.update(currentTimeMillis);
         }
     }
 
