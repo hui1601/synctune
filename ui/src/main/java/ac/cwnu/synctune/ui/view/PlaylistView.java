@@ -1,6 +1,5 @@
 package ac.cwnu.synctune.ui.view;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,15 +12,12 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 
 public class PlaylistView extends VBox {
     private TextField playlistNameInput;
@@ -29,30 +25,25 @@ public class PlaylistView extends VBox {
     private StyledButton deleteButton;
     private StyledButton addButton;
     private StyledButton removeButton;
+    private StyledButton refreshButton;
     private ListView<String> playlistListView;
     private ListView<String> musicListView;
+    private Label libraryCountLabel;
+    private Label playlistInfoLabel;
     
-    // 실제 데이터 저장소
-    private final Map<String, Playlist> playlists = new HashMap<>();
-    private final ObservableList<String> playlistNames = FXCollections.observableArrayList();
-    private final ObservableList<String> currentPlaylistSongs = FXCollections.observableArrayList();
+    private final ObservableList<String> playlistItems;
+    private final ObservableList<String> playlistNames;
+    
+    // 데이터 저장
+    private final Map<String, List<MusicInfo>> playlistData = new HashMap<>();
+    private List<MusicInfo> musicLibrary = FXCollections.observableArrayList();
 
     public PlaylistView() {
-        initializeData();
+        playlistItems = FXCollections.observableArrayList();
+        playlistNames = FXCollections.observableArrayList();
         initializeComponents();
         layoutComponents();
         setupEventHandlers();
-    }
-
-    private void initializeData() {
-        // 기본 플레이리스트 생성
-        Playlist defaultPlaylist = new Playlist("기본 플레이리스트");
-        Playlist favoritePlaylist = new Playlist("즐겨찾기");
-        
-        playlists.put("기본 플레이리스트", defaultPlaylist);
-        playlists.put("즐겨찾기", favoritePlaylist);
-        
-        playlistNames.addAll("기본 플레이리스트", "즐겨찾기");
     }
 
     private void initializeComponents() {
@@ -65,21 +56,50 @@ public class PlaylistView extends VBox {
         deleteButton = new StyledButton("삭제", StyledButton.ButtonStyle.DANGER);
         addButton = new StyledButton("곡 추가", StyledButton.ButtonStyle.SUCCESS);
         removeButton = new StyledButton("곡 제거", StyledButton.ButtonStyle.WARNING);
+        refreshButton = new StyledButton("🔄", StyledButton.ButtonStyle.CONTROL);
+        refreshButton.setPrefWidth(30);
+
+        // 정보 라벨들
+        libraryCountLabel = new Label("라이브러리: 0곡");
+        libraryCountLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 11px;");
+        
+        playlistInfoLabel = new Label("플레이리스트를 선택하세요");
+        playlistInfoLabel.setStyle("-fx-text-fill: #666666; -fx-font-size: 11px;");
 
         // 리스트 뷰
-        playlistListView = new ListView<>(playlistNames);
+        playlistListView = new ListView<>();
         playlistListView.setPrefHeight(200);
+        playlistListView.setItems(playlistNames);
+        playlistListView.setPlaceholder(new Label("플레이리스트가 없습니다\n'생성' 버튼을 눌러 만들어보세요"));
 
-        musicListView = new ListView<>(currentPlaylistSongs);
+        musicListView = new ListView<>();
         musicListView.setPrefHeight(300);
+        musicListView.setItems(playlistItems);
+        musicListView.setPlaceholder(new Label("플레이리스트를 선택하거나\n곡을 추가해주세요"));
+
+        // 기본 플레이리스트 추가
+        addDefaultPlaylists();
     }
 
     private void layoutComponents() {
         setSpacing(10);
         setPadding(new Insets(10));
-        setPrefWidth(300);
+        setPrefWidth(350);
+
+        // 라이브러리 정보 영역
+        VBox librarySection = new VBox(5);
+        Label libraryTitle = new Label("음악 라이브러리");
+        libraryTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        
+        HBox libraryInfo = new HBox(10);
+        libraryInfo.getChildren().addAll(libraryCountLabel, refreshButton);
+        
+        librarySection.getChildren().addAll(libraryTitle, libraryInfo);
 
         // 플레이리스트 관리 영역
+        Label playlistTitle = new Label("플레이리스트");
+        playlistTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        
         HBox playlistControls = new HBox(5);
         playlistControls.getChildren().addAll(playlistNameInput, createButton, deleteButton);
 
@@ -88,9 +108,12 @@ public class PlaylistView extends VBox {
         musicControls.getChildren().addAll(addButton, removeButton);
 
         getChildren().addAll(
-            new Label("플레이리스트"),
+            librarySection,
+            new Separator(),
+            playlistTitle,
             playlistControls,
             playlistListView,
+            playlistInfoLabel,
             new Separator(),
             new Label("재생 목록"),
             musicControls,
@@ -99,22 +122,11 @@ public class PlaylistView extends VBox {
     }
 
     private void setupEventHandlers() {
-        // 플레이리스트 생성
-        createButton.setOnAction(e -> createNewPlaylist());
-        
-        // 플레이리스트 삭제
-        deleteButton.setOnAction(e -> deleteSelectedPlaylist());
-        
-        // 곡 추가
-        addButton.setOnAction(e -> addMusicToPlaylist());
-        
-        // 곡 제거
-        removeButton.setOnAction(e -> removeMusicFromPlaylist());
-
         // 플레이리스트 선택 시 곡 목록 업데이트
         playlistListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
                 loadPlaylistSongs(newVal);
+                updatePlaylistInfo(newVal);
             }
         });
 
@@ -124,211 +136,289 @@ public class PlaylistView extends VBox {
                 String selectedSong = musicListView.getSelectionModel().getSelectedItem();
                 if (selectedSong != null) {
                     // TODO: 곡 재생 이벤트 발행
-                    showInfo("재생", "'" + selectedSong + "' 재생 (구현 예정)");
+                    playSelectedMusic(selectedSong);
+                }
+            }
+        });
+
+        // 새로고침 버튼
+        refreshButton.setOnAction(e -> refreshPlaylists());
+    }
+
+    private void addDefaultPlaylists() {
+        playlistNames.addAll("즐겨찾기", "최근 재생", "내가 만든 목록");
+        
+        // 기본 데이터 초기화
+        playlistData.put("즐겨찾기", FXCollections.observableArrayList());
+        playlistData.put("최근 재생", FXCollections.observableArrayList());
+        playlistData.put("내가 만든 목록", FXCollections.observableArrayList());
+    }
+
+    private void loadPlaylistSongs(String playlistName) {
+        playlistItems.clear();
+        
+        List<MusicInfo> songs = playlistData.get(playlistName);
+        if (songs != null) {
+            songs.forEach(music -> 
+                playlistItems.add(formatMusicDisplay(music))
+            );
+        }
+    }
+
+    private void updatePlaylistInfo(String playlistName) {
+        List<MusicInfo> songs = playlistData.get(playlistName);
+        if (songs != null) {
+            long totalDuration = songs.stream()
+                .mapToLong(MusicInfo::getDurationMillis)
+                .sum();
+            
+            String durationText = formatDuration(totalDuration);
+            playlistInfoLabel.setText(String.format("%s: %d곡, %s", 
+                playlistName, songs.size(), durationText));
+        } else {
+            playlistInfoLabel.setText("플레이리스트 정보를 불러올 수 없습니다");
+        }
+    }
+
+    private String formatMusicDisplay(MusicInfo music) {
+        String display = music.getTitle();
+        if (!music.getArtist().equals("Unknown Artist")) {
+            display += " - " + music.getArtist();
+        }
+        
+        // 재생 시간 추가
+        if (music.getDurationMillis() > 0) {
+            display += " (" + formatDuration(music.getDurationMillis()) + ")";
+        }
+        
+        return display;
+    }
+
+    private String formatDuration(long milliseconds) {
+        long seconds = milliseconds / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        
+        if (hours > 0) {
+            return String.format("%d:%02d:%02d", hours, minutes % 60, seconds % 60);
+        } else {
+            return String.format("%d:%02d", minutes, seconds % 60);
+        }
+    }
+
+    private void playSelectedMusic(String displayText) {
+        // 선택된 곡 정보에서 실제 MusicInfo 찾기
+        String selectedPlaylist = playlistListView.getSelectionModel().getSelectedItem();
+        if (selectedPlaylist != null) {
+            List<MusicInfo> songs = playlistData.get(selectedPlaylist);
+            if (songs != null) {
+                for (MusicInfo music : songs) {
+                    if (formatMusicDisplay(music).equals(displayText)) {
+                        // TODO: 재생 요청 이벤트 발행
+                        System.out.println("재생 요청: " + music.getTitle());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // ========== 공개 메서드들 (컨트롤러에서 사용) ==========
+
+    public Button getCreateButton() { return createButton; }
+    public Button getDeleteButton() { return deleteButton; }
+    public Button getAddButton() { return addButton; }
+    public Button getRemoveButton() { return removeButton; }
+    
+    public String getPlaylistNameInput() { 
+        return playlistNameInput.getText().trim(); 
+    }
+    
+    public String getSelectedPlaylist() { 
+        return playlistListView.getSelectionModel().getSelectedItem(); 
+    }
+    
+    public String getSelectedMusic() { 
+        return musicListView.getSelectionModel().getSelectedItem(); 
+    }
+    
+    public ObservableList<String> getPlaylistItems() { 
+        return playlistItems; 
+    }
+    
+    public void clearPlaylistNameInput() {
+        playlistNameInput.clear();
+    }
+
+    // ========== 데이터 업데이트 메서드들 ==========
+
+    public void addPlaylist(String playlistName) {
+        if (!playlistNames.contains(playlistName)) {
+            playlistNames.add(playlistName);
+            playlistData.put(playlistName, FXCollections.observableArrayList());
+        }
+    }
+
+    public void removePlaylist(String playlistName) {
+        playlistNames.remove(playlistName);
+        playlistData.remove(playlistName);
+        
+        // 선택된 플레이리스트가 삭제된 경우 초기화
+        if (playlistName.equals(getSelectedPlaylist())) {
+            playlistItems.clear();
+            playlistInfoLabel.setText("플레이리스트를 선택하세요");
+        }
+    }
+
+    public void addMusicToPlaylist(String playlistName, MusicInfo music) {
+        List<MusicInfo> playlist = playlistData.get(playlistName);
+        if (playlist != null && !playlist.contains(music)) {
+            playlist.add(music);
+            
+            // 현재 선택된 플레이리스트라면 UI 업데이트
+            if (playlistName.equals(getSelectedPlaylist())) {
+                playlistItems.add(formatMusicDisplay(music));
+                updatePlaylistInfo(playlistName);
+            }
+        }
+    }
+
+    public void removeMusicFromPlaylist(String playlistName, MusicInfo music) {
+        List<MusicInfo> playlist = playlistData.get(playlistName);
+        if (playlist != null) {
+            playlist.remove(music);
+            
+            // 현재 선택된 플레이리스트라면 UI 업데이트
+            if (playlistName.equals(getSelectedPlaylist())) {
+                playlistItems.remove(formatMusicDisplay(music));
+                updatePlaylistInfo(playlistName);
+            }
+        }
+    }
+
+    public void updatePlaylistOrder(Playlist playlist) {
+        playlistData.put(playlist.getName(), playlist.getMusicList());
+        
+        // 현재 선택된 플레이리스트라면 UI 업데이트
+        if (playlist.getName().equals(getSelectedPlaylist())) {
+            loadPlaylistSongs(playlist.getName());
+            updatePlaylistInfo(playlist.getName());
+        }
+    }
+
+    public void loadPlaylists(List<Playlist> playlists) {
+        playlistNames.clear();
+        playlistData.clear();
+        
+        playlists.forEach(playlist -> {
+            playlistNames.add(playlist.getName());
+            playlistData.put(playlist.getName(), playlist.getMusicList());
+        });
+        
+        playlistInfoLabel.setText("플레이리스트 " + playlists.size() + "개 로드됨");
+    }
+
+    public void updateMusicLibrary(List<MusicInfo> musicList) {
+        this.musicLibrary = musicList;
+        libraryCountLabel.setText("라이브러리: " + musicList.size() + "곡");
+        
+        // "최근 재생" 플레이리스트에 최근 스캔된 곡들 일부 추가 (시뮬레이션)
+        if (!musicList.isEmpty()) {
+            List<MusicInfo> recentPlaylist = playlistData.get("최근 재생");
+            if (recentPlaylist != null) {
+                recentPlaylist.clear();
+                // 최대 10곡까지만 추가
+                int count = Math.min(10, musicList.size());
+                for (int i = 0; i < count; i++) {
+                    recentPlaylist.add(musicList.get(i));
+                }
+                
+                // 현재 "최근 재생"이 선택되어 있다면 업데이트
+                if ("최근 재생".equals(getSelectedPlaylist())) {
+                    loadPlaylistSongs("최근 재생");
+                    updatePlaylistInfo("최근 재생");
+                }
+            }
+        }
+    }
+
+    public void updateMusicMetadata(MusicInfo updatedMusic) {
+        // 모든 플레이리스트에서 해당 음악의 메타데이터 업데이트
+        playlistData.forEach((playlistName, musicList) -> {
+            for (int i = 0; i < musicList.size(); i++) {
+                MusicInfo music = musicList.get(i);
+                if (music.getFilePath().equals(updatedMusic.getFilePath())) {
+                    musicList.set(i, updatedMusic);
+                    
+                    // 현재 선택된 플레이리스트라면 UI 업데이트
+                    if (playlistName.equals(getSelectedPlaylist())) {
+                        loadPlaylistSongs(playlistName);
+                        updatePlaylistInfo(playlistName);
+                    }
+                    break;
                 }
             }
         });
     }
 
-    private void createNewPlaylist() {
-        String name = playlistNameInput.getText().trim();
-        if (name.isEmpty()) {
-            showAlert("오류", "플레이리스트 이름을 입력해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        if (playlists.containsKey(name)) {
-            showAlert("오류", "이미 존재하는 플레이리스트 이름입니다.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 새 플레이리스트 생성
-        Playlist newPlaylist = new Playlist(name);
-        playlists.put(name, newPlaylist);
-        playlistNames.add(name);
-        
-        // 입력 필드 초기화
-        playlistNameInput.clear();
-        
-        // 새로 만든 플레이리스트 선택
-        playlistListView.getSelectionModel().select(name);
-        
-        showInfo("성공", "플레이리스트 '" + name + "'이 생성되었습니다.");
-    }
-
-    private void deleteSelectedPlaylist() {
-        String selectedPlaylist = playlistListView.getSelectionModel().getSelectedItem();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "삭제할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 기본 플레이리스트는 삭제 불가
-        if ("기본 플레이리스트".equals(selectedPlaylist) || "즐겨찾기".equals(selectedPlaylist)) {
-            showAlert("오류", "기본 플레이리스트는 삭제할 수 없습니다.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 삭제 확인
-        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("플레이리스트 삭제");
-        confirmAlert.setHeaderText("플레이리스트를 삭제하시겠습니까?");
-        confirmAlert.setContentText("플레이리스트 '" + selectedPlaylist + "'을(를) 삭제하시겠습니까?");
-        
-        if (confirmAlert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
-            playlists.remove(selectedPlaylist);
-            playlistNames.remove(selectedPlaylist);
-            currentPlaylistSongs.clear();
-            
-            showInfo("성공", "플레이리스트 '" + selectedPlaylist + "'이 삭제되었습니다.");
-        }
-    }
-
-    private void addMusicToPlaylist() {
-        String selectedPlaylist = playlistListView.getSelectionModel().getSelectedItem();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 파일 선택 다이얼로그
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("음악 파일 선택");
-        fileChooser.getExtensionFilters().addAll(
-            new FileChooser.ExtensionFilter("음악 파일", "*.mp3", "*.wav", "*.flac", "*.m4a", "*.aac", "*.ogg"),
-            new FileChooser.ExtensionFilter("모든 파일", "*.*")
-        );
-        
-        // 현재 윈도우를 owner로 설정
-        Stage currentStage = (Stage) getScene().getWindow();
-        List<File> selectedFiles = fileChooser.showOpenMultipleDialog(currentStage);
-        
-        if (selectedFiles != null && !selectedFiles.isEmpty()) {
-            Playlist playlist = playlists.get(selectedPlaylist);
-            int addedCount = 0;
-            
-            for (File file : selectedFiles) {
-                // 간단한 MusicInfo 생성 (실제로는 메타데이터 추출 필요)
-                String fileName = file.getName();
-                String title = getFileNameWithoutExtension(fileName);
-                MusicInfo musicInfo = new MusicInfo(title, "Unknown Artist", "Unknown Album", 
-                                                  file.getAbsolutePath(), 0);
-                
-                // 플레이리스트에 추가 (중복 체크)
-                if (!isAlreadyInPlaylist(playlist, musicInfo)) {
-                    // 새로운 플레이리스트 생성 (불변 객체이므로)
-                    playlists.put(selectedPlaylist, addPlaylistItem(playlist, musicInfo));
-                    addedCount++;
-                }
-            }
-            
-            // UI 업데이트
+    public void refreshPlaylists() {
+        String selectedPlaylist = getSelectedPlaylist();
+        if (selectedPlaylist != null) {
             loadPlaylistSongs(selectedPlaylist);
+            updatePlaylistInfo(selectedPlaylist);
+        }
+        
+        // 라이브러리 카운트 업데이트
+        libraryCountLabel.setText("라이브러리: " + musicLibrary.size() + "곡 (새로고침됨)");
+        
+        // 잠시 후 원래 텍스트로 복원
+        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(
+                javafx.util.Duration.seconds(2),
+                e -> libraryCountLabel.setText("라이브러리: " + musicLibrary.size() + "곡")
+            )
+        );
+        timeline.play();
+    }
+
+    // ========== 검색 및 필터링 기능 ==========
+
+    public void filterMusicLibrary(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            updateMusicLibrary(musicLibrary);
+            return;
+        }
+        
+        String lowerCaseSearch = searchText.toLowerCase().trim();
+        List<MusicInfo> filteredList = musicLibrary.stream()
+            .filter(music -> 
+                music.getTitle().toLowerCase().contains(lowerCaseSearch) ||
+                music.getArtist().toLowerCase().contains(lowerCaseSearch) ||
+                music.getAlbum().toLowerCase().contains(lowerCaseSearch)
+            )
+            .toList();
+        
+        libraryCountLabel.setText("검색 결과: " + filteredList.size() + "곡");
+    }
+
+    public void showPlaylistStatistics() {
+        StringBuilder stats = new StringBuilder("플레이리스트 통계:\n\n");
+        
+        playlistData.forEach((name, musicList) -> {
+            long totalDuration = musicList.stream()
+                .mapToLong(MusicInfo::getDurationMillis)
+                .sum();
             
-            if (addedCount > 0) {
-                showInfo("성공", addedCount + "개의 곡이 플레이리스트에 추가되었습니다.");
-            } else {
-                showInfo("정보", "추가할 새로운 곡이 없습니다 (중복 제외).");
-            }
-        }
-    }
-
-    private void removeMusicFromPlaylist() {
-        String selectedPlaylist = playlistListView.getSelectionModel().getSelectedItem();
-        String selectedSong = musicListView.getSelectionModel().getSelectedItem();
+            stats.append(String.format("• %s: %d곡, %s\n", 
+                name, musicList.size(), formatDuration(totalDuration)));
+        });
         
-        if (selectedPlaylist == null) {
-            showAlert("오류", "플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
+        stats.append(String.format("\n총 라이브러리: %d곡", musicLibrary.size()));
         
-        if (selectedSong == null) {
-            showAlert("오류", "제거할 곡을 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        Playlist playlist = playlists.get(selectedPlaylist);
-        if (playlist != null) {
-            // 선택된 곡 찾기
-            int selectedIndex = musicListView.getSelectionModel().getSelectedIndex();
-            if (selectedIndex >= 0 && selectedIndex < playlist.getMusicList().size()) {
-                // 새로운 플레이리스트 생성 (선택된 곡 제외)
-                playlists.put(selectedPlaylist, removePlaylistItem(playlist, selectedIndex));
-                
-                // UI 업데이트
-                loadPlaylistSongs(selectedPlaylist);
-                
-                showInfo("성공", "곡이 플레이리스트에서 제거되었습니다.");
-            }
-        }
-    }
-
-    private void loadPlaylistSongs(String playlistName) {
-        currentPlaylistSongs.clear();
-        Playlist playlist = playlists.get(playlistName);
-        if (playlist != null) {
-            for (MusicInfo music : playlist.getMusicList()) {
-                currentPlaylistSongs.add(music.getTitle() + " - " + music.getArtist());
-            }
-        }
-    }
-
-    // 유틸리티 메서드들
-    private String getFileNameWithoutExtension(String fileName) {
-        int lastDot = fileName.lastIndexOf('.');
-        return lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
-    }
-
-    private boolean isAlreadyInPlaylist(Playlist playlist, MusicInfo musicInfo) {
-        return playlist.getMusicList().stream()
-                .anyMatch(existing -> existing.getFilePath().equals(musicInfo.getFilePath()));
-    }
-
-    private Playlist addPlaylistItem(Playlist playlist, MusicInfo musicInfo) {
-        var newList = new java.util.ArrayList<>(playlist.getMusicList());
-        newList.add(musicInfo);
-        return new Playlist(playlist.getName(), newList);
-    }
-
-    private Playlist removePlaylistItem(Playlist playlist, int index) {
-        var newList = new java.util.ArrayList<>(playlist.getMusicList());
-        newList.remove(index);
-        return new Playlist(playlist.getName(), newList);
-    }
-
-    private void showAlert(String title, String message, Alert.AlertType type) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
-    private void showInfo(String title, String message) {
-        showAlert(title, message, Alert.AlertType.INFORMATION);
-    }
-
-    // Getter 메서드들
-    public Button getCreateButton() { return createButton; }
-    public Button getDeleteButton() { return deleteButton; }
-    public Button getAddButton() { return addButton; }
-    public Button getRemoveButton() { return removeButton; }
-    public String getPlaylistNameInput() { return playlistNameInput.getText().trim(); }
-    public String getSelectedPlaylist() { return playlistListView.getSelectionModel().getSelectedItem(); }
-    public String getSelectedMusic() { return musicListView.getSelectionModel().getSelectedItem(); }
-    public ObservableList<String> getPlaylistItems() { return currentPlaylistSongs; }
-    
-    public void clearPlaylistNameInput() {
-        playlistNameInput.clear();
-    }
-    
-    // 외부에서 플레이리스트 데이터에 접근할 수 있는 메서드
-    public Map<String, Playlist> getPlaylists() {
-        return new HashMap<>(playlists);
-    }
-    
-    public Playlist getCurrentPlaylist() {
-        String selected = getSelectedPlaylist();
-        return selected != null ? playlists.get(selected) : null;
+        Alert statsDialog = new Alert(Alert.AlertType.INFORMATION);
+        statsDialog.setTitle("플레이리스트 통계");
+        statsDialog.setHeaderText("현재 플레이리스트 현황");
+        statsDialog.setContentText(stats.toString());
+        statsDialog.showAndWait();
     }
 }
