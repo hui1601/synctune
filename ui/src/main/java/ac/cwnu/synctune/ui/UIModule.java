@@ -231,7 +231,6 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
             UIUtils.hideProgressDialog();
             if (mainWindow != null) {
                 mainWindow.showMediaScanCompleted(event.getScannedMusicInfos().size());
-                mainWindow.updateMusicLibrary(event.getScannedMusicInfos());
             }
             UIUtils.showTaskCompleted("미디어 스캔", event.getScannedMusicInfos().size());
         });
@@ -242,7 +241,6 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     public void onMetadataUpdated(MediaInfoEvent.MetadataUpdatedEvent event) {
         Platform.runLater(() -> {
             if (mainWindow != null) {
-                mainWindow.updateMusicMetadata(event.getUpdatedMusicInfo());
                 String message = "메타데이터 업데이트: " + event.getUpdatedMusicInfo().getTitle();
                 mainWindow.setStatusText(message);
             }

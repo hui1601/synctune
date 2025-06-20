@@ -16,13 +16,31 @@ import ac.cwnu.synctune.ui.controller.WindowStateManager;
 import ac.cwnu.synctune.ui.util.UIUtils;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.Label;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
+import javafx.scene.control.RadioMenuItem;
+import javafx.scene.control.Separator;
+import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.ToolBar;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -35,7 +53,6 @@ public class MainApplicationWindow extends Stage {
     private PlaylistView playlistView;
     private LyricsView lyricsView;
     private StatusBarView statusBarView;
-    private MusicLibraryView musicLibraryView; // 새로 추가된 음악 라이브러리 뷰
     
     // 컨트롤러들
     private PlaybackController playbackController;
@@ -94,7 +111,6 @@ public class MainApplicationWindow extends Stage {
         playlistView = new PlaylistView();
         lyricsView = new LyricsView();
         statusBarView = new StatusBarView();
-        musicLibraryView = new MusicLibraryView(eventPublisher); // 새로 추가
         
         // 스캔 진행 바 생성
         scanProgressBar = new ProgressBar(0);
@@ -146,10 +162,6 @@ public class MainApplicationWindow extends Stage {
         Tab lyricsTab = new Tab("가사", lyricsView);
         lyricsTab.setClosable(false);
         
-        // 음악 라이브러리 탭
-        Tab libraryTab = new Tab("라이브러리", musicLibraryView);
-        libraryTab.setClosable(false);
-        
         // 비주얼라이저 탭 (향후 구현을 위해 준비)
         VBox visualizerPlaceholder = new VBox();
         visualizerPlaceholder.getChildren().add(new Label("비주얼라이저 (준비 중)"));
@@ -162,7 +174,7 @@ public class MainApplicationWindow extends Stage {
         Tab equalizerTab = new Tab("이퀄라이저", equalizerPlaceholder);
         equalizerTab.setClosable(false);
         
-        tabPane.getTabs().addAll(lyricsTab, libraryTab, visualizerTab, equalizerTab);
+        tabPane.getTabs().addAll(lyricsTab);
         
         return tabPane;
     }
@@ -202,11 +214,6 @@ public class MainApplicationWindow extends Stage {
     private void performSearch(String searchText) {
         if (playlistActionHandler != null) {
             playlistActionHandler.filterMusic(searchText);
-        }
-        
-        // 음악 라이브러리에서도 검색
-        if (musicLibraryView != null) {
-            musicLibraryView.filterMusic(searchText);
         }
         
         if (searchText != null && !searchText.trim().isEmpty()) {
@@ -543,7 +550,6 @@ public class MainApplicationWindow extends Stage {
         
         refreshButton.setOnAction(e -> {
             playlistView.refreshPlaylists();
-            musicLibraryView.refreshLibrary();
             setStatusText("전체 새로고침됨");
         });
         
@@ -712,13 +718,11 @@ public class MainApplicationWindow extends Stage {
             controlsView.updateMusicInfo(music);
             setTitle("SyncTune - " + music.getTitle() + " - " + music.getArtist());
             statusBarView.updateCurrentMusic(music);
-            musicLibraryView.highlightCurrentMusic(music);
             
             loadAlbumArt(music);
         } else {
             setTitle("SyncTune Player");
             statusBarView.updateCurrentMusic(null);
-            musicLibraryView.clearHighlight();
         }
     }
 
@@ -844,20 +848,6 @@ public class MainApplicationWindow extends Stage {
     public void loadAllPlaylists(List<Playlist> playlists) {
         playlistView.loadPlaylists(playlists);
         setStatusText("플레이리스트 로드됨: " + playlists.size() + "개");
-    }
-
-    // ========== 라이브러리 관련 메서드들 ==========
-    
-    public void updateMusicLibrary(List<MusicInfo> musicList) {
-        playlistView.updateMusicLibrary(musicList);
-        musicLibraryView.updateLibrary(musicList);
-        setStatusText("음악 라이브러리 업데이트됨: " + musicList.size() + "곡");
-    }
-    
-    public void updateMusicMetadata(MusicInfo music) {
-        playlistView.updateMusicMetadata(music);
-        musicLibraryView.updateMusicMetadata(music);
-        setStatusText("메타데이터 업데이트됨: " + music.getTitle());
     }
 
     // ========== 애플리케이션 상태 관련 메서드들 ==========
@@ -1247,7 +1237,6 @@ public class MainApplicationWindow extends Stage {
     public PlaylistView getPlaylistView() { return playlistView; }
     public LyricsView getLyricsView() { return lyricsView; }
     public StatusBarView getStatusBarView() { return statusBarView; }
-    public MusicLibraryView getMusicLibraryView() { return musicLibraryView; }
     
     public PlaybackController getPlaybackController() { return playbackController; }
     public PlaylistActionHandler getPlaylistActionHandler() { return playlistActionHandler; }
