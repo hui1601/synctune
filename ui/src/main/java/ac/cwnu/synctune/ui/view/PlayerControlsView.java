@@ -3,6 +3,9 @@ package ac.cwnu.synctune.ui.view;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.component.AlbumArtDisplay;
 import ac.cwnu.synctune.ui.component.StyledButton;
+import ac.cwnu.synctune.ui.util.UIUtils;
+import javafx.animation.ScaleTransition;
+import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -13,6 +16,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.util.Duration;
 
 public class PlayerControlsView extends VBox {
     // 필드 선언 시 즉시 초기화
@@ -32,8 +36,13 @@ public class PlayerControlsView extends VBox {
     private final Label musicTitleLabel = new Label("재생 중인 곡이 없습니다");
     private final Label musicArtistLabel = new Label("");
     private final Label musicAlbumLabel = new Label("");
+    private final Label volumeIconLabel = new Label("🔊");
     
     private final AlbumArtDisplay albumArtDisplay = new AlbumArtDisplay(80);
+    
+    // 상태 관리
+    private MusicInfo currentMusic = null;
+    private boolean isUserSeeking = false;
 
     public PlayerControlsView() {
         initializeComponents();
@@ -63,6 +72,7 @@ public class PlayerControlsView extends VBox {
         // 슬라이더 설정
         progressSlider.setPrefWidth(500);
         progressSlider.setStyle("-fx-pref-height: 8;");
+        progressSlider.setBlockIncrement(10000); // 10초 단위
         
         volumeSlider.setPrefWidth(120);
         volumeSlider.setTooltip(new Tooltip("볼륨 (Ctrl+↑/↓)"));
@@ -70,18 +80,25 @@ public class PlayerControlsView extends VBox {
         // 음악 정보 라벨 스타일
         musicTitleLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
         musicTitleLabel.setStyle("-fx-text-fill: #2c3e50;");
+        musicTitleLabel.setMaxWidth(400);
+        musicTitleLabel.setWrapText(false);
         
         musicArtistLabel.setFont(Font.font("System", 14));
         musicArtistLabel.setStyle("-fx-text-fill: #7f8c8d;");
+        musicArtistLabel.setMaxWidth(400);
         
         musicAlbumLabel.setFont(Font.font("System", 12));
         musicAlbumLabel.setStyle("-fx-text-fill: #95a5a6;");
+        musicAlbumLabel.setMaxWidth(400);
 
         // 시간 라벨 스타일 (고정폭 폰트 사용)
         currentTimeLabel.setFont(Font.font("Consolas", 12));
         totalTimeLabel.setFont(Font.font("Consolas", 12));
         currentTimeLabel.setStyle("-fx-text-fill: #2c3e50;");
         totalTimeLabel.setStyle("-fx-text-fill: #2c3e50;");
+        
+        // 볼륨 아이콘 설정
+        volumeIconLabel.setStyle("-fx-font-size: 16px;");
     }
 
     private void layoutComponents() {
@@ -164,15 +181,12 @@ public class PlayerControlsView extends VBox {
         HBox volumeBox = new HBox(15);
         volumeBox.setAlignment(Pos.CENTER);
 
-        Label volumeIcon = new Label("🔊");
-        volumeIcon.setStyle("-fx-font-size: 16px;");
-
         Label volumeLabel = new Label("볼륨");
         volumeLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 12px;");
 
         HBox volumeControls = new HBox(8);
         volumeControls.setAlignment(Pos.CENTER);
-        volumeControls.getChildren().addAll(volumeIcon, volumeSlider, volumeLabel);
+        volumeControls.getChildren().addAll(volumeIconLabel, volumeSlider, volumeLabel);
 
         volumeBox.getChildren().add(volumeControls);
         return volumeBox;
@@ -182,7 +196,10 @@ public class PlayerControlsView extends VBox {
         // 진행 바 드래그 시 라벨 업데이트
         progressSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (progressSlider.isValueChanging()) {
+                isUserSeeking = true;
                 updateTimeLabel(currentTimeLabel, newVal.longValue());
+            } else {
+                isUserSeeking = false;
             }
         });
 
@@ -198,6 +215,8 @@ public class PlayerControlsView extends VBox {
     // ========== 업데이트 메서드들 ==========
 
     public void updateMusicInfo(MusicInfo music) {
+        this.currentMusic = music;
+        
         if (music != null) {
             musicTitleLabel.setText(music.getTitle());
             musicArtistLabel.setText(music.getArtist());
@@ -205,19 +224,70 @@ public class PlayerControlsView extends VBox {
             progressSlider.setMax(music.getDurationMillis());
             updateTimeLabel(totalTimeLabel, music.getDurationMillis());
             
-            // 앨범 아트 로드 시도 (파일이 존재한다면)
-            // TODO: 앨범 아트 로드 로직 구현
+            // 앨범 아트 로드 시도
             albumArtDisplay.clearAlbumArt();
+            loadAlbumArtAsync(music);
         } else {
             musicTitleLabel.setText("재생 중인 곡이 없습니다");
             musicArtistLabel.setText("");
             musicAlbumLabel.setText("");
             albumArtDisplay.clearAlbumArt();
+            progressSlider.setMax(100);
+            progressSlider.setValue(0);
+            updateTimeLabel(totalTimeLabel, 0);
         }
     }
 
+    private void loadAlbumArtAsync(MusicInfo music) {
+        // 백그라운드에서 앨범 아트 로드
+        new Thread(() -> {
+            try {
+                String musicDir = new java.io.File(music.getFilePath()).getParent();
+                java.io.File[] imageFiles = new java.io.File(musicDir).listFiles((dir, name) -> {
+                    String lower = name.toLowerCase();
+                    return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || 
+                           lower.endsWith(".png") || lower.endsWith(".gif");
+                });
+                
+                if (imageFiles != null && imageFiles.length > 0) {
+                    // 가장 적합한 이미지 파일 선택
+                    java.io.File bestImage = selectBestAlbumArt(imageFiles);
+                    
+                    javafx.application.Platform.runLater(() -> {
+                        albumArtDisplay.setAlbumArt(bestImage.getAbsolutePath());
+                    });
+                }
+            } catch (Exception e) {
+                // 앨범 아트 로드 실패는 조용히 무시
+            }
+        }).start();
+    }
+
+    private java.io.File selectBestAlbumArt(java.io.File[] imageFiles) {
+        // 파일명 우선순위: cover > folder > album > front
+        String[] preferredNames = {"cover", "folder", "album", "front"};
+        
+        for (String prefName : preferredNames) {
+            for (java.io.File file : imageFiles) {
+                String name = UIUtils.getFileNameWithoutExtension(file.getName()).toLowerCase();
+                if (name.equals(prefName)) {
+                    return file;
+                }
+            }
+        }
+        
+        // 우선순위 이름이 없으면 가장 큰 파일 선택
+        java.io.File largest = imageFiles[0];
+        for (java.io.File file : imageFiles) {
+            if (file.length() > largest.length()) {
+                largest = file;
+            }
+        }
+        return largest;
+    }
+
     public void updateProgress(long currentMs, long totalMs) {
-        if (!progressSlider.isValueChanging()) {
+        if (!isUserSeeking) {
             progressSlider.setValue(currentMs);
         }
         updateTimeLabel(currentTimeLabel, currentMs);
@@ -239,6 +309,12 @@ public class PlayerControlsView extends VBox {
             playButton.setStyle("-fx-opacity: 1.0;");
             pauseButton.setStyle("-fx-opacity: 0.6;");
         }
+        
+        // 정지 시 진행바 초기화
+        if (isStopped) {
+            progressSlider.setValue(0);
+            updateTimeLabel(currentTimeLabel, 0);
+        }
     }
 
     private void updateTimeLabel(Label label, long timeMs) {
@@ -254,16 +330,14 @@ public class PlayerControlsView extends VBox {
     }
 
     private void updateVolumeIcon(double volume) {
-        Label volumeIcon = (Label) ((HBox) ((HBox) getChildren().get(3)).getChildren().get(0)).getChildren().get(0);
-        
         if (volume == 0) {
-            volumeIcon.setText("🔇");
+            volumeIconLabel.setText("🔇");
         } else if (volume < 30) {
-            volumeIcon.setText("🔈");
+            volumeIconLabel.setText("🔈");
         } else if (volume < 70) {
-            volumeIcon.setText("🔉");
+            volumeIconLabel.setText("🔉");
         } else {
-            volumeIcon.setText("🔊");
+            volumeIconLabel.setText("🔊");
         }
     }
 
@@ -275,15 +349,17 @@ public class PlayerControlsView extends VBox {
             playButton.setDisable(true);
         } else {
             playButton.setText("▶");
-            playButton.setDisable(false);
+            updatePlaybackState(false, false, true);
         }
     }
 
     public void updateShuffleState(boolean enabled) {
         if (enabled) {
             shuffleButton.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+            shuffleButton.setTooltip(new Tooltip("셔플: 켜짐"));
         } else {
             shuffleButton.setStyle("-fx-background-color: #95a5a6; -fx-text-fill: white;");
+            shuffleButton.setTooltip(new Tooltip("셔플: 꺼짐"));
         }
     }
 
@@ -316,14 +392,21 @@ public class PlayerControlsView extends VBox {
     }
 
     public void showError(String message) {
+        // 임시로 제목 라벨에 에러 표시
+        String originalText = musicTitleLabel.getText();
+        String originalStyle = musicTitleLabel.getStyle();
+        
         musicTitleLabel.setText("오류: " + message);
         musicTitleLabel.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
         
-        // 3초 후 원래 스타일로 복원
-        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+        // 5초 후 원래 상태로 복원
+        Timeline timeline = new Timeline(
             new javafx.animation.KeyFrame(
-                javafx.util.Duration.seconds(3),
-                e -> musicTitleLabel.setStyle("-fx-text-fill: #2c3e50; -fx-font-weight: bold;")
+                Duration.seconds(5),
+                e -> {
+                    musicTitleLabel.setText(originalText);
+                    musicTitleLabel.setStyle(originalStyle);
+                }
             )
         );
         timeline.play();
@@ -357,8 +440,7 @@ public class PlayerControlsView extends VBox {
     // ========== 애니메이션 효과 ==========
 
     public void pulsePlayButton() {
-        javafx.animation.ScaleTransition pulse = new javafx.animation.ScaleTransition(
-            javafx.util.Duration.millis(200), playButton);
+        ScaleTransition pulse = new ScaleTransition(Duration.millis(200), playButton);
         pulse.setToX(1.1);
         pulse.setToY(1.1);
         pulse.setAutoReverse(true);
@@ -370,12 +452,30 @@ public class PlayerControlsView extends VBox {
         String originalStyle = progressSlider.getStyle();
         progressSlider.setStyle(originalStyle + "; -fx-accent: #e74c3c;");
         
-        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+        Timeline timeline = new Timeline(
             new javafx.animation.KeyFrame(
-                javafx.util.Duration.seconds(1),
+                Duration.seconds(1),
                 e -> progressSlider.setStyle(originalStyle)
             )
         );
         timeline.play();
+    }
+    
+    // ========== 상태 조회 메서드들 ==========
+    
+    public boolean isUserSeeking() {
+        return isUserSeeking;
+    }
+    
+    public MusicInfo getCurrentMusic() {
+        return currentMusic;
+    }
+    
+    public double getProgressValue() {
+        return progressSlider.getValue();
+    }
+    
+    public double getVolumeValue() {
+        return volumeSlider.getValue();
     }
 }
