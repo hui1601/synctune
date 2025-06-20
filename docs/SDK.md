@@ -253,7 +253,7 @@ SDK는 다음과 같은 주요 구성 요소로 이루어져 있습니다:
         }
     }
     ```
-    로그 레벨(DEBUG, INFO, WARN, ERROR 등)과 포맷은 프로젝트 루트의 `logback.xml` 또는 각 모듈의 `resources` 내 `logback.xml` 설정을 따릅니다. (현재는 루트의 `src/main/resources/logback.xml` 과 `bin/main/logback.xml` 이 존재하며, 최종적으로 실행 시점의 클래스패스에 따라 하나의 설정이 적용됩니다.)
+    로그 레벨(DEBUG, INFO, WARN, ERROR 등)과 포맷은 프로젝트 루트의 `logback.xml` 또는 각 모듈의 `resources` 내 `logback.xml` 설정을 따릅니다.
 
 ### 7. 모듈 간 상호작용 예시 (워크플로우)
 

@@ -5,9 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="82417bd2-bc52-416d-bf72-81f908ce32ec" name="변경" comment="feat(core): Add event listener for RequestApplicationShutdownEvent to handle shutdown requests">
+      <change afterPath="$PROJECT_DIR$/docs/core.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ui/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/ui/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/SDK.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/SDK.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -148,7 +148,8 @@
       <workItem from="1749345726912" duration="5031000" />
       <workItem from="1750230023869" duration="46000" />
       <workItem from="1750234299268" duration="517000" />
-      <workItem from="1750310977161" duration="1187000" />
+      <workItem from="1750310977161" duration="3216000" />
+      <workItem from="1750419637689" duration="2563000" />
     </task>
     <task id="LOCAL-00001" summary="feat: Add initial module structure and event handling classes for SyncTune application">
       <option name="closed" value="true" />
