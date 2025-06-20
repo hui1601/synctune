@@ -35,74 +35,137 @@ public class StyledButton extends Button {
 
     private ButtonStyle currentStyle;
     private boolean animationEnabled = true;
+    private String baseStyle;
 
     public StyledButton(String text, ButtonStyle style) {
         super(text);
         this.currentStyle = style;
-        applyStyle(style);
-        setupAnimations();
+        
+        try {
+            System.out.println("StyledButton 생성: " + text + " (" + style.name() + ")");
+            applyStyle(style);
+            setupAnimations();
+            System.out.println("StyledButton 초기화 완료: " + text);
+        } catch (Exception e) {
+            System.err.println("StyledButton 초기화 오류: " + e.getMessage());
+            e.printStackTrace();
+            // 오류 발생 시 기본 버튼으로 사용
+            applyFallbackStyle();
+        }
     }
 
     private void applyStyle(ButtonStyle style) {
-        setStyle(String.format(
-            "-fx-background-color: %s; " +
-            "-fx-text-fill: %s; " +
-            "-fx-border-radius: 6; " +
-            "-fx-background-radius: 6; " +
-            "-fx-padding: 8 16; " +
-            "-fx-font-size: 13px; " +
-            "-fx-font-weight: 500; " +
-            "-fx-cursor: hand; " +
-            "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 2, 0, 0, 1);",
-            style.normalColor, style.textColor
-        ));
+        try {
+            baseStyle = String.format(
+                "-fx-background-color: %s; " +
+                "-fx-text-fill: %s; " +
+                "-fx-border-radius: 6; " +
+                "-fx-background-radius: 6; " +
+                "-fx-padding: 8 16; " +
+                "-fx-font-size: 13px; " +
+                "-fx-font-weight: 500; " +
+                "-fx-cursor: hand;",
+                style.normalColor, style.textColor
+            );
+            
+            setStyle(baseStyle);
+            System.out.println("버튼 스타일 적용 완료: " + style.name());
+            
+        } catch (Exception e) {
+            System.err.println("버튼 스타일 적용 오류: " + e.getMessage());
+            applyFallbackStyle();
+        }
+    }
+
+    private void applyFallbackStyle() {
+        try {
+            // CSS 파싱 오류가 발생할 경우 매우 간단한 스타일만 적용
+            setStyle(
+                "-fx-background-color: #95a5a6; " +
+                "-fx-text-fill: white; " +
+                "-fx-padding: 8 16;"
+            );
+            System.out.println("버튼 대체 스타일 적용 완료");
+        } catch (Exception e) {
+            System.err.println("대체 스타일 적용도 실패: " + e.getMessage());
+            // 모든 스타일 적용 실패 시 기본 JavaFX 버튼 사용
+        }
     }
 
     private void setupAnimations() {
-        setOnMouseEntered(e -> {
-            if (animationEnabled) {
-                setStyle(getStyle().replace(currentStyle.normalColor, currentStyle.hoverColor));
-                
-                ScaleTransition scale = new ScaleTransition(Duration.millis(100), this);
-                scale.setToX(1.05);
-                scale.setToY(1.05);
-                scale.play();
-            }
-        });
-        
-        setOnMouseExited(e -> {
-            if (animationEnabled) {
-                setStyle(getStyle().replace(currentStyle.hoverColor, currentStyle.normalColor));
-                
-                ScaleTransition scale = new ScaleTransition(Duration.millis(100), this);
-                scale.setToX(1.0);
-                scale.setToY(1.0);
-                scale.play();
-            }
-        });
+        try {
+            setOnMouseEntered(e -> {
+                if (animationEnabled && currentStyle != null) {
+                    try {
+                        String hoverStyle = baseStyle.replace(currentStyle.normalColor, currentStyle.hoverColor);
+                        setStyle(hoverStyle);
+                        
+                        ScaleTransition scale = new ScaleTransition(Duration.millis(100), this);
+                        scale.setToX(1.05);
+                        scale.setToY(1.05);
+                        scale.play();
+                    } catch (Exception ex) {
+                        System.err.println("호버 효과 적용 오류: " + ex.getMessage());
+                    }
+                }
+            });
+            
+            setOnMouseExited(e -> {
+                if (animationEnabled && currentStyle != null) {
+                    try {
+                        setStyle(baseStyle);
+                        
+                        ScaleTransition scale = new ScaleTransition(Duration.millis(100), this);
+                        scale.setToX(1.0);
+                        scale.setToY(1.0);
+                        scale.play();
+                    } catch (Exception ex) {
+                        System.err.println("호버 종료 효과 적용 오류: " + ex.getMessage());
+                    }
+                }
+            });
 
-        setOnMousePressed(e -> {
-            if (animationEnabled) {
-                ScaleTransition scale = new ScaleTransition(Duration.millis(50), this);
-                scale.setToX(0.95);
-                scale.setToY(0.95);
-                scale.play();
-            }
-        });
+            setOnMousePressed(e -> {
+                if (animationEnabled) {
+                    try {
+                        ScaleTransition scale = new ScaleTransition(Duration.millis(50), this);
+                        scale.setToX(0.95);
+                        scale.setToY(0.95);
+                        scale.play();
+                    } catch (Exception ex) {
+                        System.err.println("클릭 효과 적용 오류: " + ex.getMessage());
+                    }
+                }
+            });
 
-        setOnMouseReleased(e -> {
-            if (animationEnabled) {
-                ScaleTransition scale = new ScaleTransition(Duration.millis(50), this);
-                scale.setToX(1.05);
-                scale.setToY(1.05);
-                scale.play();
-            }
-        });
+            setOnMouseReleased(e -> {
+                if (animationEnabled) {
+                    try {
+                        ScaleTransition scale = new ScaleTransition(Duration.millis(50), this);
+                        scale.setToX(1.05);
+                        scale.setToY(1.05);
+                        scale.play();
+                    } catch (Exception ex) {
+                        System.err.println("클릭 해제 효과 적용 오류: " + ex.getMessage());
+                    }
+                }
+            });
+            
+            System.out.println("버튼 애니메이션 설정 완료");
+            
+        } catch (Exception e) {
+            System.err.println("버튼 애니메이션 설정 오류: " + e.getMessage());
+            // 애니메이션 설정 실패해도 버튼 기능은 유지
+        }
     }
     
     public void setButtonStyle(ButtonStyle style) {
-        this.currentStyle = style;
-        applyStyle(style);
+        try {
+            this.currentStyle = style;
+            applyStyle(style);
+        } catch (Exception e) {
+            System.err.println("버튼 스타일 변경 오류: " + e.getMessage());
+        }
     }
     
     public void setAnimationEnabled(boolean enabled) {
@@ -110,23 +173,33 @@ public class StyledButton extends Button {
     }
     
     public void pulse() {
-        ScaleTransition pulse = new ScaleTransition(Duration.millis(300), this);
-        pulse.setToX(1.2);
-        pulse.setToY(1.2);
-        pulse.setAutoReverse(true);
-        pulse.setCycleCount(2);
-        pulse.play();
+        if (animationEnabled) {
+            try {
+                ScaleTransition pulse = new ScaleTransition(Duration.millis(300), this);
+                pulse.setToX(1.2);
+                pulse.setToY(1.2);
+                pulse.setAutoReverse(true);
+                pulse.setCycleCount(2);
+                pulse.play();
+            } catch (Exception e) {
+                System.err.println("펄스 애니메이션 오류: " + e.getMessage());
+            }
+        }
     }
     
     public void setGlowEffect(boolean enabled) {
-        if (enabled) {
-            DropShadow glow = new DropShadow();
-            glow.setColor(Color.web(currentStyle.normalColor));
-            glow.setRadius(10);
-            glow.setSpread(0.3);
-            setEffect(glow);
-        } else {
-            setEffect(null);
+        try {
+            if (enabled && currentStyle != null) {
+                DropShadow glow = new DropShadow();
+                glow.setColor(Color.web(currentStyle.normalColor));
+                glow.setRadius(10);
+                glow.setSpread(0.3);
+                setEffect(glow);
+            } else {
+                setEffect(null);
+            }
+        } catch (Exception e) {
+            System.err.println("글로우 효과 적용 오류: " + e.getMessage());
         }
     }
 }

@@ -79,7 +79,8 @@ public class MainApplicationWindow extends Stage {
     private double normalWidth = 1400;
     private double normalHeight = 900;
 
-    public MainApplicationWindow(EventPublisher publisher) {
+    
+public MainApplicationWindow(EventPublisher publisher) {
         this.eventPublisher = publisher;
         setTitle("SyncTune Player");
         setWidth(normalWidth);
@@ -87,32 +88,59 @@ public class MainApplicationWindow extends Stage {
         setMinWidth(800);
         setMinHeight(600);
         
-        initUI();
-        initControllers();
-        setupKeyboardShortcuts();
-        applyTheme();
+        System.out.println("MainApplicationWindow 생성자 시작");
         
-        // 창 아이콘 설정 (리소스가 있다면)
         try {
-            // getIcons().add(new Image(getClass().getResourceAsStream("/icons/synctune.png")));
+            initUI();
+            System.out.println("UI 초기화 완료");
+            
+            initControllers();
+            System.out.println("컨트롤러 초기화 완료");
+            
+            setupKeyboardShortcuts();
+            applyTheme();
+            
+            // 창 아이콘 설정 (리소스가 있다면)
+            try {
+                // getIcons().add(new Image(getClass().getResourceAsStream("/icons/synctune.png")));
+            } catch (Exception e) {
+                // 아이콘 파일이 없어도 계속 진행
+            }
+            
+            System.out.println("MainApplicationWindow 초기화 완료");
+            
         } catch (Exception e) {
-            // 아이콘 파일이 없어도 계속 진행
+            System.err.println("MainApplicationWindow 초기화 중 오류: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
     private void initUI() {
+        System.out.println("UI 컴포넌트 생성 시작");
+        
         BorderPane root = new BorderPane();
         
         // 메뉴바 생성
         MenuBar menuBar = createMenuBar();
         
-        // 뷰 컴포넌트 생성
+        // 뷰 컴포넌트 생성 - 순서 중요!
+        System.out.println("PlayerControlsView 생성 중...");
         controlsView = new PlayerControlsView();
-        playlistView = new PlaylistView();
-        lyricsView = new LyricsView();
-        statusBarView = new StatusBarView();
+        System.out.println("PlayerControlsView 생성 완료");
         
-        // 스캔 진행 바 생성
+        System.out.println("PlaylistView 생성 중...");
+        playlistView = new PlaylistView();
+        System.out.println("PlaylistView 생성 완료");
+        
+        System.out.println("LyricsView 생성 중...");
+        lyricsView = new LyricsView();
+        System.out.println("LyricsView 생성 완료");
+        
+        System.out.println("StatusBarView 생성 중...");
+        statusBarView = new StatusBarView();
+        System.out.println("StatusBarView 생성 완료");
+        
+        // 상태 표시용 컴포넌트들
         scanProgressBar = new ProgressBar(0);
         scanProgressBar.setPrefWidth(300);
         scanProgressBar.setVisible(false);
@@ -152,6 +180,8 @@ public class MainApplicationWindow extends Stage {
         loadStylesheets(scene);
         
         setScene(scene);
+        
+        System.out.println("UI 레이아웃 구성 완료");
     }
 
     private TabPane createCenterTabPane() {
@@ -181,18 +211,54 @@ public class MainApplicationWindow extends Stage {
 
     private void loadStylesheets(Scene scene) {
         try {
-            String cssFile = getClass().getResource("/styles.css").toExternalForm();
-            scene.getStylesheets().add(cssFile);
+            // CSS 파일 로드를 안전하게 처리
+            System.out.println("CSS 스타일시트 로딩 시작...");
+            
+            // 기본 스타일시트 로드
+            String cssResource = "/styles.css";
+            java.net.URL cssUrl = getClass().getResource(cssResource);
+            
+            if (cssUrl != null) {
+                String cssFile = cssUrl.toExternalForm();
+                System.out.println("CSS 파일 발견: " + cssFile);
+                scene.getStylesheets().add(cssFile);
+                System.out.println("기본 CSS 스타일시트 로드 완료");
+            } else {
+                System.out.println("CSS 파일을 찾을 수 없습니다: " + cssResource);
+                // CSS 파일이 없어도 계속 진행
+                applyDefaultStyles(scene);
+            }
+            
         } catch (Exception e) {
-            System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
+            System.err.println("CSS 파일 로드 중 오류: " + e.getMessage());
+            e.printStackTrace();
+            
+            // CSS 로드 실패 시 기본 스타일 적용
+            try {
+                applyDefaultStyles(scene);
+            } catch (Exception fallbackError) {
+                System.err.println("기본 스타일 적용도 실패: " + fallbackError.getMessage());
+                // 모든 스타일 적용 실패해도 애플리케이션은 계속 실행
+            }
         }
-        
-        // 추가 테마 파일들 로드 시도
+    }
+    
+    private void applyDefaultStyles(Scene scene) {
         try {
-            String darkTheme = getClass().getResource("/dark-theme.css").toExternalForm();
-            // 나중에 다크 모드 지원 시 사용
+            System.out.println("기본 스타일을 코드로 적용 중...");
+            
+            // 루트 노드에 기본 스타일 적용
+            scene.getRoot().setStyle(
+                "-fx-font-family: 'System'; " +
+                "-fx-font-size: 12px; " +
+                "-fx-background-color: #f8f9fa;"
+            );
+            
+            System.out.println("기본 스타일 적용 완료");
+            
         } catch (Exception e) {
-            // 다크 테마 파일이 없어도 계속 진행
+            System.err.println("기본 스타일 적용 실패: " + e.getMessage());
+            // 이것도 실패하면 그냥 기본 JavaFX 스타일 사용
         }
     }
 
@@ -601,9 +667,34 @@ public class MainApplicationWindow extends Stage {
     }
 
     private void initControllers() {
+        System.out.println("컨트롤러 초기화 시작");
+        
+        // null 체크
+        if (controlsView == null) {
+            throw new IllegalStateException("controlsView가 null입니다. initUI()가 먼저 호출되어야 합니다.");
+        }
+        if (playlistView == null) {
+            throw new IllegalStateException("playlistView가 null입니다. initUI()가 먼저 호출되어야 합니다.");
+        }
+        if (eventPublisher == null) {
+            throw new IllegalStateException("eventPublisher가 null입니다.");
+        }
+        
+        System.out.println("PlaybackController 생성 중...");
+        System.out.println("controlsView.getPlayButton(): " + (controlsView.getPlayButton() != null ? "OK" : "NULL"));
+        
         playbackController = new PlaybackController(controlsView, eventPublisher);
+        System.out.println("PlaybackController 생성 완료");
+        
+        System.out.println("PlaylistActionHandler 생성 중...");
         playlistActionHandler = new PlaylistActionHandler(playlistView, eventPublisher);
+        System.out.println("PlaylistActionHandler 생성 완료");
+        
+        System.out.println("WindowStateManager 생성 중...");
         windowStateManager = new WindowStateManager(this, eventPublisher);
+        System.out.println("WindowStateManager 생성 완료");
+        
+        System.out.println("모든 컨트롤러 초기화 완료");
     }
 
     private void setupKeyboardShortcuts() {

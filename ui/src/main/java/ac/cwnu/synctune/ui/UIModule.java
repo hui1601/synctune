@@ -64,20 +64,41 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     private void initializeUI() {
         if (!isJavaFXInitialized && !isShuttingDown) {
             try {
+                System.out.println("UI 초기화 시작...");
+                
                 // Platform implicit exit를 false로 설정하여 창을 닫아도 즉시 종료되지 않도록 함
                 Platform.setImplicitExit(false);
                 
+                System.out.println("MainApplicationWindow 생성 중...");
+                System.out.println("EventPublisher: " + (eventPublisher != null ? "OK" : "NULL"));
+                
+                if (eventPublisher == null) {
+                    throw new IllegalStateException("EventPublisher가 null입니다. UIModule.start()가 제대로 호출되지 않았습니다.");
+                }
+                
                 mainWindow = new MainApplicationWindow(eventPublisher);
+                System.out.println("MainApplicationWindow 생성 완료");
+                
+                System.out.println("윈도우 표시 중...");
                 mainWindow.show();
+                System.out.println("윈도우 표시 완료");
+                
                 isJavaFXInitialized = true;
                 log.info("메인 윈도우가 성공적으로 표시되었습니다. (ImplicitExit=false)");
                 
                 // UI 준비 완료 이벤트 발행
+                System.out.println("UI 준비 완료 이벤트 발행...");
                 publish(new PlayerUIEvent.MainWindowRestoredEvent());
                 
             } catch (Exception e) {
                 log.error("UI 초기화 중 오류 발생", e);
-                publish(new ErrorEvent("UI 초기화 실패: " + e.getMessage(), e, false));
+                System.err.println("UI 초기화 오류: " + e.getMessage());
+                e.printStackTrace();
+                
+                // 오류 이벤트 발행
+                if (eventPublisher != null) {
+                    publish(new ErrorEvent("UI 초기화 실패: " + e.getMessage(), e, false));
+                }
             }
         }
     }
