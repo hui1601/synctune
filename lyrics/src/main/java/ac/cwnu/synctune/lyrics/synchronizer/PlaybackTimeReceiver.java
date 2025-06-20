@@ -14,7 +14,6 @@ public class PlaybackTimeReceiver {
 
     @EventListener
     public void onPlaybackProgress(PlaybackProgressUpdateEvent event) {
-        System.out.println("[Receiver] Time: " + event.getCurrentTimeMillis());
         provider.update(event.getCurrentTimeMillis());
     }
 }

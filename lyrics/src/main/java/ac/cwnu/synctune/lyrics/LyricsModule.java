@@ -23,7 +23,6 @@ import java.util.List;
 public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListener {
     private static final Logger log = LogManager.getLogger(LyricsModule.class);
 
-    private long currentTimeMillis = 0;
     private CurrentLyricsProvider provider;
     private PlaybackTimeReceiver receiver;
 
