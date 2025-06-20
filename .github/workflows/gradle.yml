@@ -17,7 +17,21 @@ jobs:
     name: Build Module (${{ matrix.module }})
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check git ignored files
+        run: |
+          ignored_files=$(git ls-files --ignored --exclude-standard -c)
+          
+          if [ -n "$ignored_files" ]; then
+            echo "::error::The following files are tracked but should be ignored by .gitignore:"
+            echo "$ignored_files"
+            exit 1
+          else
+            echo "No ignored files are being tracked. Good job!"
+          fi
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
