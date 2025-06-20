@@ -11,6 +11,8 @@ import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.LrcLine;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
+import ac.cwnu.synctune.lyrics.synchronizer.PlaybackTimeReceiver;
+
 import org.slf4j.Logger;
 
 import java.io.File;
