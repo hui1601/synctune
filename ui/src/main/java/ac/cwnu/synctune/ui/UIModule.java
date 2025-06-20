@@ -22,6 +22,7 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     private static UIModule instance;
     private MainApplicationWindow mainWindow;
     private boolean isJavaFXInitialized = false;
+    private volatile boolean isInitializing = false;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -30,20 +31,48 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
         log.info("UIModule이 시작되었습니다.");
 
         // JavaFX 플랫폼 초기화를 별도 스레드에서 수행
+        initializeJavaFX();
+    }
+
+    private void initializeJavaFX() {
+        if (isInitializing) {
+            log.warn("JavaFX 초기화가 이미 진행 중입니다.");
+            return;
+        }
+        
+        isInitializing = true;
+        
+        // JavaFX가 이미 실행 중인지 확인
+        try {
+            if (Platform.isFxApplicationThread()) {
+                log.info("이미 JavaFX 스레드에서 실행 중입니다. 즉시 UI 초기화를 진행합니다.");
+                initializeUI();
+                return;
+            }
+        } catch (IllegalStateException e) {
+            // Platform이 아직 초기화되지 않은 상태
+            log.debug("JavaFX Platform이 아직 초기화되지 않음");
+        }
+
+        // JavaFX 애플리케이션을 별도 스레드에서 시작
         Thread javafxThread = new Thread(() -> {
             try {
-                // JavaFX 플랫폼이 이미 실행 중인지 확인
-                if (!Platform.isFxApplicationThread()) {
-                    // JavaFX 애플리케이션 시작
-                    System.setProperty("javafx.platform.exitOnClose", "false");
-                    Application.launch(JavaFXApp.class);
-                }
+                log.info("JavaFX 애플리케이션을 시작합니다...");
+                System.setProperty("javafx.platform.exitOnClose", "false");
+                Application.launch(JavaFXApp.class);
             } catch (IllegalStateException e) {
-                // 이미 JavaFX가 시작된 경우
+                // JavaFX가 이미 시작된 경우
                 log.info("JavaFX가 이미 시작되었습니다. Platform.runLater로 UI 초기화를 시도합니다.");
-                Platform.runLater(this::initializeUI);
+                Platform.runLater(() -> {
+                    try {
+                        initializeUI();
+                    } catch (Exception ex) {
+                        log.error("UI 초기화 중 오류 발생", ex);
+                    }
+                });
             } catch (Exception e) {
                 log.error("JavaFX 애플리케이션 시작 중 오류", e);
+                isInitializing = false;
             }
         });
         javafxThread.setName("JavaFX-Init-Thread");
@@ -52,18 +81,26 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     }
 
     private void initializeUI() {
-        if (!isJavaFXInitialized) {
-            try {
-                // Platform implicit exit를 false로 설정하여 창을 닫아도 즉시 종료되지 않도록 함
-                Platform.setImplicitExit(false);
-                
-                mainWindow = new MainApplicationWindow(eventPublisher);
-                mainWindow.show();
-                isJavaFXInitialized = true;
-                log.info("메인 윈도우가 성공적으로 표시되었습니다. (ImplicitExit=false)");
-            } catch (Exception e) {
-                log.error("UI 초기화 중 오류 발생", e);
-            }
+        if (isJavaFXInitialized) {
+            log.debug("UI가 이미 초기화되었습니다.");
+            return;
+        }
+        
+        try {
+            log.info("UI 초기화를 시작합니다...");
+            
+            // Platform implicit exit를 false로 설정하여 창을 닫아도 즉시 종료되지 않도록 함
+            Platform.setImplicitExit(false);
+            
+            mainWindow = new MainApplicationWindow(eventPublisher);
+            mainWindow.show();
+            isJavaFXInitialized = true;
+            isInitializing = false;
+            
+            log.info("메인 윈도우가 성공적으로 표시되었습니다. (ImplicitExit=false)");
+        } catch (Exception e) {
+            log.error("UI 초기화 중 오류 발생", e);
+            isInitializing = false;
         }
     }
 
@@ -85,7 +122,7 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
             // 메인 윈도우 정리
             if (mainWindow != null) {
                 log.debug("메인 윈도우를 닫습니다.");
-                mainWindow.close();
+                mainWindow.forceClose(); // 안전한 강제 종료 메서드 사용
             }
             
             log.info("Platform.exit()를 호출하여 JavaFX 애플리케이션을 종료합니다.");
@@ -107,29 +144,62 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     // 이벤트 리스너들
     @EventListener
     public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
-        Platform.runLater(() -> {
-            if (mainWindow != null) {
-                mainWindow.updateCurrentMusic(event.getCurrentMusic());
-            }
-        });
+        log.debug("PlaybackStartedEvent 수신: {}", event.getCurrentMusic().getTitle());
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.updateCurrentMusic(event.getCurrentMusic());
+                } catch (Exception e) {
+                    log.error("PlaybackStartedEvent 처리 중 오류", e);
+                }
+            });
+        }
     }
 
     @EventListener
     public void onPlaybackProgressUpdate(PlaybackStatusEvent.PlaybackProgressUpdateEvent event) {
-        Platform.runLater(() -> {
-            if (mainWindow != null) {
-                mainWindow.updateProgress(event.getCurrentTimeMillis(), event.getTotalTimeMillis());
-            }
-        });
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.updateProgress(event.getCurrentTimeMillis(), event.getTotalTimeMillis());
+                } catch (Exception e) {
+                    log.error("PlaybackProgressUpdateEvent 처리 중 오류", e);
+                }
+            });
+        }
     }
 
     @EventListener
     public void onNextLyrics(LyricsEvent.NextLyricsEvent event) {
-        Platform.runLater(() -> {
-            if (mainWindow != null) {
-                mainWindow.updateLyrics(event.getLyricLine());
-            }
-        });
+        log.debug("NextLyricsEvent 수신: {}", event.getLyricLine());
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.updateLyrics(event.getLyricLine());
+                } catch (Exception e) {
+                    log.error("NextLyricsEvent 처리 중 오류", e);
+                }
+            });
+        }
+    }
+
+    @EventListener
+    public void onLyricsFound(LyricsEvent.LyricsFoundEvent event) {
+        log.info("가사 파일 발견: {}", event.getLrcFilePath());
+    }
+
+    @EventListener
+    public void onLyricsNotFound(LyricsEvent.LyricsNotFoundEvent event) {
+        log.info("가사 파일을 찾을 수 없음: {}", event.getMusicFilePath());
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.updateLyrics("가사를 찾을 수 없습니다");
+                } catch (Exception e) {
+                    log.error("LyricsNotFoundEvent 처리 중 오류", e);
+                }
+            });
+        }
     }
 
     public static UIModule getInstance() {
@@ -142,9 +212,22 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     public static class JavaFXApp extends Application {
         @Override
         public void start(Stage primaryStage) throws Exception {
+            // primaryStage는 사용하지 않고, UIModule에서 직접 MainApplicationWindow를 생성
             if (instance != null) {
                 instance.initializeUI();
             }
+        }
+        
+        @Override
+        public void init() throws Exception {
+            super.init();
+            // 애플리케이션 초기화 시 추가 작업이 필요하면 여기에 구현
+        }
+        
+        @Override
+        public void stop() throws Exception {
+            super.stop();
+            // JavaFX 애플리케이션 종료 시 추가 정리 작업
         }
     }
 }

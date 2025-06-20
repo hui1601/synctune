@@ -3,6 +3,8 @@ package ac.cwnu.synctune.player;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.MediaControlEvent;
+import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
@@ -40,6 +42,9 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         
         // 진행 상황 업데이트 스케줄러 시작
         startProgressUpdates();
+        
+        // 테스트용 샘플 음악 생성 및 재생 시작
+        createAndPlaySampleMusic();
         
         log.info("[{}] 모듈 초기화 완료.", getModuleName());
     }
@@ -117,10 +122,10 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
                 if (stateManager.isPlaying()) {
                     audioEngine.updateCurrentPosition();
                     
-                    // TODO: 진행 상황 업데이트 이벤트 발행 (이벤트 클래스 확인 후 구현)
-                    // long currentMs = stateManager.getCurrentPosition();
-                    // long totalMs = stateManager.getTotalDuration();
-                    // publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(currentMs, totalMs));
+                    // 진행 상황 업데이트 이벤트 발행
+                    long currentMs = stateManager.getCurrentPosition();
+                    long totalMs = stateManager.getTotalDuration();
+                    publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(currentMs, totalMs));
                 }
             } catch (Exception e) {
                 log.error("[{}] 진행 상황 업데이트 중 오류", getModuleName(), e);
@@ -128,10 +133,74 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         }, 0, 500, TimeUnit.MILLISECONDS); // 0.5초마다 업데이트
     }
 
-    // ========== 이벤트 리스너들 (TODO: 실제 이벤트 클래스 확인 후 구현) ==========
+    /**
+     * 테스트용 샘플 음악을 생성하고 재생합니다
+     */
+    private void createAndPlaySampleMusic() {
+        // 샘플 음악 정보 생성
+        MusicInfo sampleMusic = new MusicInfo(
+            "샘플 테스트 음악",
+            "SyncTune System",
+            "Test Album",
+            "sample/test.mp3", // 실제로는 존재하지 않지만 테스트용
+            180000L, // 3분
+            "sample/sample.lrc"
+        );
+        
+        // 상태 매니저에 현재 음악 설정
+        stateManager.setCurrentMusic(sampleMusic);
+        stateManager.setTotalDuration(sampleMusic.getDurationMillis());
+        
+        // 재생 시작 이벤트 발행
+        log.info("[{}] 샘플 음악 재생 시작: {}", getModuleName(), sampleMusic.getTitle());
+        publish(new PlaybackStatusEvent.PlaybackStartedEvent(sampleMusic));
+        
+        // 재생 상태를 PLAYING으로 변경
+        stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+        
+        // 시뮬레이션된 재생 시간 업데이트 시작
+        startSimulatedPlayback();
+    }
     
-    // TODO: 실제 이벤트 클래스들이 확인되면 아래 주석을 해제하고 구현
-    /*
+    /**
+     * 실제 오디오 파일 없이 재생을 시뮬레이션합니다
+     */
+    private void startSimulatedPlayback() {
+        // 시뮬레이션된 재생 진행을 위한 별도 스케줄러
+        ScheduledExecutorService simulationScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "PlayerModule-PlaybackSimulation");
+            t.setDaemon(true);
+            return t;
+        });
+        
+        simulationScheduler.scheduleAtFixedRate(() -> {
+            try {
+                if (stateManager.isPlaying()) {
+                    long currentPos = stateManager.getCurrentPosition();
+                    long totalDuration = stateManager.getTotalDuration();
+                    
+                    // 500ms씩 시간 증가 (실제 재생 시뮬레이션)
+                    long newPos = currentPos + 500;
+                    
+                    if (newPos >= totalDuration) {
+                        // 재생 완료
+                        stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
+                        stateManager.setCurrentPosition(0);
+                        publish(new PlaybackStatusEvent.PlaybackStoppedEvent());
+                        log.info("[{}] 시뮬레이션된 재생 완료", getModuleName());
+                        simulationScheduler.shutdown();
+                    } else {
+                        stateManager.setCurrentPosition(newPos);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("[{}] 재생 시뮬레이션 중 오류", getModuleName(), e);
+            }
+        }, 500, 500, TimeUnit.MILLISECONDS);
+    }
+
+    // ========== 이벤트 리스너들 ==========
+    
     @EventListener
     public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
         log.debug("[{}] 재생 요청 수신: {}", getModuleName(), event);
@@ -140,17 +209,22 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
             MusicInfo musicToPlay = event.getMusicToPlay();
             if (musicToPlay != null) {
                 // 새로운 곡 재생
-                if (audioEngine.loadMusic(musicToPlay)) {
-                    audioEngine.play();
-                }
+                stateManager.setCurrentMusic(musicToPlay);
+                stateManager.setTotalDuration(musicToPlay.getDurationMillis());
+                stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+                publish(new PlaybackStatusEvent.PlaybackStartedEvent(musicToPlay));
+                log.info("[{}] 새 곡 재생 시작: {}", getModuleName(), musicToPlay.getTitle());
             } else if (stateManager.getCurrentMusic() != null) {
                 // 현재 곡 재생/재개
                 if (stateManager.isPaused()) {
-                    audioEngine.play(); // 재개
+                    stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+                    log.info("[{}] 재생 재개", getModuleName());
                 } else {
                     // 처음부터 재생
-                    audioEngine.seekTo(0);
-                    audioEngine.play();
+                    stateManager.setCurrentPosition(0);
+                    stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+                    publish(new PlaybackStatusEvent.PlaybackStartedEvent(stateManager.getCurrentMusic()));
+                    log.info("[{}] 재생 시작", getModuleName());
                 }
             } else {
                 log.warn("[{}] 재생할 곡이 없습니다.", getModuleName());
@@ -165,7 +239,11 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         log.debug("[{}] 일시정지 요청 수신: {}", getModuleName(), event);
         
         try {
-            audioEngine.pause();
+            if (stateManager.isPlaying()) {
+                stateManager.setState(PlaybackStateManager.PlaybackState.PAUSED);
+                publish(new PlaybackStatusEvent.PlaybackPausedEvent());
+                log.info("[{}] 일시정지됨", getModuleName());
+            }
         } catch (Exception e) {
             log.error("[{}] 일시정지 요청 처리 중 오류", getModuleName(), e);
         }
@@ -176,7 +254,10 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         log.debug("[{}] 정지 요청 수신: {}", getModuleName(), event);
         
         try {
-            audioEngine.stop();
+            stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
+            stateManager.setCurrentPosition(0);
+            publish(new PlaybackStatusEvent.PlaybackStoppedEvent());
+            log.info("[{}] 정지됨", getModuleName());
         } catch (Exception e) {
             log.error("[{}] 정지 요청 처리 중 오류", getModuleName(), e);
         }
@@ -187,131 +268,16 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         log.debug("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
         
         try {
-            audioEngine.seekTo(event.getPositionMillis());
+            long totalDuration = stateManager.getTotalDuration();
+            long seekPosition = Math.max(0, Math.min(event.getPositionMillis(), totalDuration));
+            stateManager.setCurrentPosition(seekPosition);
+            log.info("[{}] 탐색 완료: {}ms", getModuleName(), seekPosition);
         } catch (Exception e) {
             log.error("[{}] 탐색 요청 처리 중 오류", getModuleName(), e);
         }
     }
 
-    @EventListener
-    public void onMainWindowClosed(PlayerUIEvent.MainWindowClosedEvent event) {
-        log.debug("[{}] 메인 창 닫힘 이벤트 수신: {}", getModuleName(), event);
-        
-        // 창이 닫혀도 재생은 계속되도록 처리
-        if (stateManager.isPlaying()) {
-            log.info("[{}] 메인 창이 닫혔지만 재생은 계속됩니다.", getModuleName());
-        }
-    }
-
-    @EventListener
-    public void onMainWindowRestored(PlayerUIEvent.MainWindowRestoredEvent event) {
-        log.debug("[{}] 메인 창 복원 이벤트 수신: {}", getModuleName(), event);
-        
-        // 창 복원 시 현재 상태를 UI에 알리기 위해 강제 업데이트
-        if (stateManager.getCurrentMusic() != null) {
-            // TODO: 강제 진행 상황 업데이트 이벤트 발행
-        }
-    }
-    */
-
     // ========== 공개 API 메서드들 ==========
-    
-    /**
-     * 음악을 로드하고 재생합니다
-     */
-    public boolean playMusic(MusicInfo music) {
-        if (music == null) {
-            log.warn("[{}] 재생할 음악 정보가 null입니다.", getModuleName());
-            return false;
-        }
-        
-        try {
-            log.info("[{}] 음악 재생 요청: {}", getModuleName(), music.getTitle());
-            
-            if (audioEngine.loadMusic(music)) {
-                return audioEngine.play();
-            }
-            return false;
-            
-        } catch (Exception e) {
-            log.error("[{}] 음악 재생 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-    
-    /**
-     * 재생을 시작/재개합니다
-     */
-    public boolean play() {
-        try {
-            return audioEngine.play();
-        } catch (Exception e) {
-            log.error("[{}] 재생 시작 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-    
-    /**
-     * 재생을 일시정지합니다
-     */
-    public boolean pause() {
-        try {
-            return audioEngine.pause();
-        } catch (Exception e) {
-            log.error("[{}] 일시정지 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-    
-    /**
-     * 재생을 정지합니다
-     */
-    public boolean stopPlayback() {
-        try {
-            return audioEngine.stop();
-        } catch (Exception e) {
-            log.error("[{}] 정지 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-    
-    /**
-     * 특정 위치로 탐색합니다 (밀리초)
-     */
-    public boolean seekTo(long positionMs) {
-        try {
-            return audioEngine.seekTo(positionMs);
-        } catch (Exception e) {
-            log.error("[{}] 탐색 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-    
-    /**
-     * 볼륨을 설정합니다 (0.0 ~ 1.0)
-     */
-    public boolean setVolume(float volume) {
-        try {
-            return audioEngine.setVolume(volume);
-        } catch (Exception e) {
-            log.error("[{}] 볼륨 설정 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-    
-    /**
-     * 음소거 상태를 설정합니다
-     */
-    public boolean setMuted(boolean muted) {
-        try {
-            return audioEngine.setMuted(muted);
-        } catch (Exception e) {
-            log.error("[{}] 음소거 설정 중 오류", getModuleName(), e);
-            return false;
-        }
-    }
-
-    // ========== 상태 조회 메서드들 ==========
     
     /**
      * 현재 재생 상태를 반환합니다
@@ -356,46 +322,9 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
     
     /**
-     * 현재 볼륨을 반환합니다 (0.0 ~ 1.0)
-     */
-    public float getCurrentVolume() {
-        return stateManager != null ? stateManager.getVolume() : 1.0f;
-    }
-    
-    /**
-     * 음소거 상태인지 확인합니다
-     */
-    public boolean isMuted() {
-        return stateManager != null && stateManager.isMuted();
-    }
-    
-    /**
-     * 재생 진행률을 반환합니다 (0.0 ~ 1.0)
-     */
-    public double getProgress() {
-        return stateManager != null ? stateManager.getProgress() : 0.0;
-    }
-    
-    /**
      * 현재 상태를 포맷팅된 문자열로 반환합니다 (디버깅용)
      */
     public String getFormattedStatus() {
         return stateManager != null ? stateManager.getFormattedStatus() : "PlayerModule not initialized";
-    }
-    
-    // ========== 컴포넌트 접근자 (테스트용) ==========
-    
-    /**
-     * PlaybackStateManager 인스턴스를 반환합니다 (주로 테스트용)
-     */
-    protected PlaybackStateManager getStateManager() {
-        return stateManager;
-    }
-    
-    /**
-     * AudioEngine 인스턴스를 반환합니다 (주로 테스트용)
-     */
-    protected AudioEngine getAudioEngine() {
-        return audioEngine;
     }
 }

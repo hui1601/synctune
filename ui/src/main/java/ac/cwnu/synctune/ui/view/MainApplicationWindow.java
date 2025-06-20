@@ -32,6 +32,8 @@ public class MainApplicationWindow extends Stage {
         setTitle("SyncTune Player");
         setWidth(1200);
         setHeight(800);
+        setMinWidth(800);
+        setMinHeight(600);
         initUI();
         initControllers();
     }
@@ -65,8 +67,11 @@ public class MainApplicationWindow extends Stage {
         
         // CSS 파일 로드 (안전하게 처리)
         try {
-            String cssFile = getClass().getResource("/styles.css").toExternalForm();
-            scene.getStylesheets().add(cssFile);
+            var cssResource = getClass().getResource("/styles.css");
+            if (cssResource != null) {
+                String cssFile = cssResource.toExternalForm();
+                scene.getStylesheets().add(cssFile);
+            }
         } catch (Exception e) {
             // CSS 파일이 없어도 애플리케이션은 계속 실행
             System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
@@ -121,23 +126,58 @@ public class MainApplicationWindow extends Stage {
         if (music != null) {
             controlsView.updateMusicInfo(music);
             setTitle("SyncTune - " + music.getTitle() + " - " + music.getArtist());
+            
+            // 가사 뷰에 로딩 상태 표시
+            lyricsView.showLyricsLoading();
         }
     }
 
     public void updateProgress(long currentMs, long totalMs) {
-        controlsView.updateProgress(currentMs, totalMs);
+        if (controlsView != null) {
+            controlsView.updateProgress(currentMs, totalMs);
+        }
     }
 
     public void updateLyrics(String lyrics) {
-        lyricsView.updateLyrics(lyrics);
+        if (lyricsView != null) {
+            if (lyrics == null || lyrics.trim().isEmpty() || lyrics.equals("가사를 찾을 수 없습니다")) {
+                lyricsView.showLyricsNotFound();
+            } else {
+                lyricsView.updateLyrics(lyrics);
+            }
+        }
+    }
+
+    public void showLyricsFound(String lrcPath) {
+        // 가사 파일이 발견되었을 때의 처리
+        if (lyricsView != null) {
+            lyricsView.showLyricsLoading();
+        }
+    }
+
+    public void showLyricsNotFound() {
+        if (lyricsView != null) {
+            lyricsView.showLyricsNotFound();
+        }
     }
 
     /**
      * UIModule.stop()에서 호출되는 강제 종료 메서드
      */
     public void forceClose() {
-        if (windowStateManager != null) {
-            windowStateManager.forceClose();
+        try {
+            // 이벤트 핸들러 제거하여 재귀 호출 방지
+            setOnCloseRequest(null);
+            
+            // 컨트롤러 정리
+            if (windowStateManager != null) {
+                windowStateManager = null;
+            }
+            
+            // 윈도우 닫기
+            super.close();
+        } catch (Exception e) {
+            System.err.println("윈도우 강제 종료 중 오류: " + e.getMessage());
         }
     }
 
