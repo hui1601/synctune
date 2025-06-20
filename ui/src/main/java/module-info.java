@@ -8,6 +8,7 @@ module synctune.ui.main {
     
     // 로깅
     requires org.slf4j;
+    requires java.prefs;
     
     // JavaFX Application 클래스를 위한 exports
     exports ac.cwnu.synctune.ui to javafx.graphics;
