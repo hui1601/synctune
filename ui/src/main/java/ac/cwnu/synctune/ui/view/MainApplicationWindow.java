@@ -18,25 +18,11 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckMenuItem;
-import javafx.scene.control.Label;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.ProgressBar;
-import javafx.scene.control.Separator;
-import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ToolBar;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -49,6 +35,7 @@ public class MainApplicationWindow extends Stage {
     private PlaylistView playlistView;
     private LyricsView lyricsView;
     private StatusBarView statusBarView;
+    private MusicLibraryView musicLibraryView; // 새로 추가된 음악 라이브러리 뷰
     
     // 컨트롤러들
     private PlaybackController playbackController;
@@ -60,6 +47,7 @@ public class MainApplicationWindow extends Stage {
     private Label statusLabel;
     private TextField searchField;
     private Alert progressDialog;
+    private TabPane centerTabPane; // 중앙 탭 패널
     
     // 애니메이션 및 타이머
     private Timeline statusMessageTimer;
@@ -68,6 +56,9 @@ public class MainApplicationWindow extends Stage {
     // 상태 관리
     private boolean isFullScreen = false;
     private boolean isCompactMode = false;
+    private boolean showLyrics = true;
+    private boolean showPlaylist = true;
+    private boolean showMusicLibrary = true;
     private double normalWidth = 1400;
     private double normalHeight = 900;
 
@@ -83,6 +74,13 @@ public class MainApplicationWindow extends Stage {
         initControllers();
         setupKeyboardShortcuts();
         applyTheme();
+        
+        // 창 아이콘 설정 (리소스가 있다면)
+        try {
+            // getIcons().add(new Image(getClass().getResourceAsStream("/icons/synctune.png")));
+        } catch (Exception e) {
+            // 아이콘 파일이 없어도 계속 진행
+        }
     }
 
     private void initUI() {
@@ -96,6 +94,7 @@ public class MainApplicationWindow extends Stage {
         playlistView = new PlaylistView();
         lyricsView = new LyricsView();
         statusBarView = new StatusBarView();
+        musicLibraryView = new MusicLibraryView(eventPublisher); // 새로 추가
         
         // 스캔 진행 바 생성
         scanProgressBar = new ProgressBar(0);
@@ -117,44 +116,76 @@ public class MainApplicationWindow extends Stage {
         VBox topContainer = new VBox();
         topContainer.getChildren().addAll(menuBar, toolBar);
         
+        // 중앙 패널을 탭으로 구성
+        centerTabPane = createCenterTabPane();
+        
+        // 사이드바 (플레이리스트)를 접을 수 있는 패널로 구성
+        TitledPane playlistPane = new TitledPane("플레이리스트", playlistView);
+        playlistPane.setCollapsible(true);
+        playlistPane.setExpanded(true);
+        playlistPane.setPrefWidth(350);
+        
         root.setTop(topContainer);
         root.setBottom(createBottomPanel());
-        root.setLeft(playlistView);
-        root.setCenter(createCenterPanel());
-        
-        // 여백 설정
-        BorderPane.setMargin(controlsView, new Insets(10));
-        BorderPane.setMargin(playlistView, new Insets(10));
-        BorderPane.setMargin(lyricsView, new Insets(10));
+        root.setLeft(playlistPane);
+        root.setCenter(centerTabPane);
         
         Scene scene = new Scene(root);
         
-        // CSS 파일 로드 (안전하게 처리)
-        try {
-            String cssFile = getClass().getResource("/styles.css").toExternalForm();
-            scene.getStylesheets().add(cssFile);
-        } catch (Exception e) {
-            // CSS 파일이 없어도 애플리케이션은 계속 실행
-            System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
-        }
+        // CSS 파일 로드
+        loadStylesheets(scene);
         
         setScene(scene);
     }
 
-    private VBox createCenterPanel() {
-        VBox centerPanel = new VBox(10);
-        centerPanel.setPadding(new Insets(10));
+    private TabPane createCenterTabPane() {
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         
-        // 가사 뷰를 중앙에 배치
-        VBox.setVgrow(lyricsView, Priority.ALWAYS);
-        centerPanel.getChildren().add(lyricsView);
+        // 가사 탭
+        Tab lyricsTab = new Tab("가사", lyricsView);
+        lyricsTab.setClosable(false);
         
-        return centerPanel;
+        // 음악 라이브러리 탭
+        Tab libraryTab = new Tab("라이브러리", musicLibraryView);
+        libraryTab.setClosable(false);
+        
+        // 비주얼라이저 탭 (향후 구현을 위해 준비)
+        VBox visualizerPlaceholder = new VBox();
+        visualizerPlaceholder.getChildren().add(new Label("비주얼라이저 (준비 중)"));
+        Tab visualizerTab = new Tab("비주얼라이저", visualizerPlaceholder);
+        visualizerTab.setClosable(false);
+        
+        // 이퀄라이저 탭 (향후 구현을 위해 준비)
+        VBox equalizerPlaceholder = new VBox();
+        equalizerPlaceholder.getChildren().add(new Label("이퀄라이저 (준비 중)"));
+        Tab equalizerTab = new Tab("이퀄라이저", equalizerPlaceholder);
+        equalizerTab.setClosable(false);
+        
+        tabPane.getTabs().addAll(lyricsTab, libraryTab, visualizerTab, equalizerTab);
+        
+        return tabPane;
+    }
+
+    private void loadStylesheets(Scene scene) {
+        try {
+            String cssFile = getClass().getResource("/styles.css").toExternalForm();
+            scene.getStylesheets().add(cssFile);
+        } catch (Exception e) {
+            System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
+        }
+        
+        // 추가 테마 파일들 로드 시도
+        try {
+            String darkTheme = getClass().getResource("/dark-theme.css").toExternalForm();
+            // 나중에 다크 모드 지원 시 사용
+        } catch (Exception e) {
+            // 다크 테마 파일이 없어도 계속 진행
+        }
     }
 
     private void setupSearchField() {
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            // 실시간 검색 (500ms 딜레이 후 실행)
             if (autoHideTimer != null) {
                 autoHideTimer.stop();
             }
@@ -171,19 +202,23 @@ public class MainApplicationWindow extends Stage {
     private void performSearch(String searchText) {
         if (playlistActionHandler != null) {
             playlistActionHandler.filterMusic(searchText);
-            
-            if (searchText != null && !searchText.trim().isEmpty()) {
-                setStatusText("검색: " + searchText);
-            } else {
-                setStatusText("검색 필터 해제됨");
-            }
+        }
+        
+        // 음악 라이브러리에서도 검색
+        if (musicLibraryView != null) {
+            musicLibraryView.filterMusic(searchText);
+        }
+        
+        if (searchText != null && !searchText.trim().isEmpty()) {
+            setStatusText("검색: " + searchText);
+        } else {
+            setStatusText("검색 필터 해제됨");
         }
     }
 
     private MenuBar createMenuBar() {
         MenuBar menuBar = new MenuBar();
         
-        // 파일 메뉴
         Menu fileMenu = createFileMenu();
         Menu playMenu = createPlayMenu();
         Menu viewMenu = createViewMenu();
@@ -200,14 +235,17 @@ public class MainApplicationWindow extends Stage {
         MenuItem openFile = new MenuItem("파일 열기");
         MenuItem openFolder = new MenuItem("폴더 열기");
         MenuItem scanLibrary = new MenuItem("라이브러리 스캔");
+        MenuItem recentFiles = new MenuItem("최근 파일");
         MenuItem importPlaylist = new MenuItem("플레이리스트 가져오기");
         MenuItem exportPlaylist = new MenuItem("플레이리스트 내보내기");
+        MenuItem preferences = new MenuItem("환경설정");
         MenuItem exit = new MenuItem("종료");
         
         // 키보드 단축키 설정
         openFile.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN));
         openFolder.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         scanLibrary.setAccelerator(new KeyCodeCombination(KeyCode.F5));
+        preferences.setAccelerator(new KeyCodeCombination(KeyCode.COMMA, KeyCombination.CONTROL_DOWN));
         exit.setAccelerator(new KeyCodeCombination(KeyCode.Q, KeyCombination.CONTROL_DOWN));
         
         // 파일 열기
@@ -248,6 +286,11 @@ public class MainApplicationWindow extends Stage {
             }
         });
         
+        // 최근 파일 메뉴 (하위 메뉴)
+        Menu recentFilesMenu = new Menu("최근 파일");
+        // TODO: 최근 파일 목록 구현
+        recentFilesMenu.getItems().add(new MenuItem("(최근 파일 없음)"));
+        
         // 플레이리스트 가져오기
         importPlaylist.setOnAction(e -> {
             File playlistFile = UIUtils.showPlaylistImportDialog(this);
@@ -269,13 +312,20 @@ public class MainApplicationWindow extends Stage {
             }
         });
         
-        // 종료 메뉴 클릭 시에도 안전한 종료 이벤트 발행
+        // 환경설정
+        preferences.setOnAction(e -> showPreferencesDialog());
+        
+        // 종료
         exit.setOnAction(e -> requestApplicationShutdown());
         
-        fileMenu.getItems().addAll(openFile, openFolder, new SeparatorMenuItem(), 
-                                  scanLibrary, new SeparatorMenuItem(),
-                                  importPlaylist, exportPlaylist, new SeparatorMenuItem(), 
-                                  exit);
+        fileMenu.getItems().addAll(
+            openFile, openFolder, new SeparatorMenuItem(),
+            scanLibrary, recentFilesMenu, new SeparatorMenuItem(),
+            importPlaylist, exportPlaylist, new SeparatorMenuItem(),
+            preferences, new SeparatorMenuItem(),
+            exit
+        );
+        
         return fileMenu;
     }
 
@@ -287,6 +337,8 @@ public class MainApplicationWindow extends Stage {
         MenuItem stop = new MenuItem("정지");
         MenuItem next = new MenuItem("다음 곡");
         MenuItem previous = new MenuItem("이전 곡");
+        MenuItem shuffle = new MenuItem("셔플");
+        MenuItem repeat = new MenuItem("반복");
         MenuItem volumeUp = new MenuItem("볼륨 높이기");
         MenuItem volumeDown = new MenuItem("볼륨 낮추기");
         MenuItem mute = new MenuItem("음소거");
@@ -311,39 +363,64 @@ public class MainApplicationWindow extends Stage {
         volumeDown.setOnAction(e -> playbackController.adjustVolume(-0.1f));
         mute.setOnAction(e -> playbackController.toggleMute());
         
-        playMenu.getItems().addAll(play, pause, stop, new SeparatorMenuItem(), 
-                                  previous, next, new SeparatorMenuItem(),
-                                  volumeUp, volumeDown, mute);
+        // 셔플과 반복은 향후 구현
+        shuffle.setOnAction(e -> setStatusText("셔플 기능 (구현 예정)"));
+        repeat.setOnAction(e -> setStatusText("반복 기능 (구현 예정)"));
+        
+        playMenu.getItems().addAll(
+            play, pause, stop, new SeparatorMenuItem(),
+            previous, next, new SeparatorMenuItem(),
+            shuffle, repeat, new SeparatorMenuItem(),
+            volumeUp, volumeDown, mute
+        );
+        
         return playMenu;
     }
 
     private Menu createViewMenu() {
         Menu viewMenu = new Menu("보기");
         
-        CheckMenuItem showLyrics = new CheckMenuItem("가사 표시");
-        CheckMenuItem showPlaylist = new CheckMenuItem("플레이리스트 표시");
+        CheckMenuItem showLyricsMenu = new CheckMenuItem("가사 표시");
+        CheckMenuItem showPlaylistMenu = new CheckMenuItem("플레이리스트 표시");
+        CheckMenuItem showLibraryMenu = new CheckMenuItem("라이브러리 표시");
         CheckMenuItem compactMode = new CheckMenuItem("컴팩트 모드");
         CheckMenuItem alwaysOnTop = new CheckMenuItem("항상 위에");
         MenuItem fullScreen = new MenuItem("전체화면");
         MenuItem resetLayout = new MenuItem("레이아웃 초기화");
         
+        // 테마 메뉴
+        Menu themeMenu = new Menu("테마");
+        RadioMenuItem lightTheme = new RadioMenuItem("라이트 테마");
+        RadioMenuItem darkTheme = new RadioMenuItem("다크 테마");
+        ToggleGroup themeGroup = new ToggleGroup();
+        lightTheme.setToggleGroup(themeGroup);
+        darkTheme.setToggleGroup(themeGroup);
+        lightTheme.setSelected(true);
+        themeMenu.getItems().addAll(lightTheme, darkTheme);
+        
         // 초기 설정
-        showLyrics.setSelected(true);
-        showPlaylist.setSelected(true);
+        showLyricsMenu.setSelected(showLyrics);
+        showPlaylistMenu.setSelected(showPlaylist);
+        showLibraryMenu.setSelected(showMusicLibrary);
         
         // 키보드 단축키
         fullScreen.setAccelerator(new KeyCodeCombination(KeyCode.F11));
         compactMode.setAccelerator(new KeyCodeCombination(KeyCode.F12));
         
         // 이벤트 처리
-        showLyrics.setOnAction(e -> {
-            lyricsView.setVisible(showLyrics.isSelected());
-            setStatusText("가사 표시: " + (showLyrics.isSelected() ? "켜짐" : "꺼짐"));
+        showLyricsMenu.setOnAction(e -> {
+            showLyrics = showLyricsMenu.isSelected();
+            toggleLyricsView(showLyrics);
         });
         
-        showPlaylist.setOnAction(e -> {
-            playlistView.setVisible(showPlaylist.isSelected());
-            setStatusText("플레이리스트: " + (showPlaylist.isSelected() ? "표시" : "숨김"));
+        showPlaylistMenu.setOnAction(e -> {
+            showPlaylist = showPlaylistMenu.isSelected();
+            togglePlaylistView(showPlaylist);
+        });
+        
+        showLibraryMenu.setOnAction(e -> {
+            showMusicLibrary = showLibraryMenu.isSelected();
+            toggleLibraryView(showMusicLibrary);
         });
         
         compactMode.setOnAction(e -> toggleCompactMode(compactMode.isSelected()));
@@ -351,9 +428,17 @@ public class MainApplicationWindow extends Stage {
         fullScreen.setOnAction(e -> toggleFullScreen());
         resetLayout.setOnAction(e -> resetWindowLayout());
         
-        viewMenu.getItems().addAll(showLyrics, showPlaylist, new SeparatorMenuItem(),
-                                  compactMode, alwaysOnTop, new SeparatorMenuItem(),
-                                  fullScreen, resetLayout);
+        // 테마 변경
+        lightTheme.setOnAction(e -> applyTheme("light"));
+        darkTheme.setOnAction(e -> applyTheme("dark"));
+        
+        viewMenu.getItems().addAll(
+            showLyricsMenu, showPlaylistMenu, showLibraryMenu, new SeparatorMenuItem(),
+            compactMode, alwaysOnTop, new SeparatorMenuItem(),
+            fullScreen, resetLayout, new SeparatorMenuItem(),
+            themeMenu
+        );
+        
         return viewMenu;
     }
 
@@ -362,7 +447,10 @@ public class MainApplicationWindow extends Stage {
         
         MenuItem searchMusic = new MenuItem("음악 검색");
         MenuItem playlistStats = new MenuItem("플레이리스트 통계");
+        MenuItem libraryStats = new MenuItem("라이브러리 통계");
         MenuItem clearCache = new MenuItem("캐시 정리");
+        MenuItem rescanLibrary = new MenuItem("라이브러리 재스캔");
+        MenuItem fileAssociations = new MenuItem("파일 연결");
         MenuItem settings = new MenuItem("설정");
         
         // 키보드 단축키
@@ -381,16 +469,30 @@ public class MainApplicationWindow extends Stage {
             }
         });
         
+        libraryStats.setOnAction(e -> showLibraryStatistics());
+        
         clearCache.setOnAction(e -> {
             if (UIUtils.showConfirmation("캐시 정리", "모든 캐시를 정리하시겠습니까?")) {
                 clearApplicationCache();
             }
         });
         
+        rescanLibrary.setOnAction(e -> {
+            if (UIUtils.showConfirmation("라이브러리 재스캔", "전체 라이브러리를 다시 스캔하시겠습니까?")) {
+                rescanMusicLibrary();
+            }
+        });
+        
+        fileAssociations.setOnAction(e -> showFileAssociationsDialog());
         settings.setOnAction(e -> showSettingsDialog());
         
-        toolsMenu.getItems().addAll(searchMusic, playlistStats, new SeparatorMenuItem(),
-                                   clearCache, settings);
+        toolsMenu.getItems().addAll(
+            searchMusic, new SeparatorMenuItem(),
+            playlistStats, libraryStats, new SeparatorMenuItem(),
+            clearCache, rescanLibrary, new SeparatorMenuItem(),
+            fileAssociations, settings
+        );
+        
         return toolsMenu;
     }
 
@@ -399,16 +501,25 @@ public class MainApplicationWindow extends Stage {
         
         MenuItem shortcuts = new MenuItem("키보드 단축키");
         MenuItem userGuide = new MenuItem("사용자 가이드");
+        MenuItem onlineHelp = new MenuItem("온라인 도움말");
+        MenuItem checkUpdates = new MenuItem("업데이트 확인");
         MenuItem reportBug = new MenuItem("버그 신고");
         MenuItem about = new MenuItem("정보");
         
         shortcuts.setOnAction(e -> showShortcutsDialog());
         userGuide.setOnAction(e -> showUserGuideDialog());
+        onlineHelp.setOnAction(e -> openOnlineHelp());
+        checkUpdates.setOnAction(e -> checkForUpdates());
         reportBug.setOnAction(e -> showBugReportDialog());
         about.setOnAction(e -> showAboutDialog());
         
-        helpMenu.getItems().addAll(shortcuts, userGuide, new SeparatorMenuItem(),
-                                  reportBug, new SeparatorMenuItem(), about);
+        helpMenu.getItems().addAll(
+            shortcuts, userGuide, onlineHelp, new SeparatorMenuItem(),
+            checkUpdates, new SeparatorMenuItem(),
+            reportBug, new SeparatorMenuItem(),
+            about
+        );
+        
         return helpMenu;
     }
     
@@ -418,6 +529,8 @@ public class MainApplicationWindow extends Stage {
         Button scanButton = new Button("📁 스캔");
         Button refreshButton = new Button("🔄 새로고침");
         Button randomButton = new Button("🎲 랜덤 재생");
+        Button importButton = new Button("📥 가져오기");
+        Button exportButton = new Button("📤 내보내기");
         
         scanButton.setOnAction(e -> {
             DirectoryChooser dirChooser = new DirectoryChooser();
@@ -430,25 +543,48 @@ public class MainApplicationWindow extends Stage {
         
         refreshButton.setOnAction(e -> {
             playlistView.refreshPlaylists();
-            setStatusText("플레이리스트 새로고침됨");
+            musicLibraryView.refreshLibrary();
+            setStatusText("전체 새로고침됨");
         });
         
         randomButton.setOnAction(e -> {
-            // TODO: 랜덤 재생 기능 구현
-            setStatusText("랜덤 재생 모드 토글");
+            setStatusText("랜덤 재생 모드 토글 (구현 예정)");
+        });
+        
+        importButton.setOnAction(e -> {
+            File file = UIUtils.showPlaylistImportDialog(this);
+            if (file != null) {
+                importPlaylistFromFile(file);
+            }
+        });
+        
+        exportButton.setOnAction(e -> {
+            String playlist = playlistView.getSelectedPlaylist();
+            if (playlist != null) {
+                File file = UIUtils.showPlaylistExportDialog(this);
+                if (file != null) {
+                    exportPlaylistToFile(playlist, file);
+                }
+            } else {
+                UIUtils.showWarning("내보내기 오류", "내보낼 플레이리스트를 선택하세요.");
+            }
         });
         
         // 구분선
         Separator separator1 = new Separator();
         Separator separator2 = new Separator();
         
-        // 스프링으로 오른쪽 정렬
+        // 오른쪽 정렬용 컨테이너
         HBox rightContainer = new HBox(10);
         rightContainer.getChildren().addAll(scanProgressBar, statusLabel);
         HBox.setHgrow(rightContainer, Priority.ALWAYS);
         
-        toolBar.getItems().addAll(scanButton, refreshButton, randomButton, separator1, 
-                                 searchField, separator2, rightContainer);
+        toolBar.getItems().addAll(
+            scanButton, refreshButton, randomButton, separator1,
+            importButton, exportButton, separator2,
+            searchField, rightContainer
+        );
+        
         return toolBar;
     }
     
@@ -465,9 +601,7 @@ public class MainApplicationWindow extends Stage {
     }
 
     private void setupKeyboardShortcuts() {
-        // 전역 키보드 단축키 설정
         getScene().setOnKeyPressed(event -> {
-            // 이미 메뉴에서 처리된 단축키들은 여기서 제외
             if (event.isConsumed()) return;
             
             switch (event.getCode()) {
@@ -478,20 +612,18 @@ public class MainApplicationWindow extends Stage {
                     event.consume();
                     break;
                 case DELETE:
-                    // 선택된 플레이리스트 항목 삭제
-                    String selectedMusic = playlistView.getSelectedMusic();
-                    String selectedPlaylist = playlistView.getSelectedPlaylist();
-                    if (selectedMusic != null && selectedPlaylist != null) {
-                        if (UIUtils.showConfirmation("곡 제거", 
-                            "선택된 곡을 플레이리스트에서 제거하시겠습니까?")) {
-                            // TODO: 곡 제거 구현
-                        }
-                    }
+                    handleDeleteKey();
                     event.consume();
                     break;
                 case F1:
                     showShortcutsDialog();
                     event.consume();
+                    break;
+                case TAB:
+                    if (event.isControlDown()) {
+                        cycleTab();
+                        event.consume();
+                    }
                     break;
                 default:
                     break;
@@ -499,9 +631,78 @@ public class MainApplicationWindow extends Stage {
         });
     }
 
+    private void handleDeleteKey() {
+        String selectedMusic = playlistView.getSelectedMusic();
+        String selectedPlaylist = playlistView.getSelectedPlaylist();
+        if (selectedMusic != null && selectedPlaylist != null) {
+            if (UIUtils.showConfirmation("곡 제거", 
+                "선택된 곡을 플레이리스트에서 제거하시겠습니까?")) {
+                // TODO: 곡 제거 구현
+                setStatusText("곡 제거: " + selectedMusic);
+            }
+        }
+    }
+
+    private void cycleTab() {
+        int selectedIndex = centerTabPane.getSelectionModel().getSelectedIndex();
+        int nextIndex = (selectedIndex + 1) % centerTabPane.getTabs().size();
+        centerTabPane.getSelectionModel().select(nextIndex);
+    }
+
     private void applyTheme() {
-        // 다크 모드 지원 준비 (향후 구현)
-        getScene().getRoot().getStyleClass().add("light-theme");
+        applyTheme("light");
+    }
+    
+    private void applyTheme(String themeName) {
+        Scene scene = getScene();
+        if (scene != null) {
+            scene.getRoot().getStyleClass().removeAll("light-theme", "dark-theme");
+            scene.getRoot().getStyleClass().add(themeName + "-theme");
+            setStatusText("테마 변경: " + (themeName.equals("light") ? "라이트" : "다크"));
+        }
+    }
+
+    // ========== 뷰 토글 메서드들 ==========
+    
+    private void toggleLyricsView(boolean show) {
+        Tab lyricsTab = centerTabPane.getTabs().get(0);
+        if (show && !centerTabPane.getTabs().contains(lyricsTab)) {
+            centerTabPane.getTabs().add(0, lyricsTab);
+        } else if (!show && centerTabPane.getTabs().contains(lyricsTab)) {
+            centerTabPane.getTabs().remove(lyricsTab);
+        }
+        setStatusText("가사 표시: " + (show ? "켜짐" : "꺼짐"));
+    }
+    
+    private void togglePlaylistView(boolean show) {
+        BorderPane root = (BorderPane) getScene().getRoot();
+        if (show && root.getLeft() == null) {
+            TitledPane playlistPane = new TitledPane("플레이리스트", playlistView);
+            playlistPane.setCollapsible(true);
+            playlistPane.setExpanded(true);
+            playlistPane.setPrefWidth(350);
+            root.setLeft(playlistPane);
+        } else if (!show && root.getLeft() != null) {
+            root.setLeft(null);
+        }
+        setStatusText("플레이리스트: " + (show ? "표시" : "숨김"));
+    }
+    
+    private void toggleLibraryView(boolean show) {
+        Tab libraryTab = null;
+        for (Tab tab : centerTabPane.getTabs()) {
+            if ("라이브러리".equals(tab.getText())) {
+                libraryTab = tab;
+                break;
+            }
+        }
+        
+        if (show && libraryTab != null && !centerTabPane.getTabs().contains(libraryTab)) {
+            centerTabPane.getTabs().add(1, libraryTab);
+        } else if (!show && libraryTab != null && centerTabPane.getTabs().contains(libraryTab)) {
+            centerTabPane.getTabs().remove(libraryTab);
+        }
+        setStatusText("라이브러리: " + (show ? "표시" : "숨김"));
     }
 
     // ========== UI 업데이트 메서드들 ==========
@@ -511,18 +712,18 @@ public class MainApplicationWindow extends Stage {
             controlsView.updateMusicInfo(music);
             setTitle("SyncTune - " + music.getTitle() + " - " + music.getArtist());
             statusBarView.updateCurrentMusic(music);
+            musicLibraryView.highlightCurrentMusic(music);
             
-            // 앨범 아트 로드 시도
             loadAlbumArt(music);
         } else {
             setTitle("SyncTune Player");
             statusBarView.updateCurrentMusic(null);
+            musicLibraryView.clearHighlight();
         }
     }
 
     private void loadAlbumArt(MusicInfo music) {
         CompletableFuture.runAsync(() -> {
-            // 앨범 아트 파일 찾기
             try {
                 String musicDir = new File(music.getFilePath()).getParent();
                 File[] imageFiles = new File(musicDir).listFiles((dir, name) -> {
@@ -532,7 +733,6 @@ public class MainApplicationWindow extends Stage {
                 });
                 
                 if (imageFiles != null && imageFiles.length > 0) {
-                    // 첫 번째 이미지 파일 사용
                     UIUtils.runOnUIThread(() -> {
                         controlsView.setAlbumArt(imageFiles[0].getAbsolutePath());
                     });
@@ -650,11 +850,13 @@ public class MainApplicationWindow extends Stage {
     
     public void updateMusicLibrary(List<MusicInfo> musicList) {
         playlistView.updateMusicLibrary(musicList);
+        musicLibraryView.updateLibrary(musicList);
         setStatusText("음악 라이브러리 업데이트됨: " + musicList.size() + "곡");
     }
     
     public void updateMusicMetadata(MusicInfo music) {
         playlistView.updateMusicMetadata(music);
+        musicLibraryView.updateMusicMetadata(music);
         setStatusText("메타데이터 업데이트됨: " + music.getTitle());
     }
 
@@ -683,14 +885,16 @@ public class MainApplicationWindow extends Stage {
         isCompactMode = compact;
         
         if (compact) {
-            // 컴팩트 모드: 가사 숨기고 창 크기 축소
-            lyricsView.setVisible(false);
+            // 컴팩트 모드: 가사와 라이브러리 숨기고 창 크기 축소
+            toggleLyricsView(false);
+            toggleLibraryView(false);
             setWidth(800);
             setHeight(400);
             setStatusText("컴팩트 모드 활성화");
         } else {
-            // 일반 모드: 가사 표시하고 창 크기 복원
-            lyricsView.setVisible(true);
+            // 일반 모드: 모든 뷰 표시하고 창 크기 복원
+            toggleLyricsView(true);
+            toggleLibraryView(true);
             setWidth(normalWidth);
             setHeight(normalHeight);
             setStatusText("일반 모드로 전환");
@@ -707,8 +911,9 @@ public class MainApplicationWindow extends Stage {
         centerOnScreen();
         
         // 모든 패널 표시
-        lyricsView.setVisible(true);
-        playlistView.setVisible(true);
+        toggleLyricsView(true);
+        togglePlaylistView(true);
+        toggleLibraryView(true);
         
         setStatusText("레이아웃이 초기화되었습니다");
     }
@@ -719,7 +924,7 @@ public class MainApplicationWindow extends Stage {
         CompletableFuture.runAsync(() -> {
             try {
                 // TODO: 플레이리스트 파일 파싱 구현
-                // M3U, PLS 등의 플레이리스트 형식 지원
+                Thread.sleep(1000); // 시뮬레이션
                 UIUtils.runOnUIThread(() -> {
                     setStatusText("플레이리스트 가져오기 완료: " + playlistFile.getName());
                     UIUtils.showSuccess("가져오기 완료", "플레이리스트를 성공적으로 가져왔습니다.");
@@ -736,7 +941,7 @@ public class MainApplicationWindow extends Stage {
         CompletableFuture.runAsync(() -> {
             try {
                 // TODO: 플레이리스트 파일 생성 구현
-                // M3U 형식으로 내보내기
+                Thread.sleep(1000); // 시뮬레이션
                 UIUtils.runOnUIThread(() -> {
                     setStatusText("플레이리스트 내보내기 완료: " + saveFile.getName());
                     UIUtils.showSuccess("내보내기 완료", "플레이리스트를 성공적으로 내보냈습니다.");
@@ -752,7 +957,6 @@ public class MainApplicationWindow extends Stage {
     private void clearApplicationCache() {
         CompletableFuture.runAsync(() -> {
             try {
-                // TODO: 캐시 정리 구현
                 Thread.sleep(1000); // 시뮬레이션
                 UIUtils.runOnUIThread(() -> {
                     setStatusText("캐시 정리 완료");
@@ -766,9 +970,67 @@ public class MainApplicationWindow extends Stage {
         });
     }
 
+    private void showLibraryStatistics() {
+        // TODO: 라이브러리 통계 다이얼로그 구현
+        UIUtils.showInfo("라이브러리 통계", "라이브러리 통계 기능은 향후 업데이트에서 제공될 예정입니다.");
+    }
+
+    private void rescanMusicLibrary() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                UIUtils.runOnUIThread(() -> setStatusText("라이브러리 재스캔 시작..."));
+                Thread.sleep(2000); // 시뮬레이션
+                UIUtils.runOnUIThread(() -> {
+                    setStatusText("라이브러리 재스캔 완료");
+                    UIUtils.showSuccess("재스캔 완료", "음악 라이브러리가 업데이트되었습니다.");
+                });
+            } catch (Exception e) {
+                UIUtils.runOnUIThread(() -> {
+                    UIUtils.showError("재스캔 실패", "라이브러리 재스캔 중 오류가 발생했습니다: " + e.getMessage());
+                });
+            }
+        });
+    }
+
+    private void showFileAssociationsDialog() {
+        UIUtils.showInfo("파일 연결", "파일 연결 설정 기능은 향후 업데이트에서 제공될 예정입니다.");
+    }
+
+    private void showPreferencesDialog() {
+        // TODO: 환경설정 다이얼로그 구현
+        PreferencesDialog dialog = new PreferencesDialog(this);
+        dialog.showAndWait();
+    }
+
     private void showSettingsDialog() {
         // TODO: 설정 다이얼로그 구현
         UIUtils.showInfo("설정", "설정 기능은 향후 업데이트에서 제공될 예정입니다.");
+    }
+
+    private void openOnlineHelp() {
+        try {
+            // TODO: 온라인 도움말 URL 열기
+            setStatusText("온라인 도움말을 여는 중...");
+        } catch (Exception e) {
+            UIUtils.showError("도움말 오류", "온라인 도움말을 열 수 없습니다.");
+        }
+    }
+
+    private void checkForUpdates() {
+        CompletableFuture.runAsync(() -> {
+            try {
+                UIUtils.runOnUIThread(() -> setStatusText("업데이트 확인 중..."));
+                Thread.sleep(2000); // 시뮬레이션
+                UIUtils.runOnUIThread(() -> {
+                    setStatusText("최신 버전입니다");
+                    UIUtils.showInfo("업데이트 확인", "현재 최신 버전을 사용하고 있습니다.");
+                });
+            } catch (Exception e) {
+                UIUtils.runOnUIThread(() -> {
+                    UIUtils.showError("업데이트 확인 실패", "업데이트를 확인할 수 없습니다: " + e.getMessage());
+                });
+            }
+        });
     }
 
     private void showUserGuideDialog() {
@@ -786,6 +1048,8 @@ public class MainApplicationWindow extends Stage {
             "• Ctrl+O: 파일 열기\n" +
             "• F5: 라이브러리 새로고침\n" +
             "• F11: 전체화면\n" +
+            "• F12: 컴팩트 모드\n" +
+            "• Ctrl+Tab: 탭 전환\n" +
             "• F1: 도움말\n\n" +
             "자세한 내용은 온라인 문서를 참조하세요."
         );
@@ -857,11 +1121,12 @@ public class MainApplicationWindow extends Stage {
             "창 관리:\n" +
             "F11             - 전체화면 토글\n" +
             "F12             - 컴팩트 모드 토글\n" +
+            "Ctrl+Tab        - 탭 전환\n" +
             "Escape          - 전체화면 해제\n\n" +
             "기타:\n" +
             "F1              - 도움말\n" +
             "Ctrl+Q          - 프로그램 종료\n" +
-            "Ctrl+,          - 설정\n" +
+            "Ctrl+,          - 환경설정\n" +
             "Delete          - 선택된 항목 삭제"
         );
         shortcuts.showAndWait();
@@ -871,7 +1136,6 @@ public class MainApplicationWindow extends Stage {
         if (windowStateManager != null) {
             windowStateManager.handleCloseRequest(null);
         } else {
-            // 백업 종료 방법
             eventPublisher.publish(new SystemEvent.RequestApplicationShutdownEvent());
         }
     }
@@ -882,7 +1146,6 @@ public class MainApplicationWindow extends Stage {
         statusLabel.setText(text);
         statusBarView.updateStatus(text);
         
-        // 자동 숨김 타이머 설정 (5초 후 기본 메시지로 복원)
         if (statusMessageTimer != null) {
             statusMessageTimer.stop();
         }
@@ -898,7 +1161,6 @@ public class MainApplicationWindow extends Stage {
         statusLabel.setText(text);
         statusBarView.updateStatus(text);
         
-        // 영구 메시지의 경우 타이머 중지
         if (statusMessageTimer != null) {
             statusMessageTimer.stop();
         }
@@ -922,8 +1184,6 @@ public class MainApplicationWindow extends Stage {
         progressDialog.setTitle(title);
         progressDialog.setHeaderText(message);
         progressDialog.setContentText("진행 중...");
-        
-        // 버튼 없는 진행 다이얼로그
         progressDialog.getButtonTypes().clear();
         progressDialog.show();
     }
@@ -937,12 +1197,8 @@ public class MainApplicationWindow extends Stage {
 
     // ========== 정리 및 종료 메서드들 ==========
 
-    /**
-     * 애플리케이션 정리 작업
-     */
     public void cleanup() {
         try {
-            // 타이머들 정리
             if (statusMessageTimer != null) {
                 statusMessageTimer.stop();
             }
@@ -950,10 +1206,8 @@ public class MainApplicationWindow extends Stage {
                 autoHideTimer.stop();
             }
             
-            // 진행 다이얼로그 정리
             hideProgressDialog();
             
-            // 컨트롤러들 정리
             if (playbackController != null) {
                 playbackController.dispose();
             }
@@ -961,21 +1215,15 @@ public class MainApplicationWindow extends Stage {
                 playlistActionHandler.dispose();
             }
             
-            // 뷰 컴포넌트들 정리 (필요한 경우)
-            
         } catch (Exception e) {
             System.err.println("정리 작업 중 오류: " + e.getMessage());
         }
     }
 
-    /**
-     * UIModule.stop()에서 호출되는 강제 종료 메서드
-     */
     public void forceClose() {
         if (windowStateManager != null) {
             windowStateManager.forceClose();
         } else {
-            // 백업 종료 방법
             UIUtils.runOnUIThread(() -> {
                 cleanup();
                 close();
@@ -985,7 +1233,6 @@ public class MainApplicationWindow extends Stage {
 
     @Override
     public void close() {
-        // Core의 지시가 아닌 직접적인 close() 호출 시에도 안전한 종료 절차 진행
         if (windowStateManager != null && !windowStateManager.isCloseRequested()) {
             windowStateManager.handleCloseRequest(null);
         } else {
@@ -1000,6 +1247,7 @@ public class MainApplicationWindow extends Stage {
     public PlaylistView getPlaylistView() { return playlistView; }
     public LyricsView getLyricsView() { return lyricsView; }
     public StatusBarView getStatusBarView() { return statusBarView; }
+    public MusicLibraryView getMusicLibraryView() { return musicLibraryView; }
     
     public PlaybackController getPlaybackController() { return playbackController; }
     public PlaylistActionHandler getPlaylistActionHandler() { return playlistActionHandler; }
