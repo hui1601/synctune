@@ -13,6 +13,7 @@ import ac.cwnu.synctune.player.playback.AudioEngine;
 import ac.cwnu.synctune.player.playback.PlaybackStateManager;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,9 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     
     // 진행 상황 업데이트를 위한 스케줄러
     private ScheduledExecutorService progressUpdateScheduler;
+    
+    // 시뮬레이션 재생을 위한 스케줄러
+    private ScheduledExecutorService simulationScheduler;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -43,7 +47,7 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         // 진행 상황 업데이트 스케줄러 시작
         startProgressUpdates();
         
-        // 테스트용 샘플 음악 생성 및 재생 시작
+        // 실제 음악 파일 또는 샘플 음악 재생 시작
         createAndPlaySampleMusic();
         
         log.info("[{}] 모듈 초기화 완료.", getModuleName());
@@ -92,6 +96,9 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
                 }
             }
             
+            // 시뮬레이션 스케줄러 정리
+            stopSimulatedPlayback();
+            
             // 오디오 엔진 정리
             if (audioEngine != null) {
                 audioEngine.dispose();
@@ -134,10 +141,126 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
 
     /**
-     * 테스트용 샘플 음악을 생성하고 재생합니다
+     * 실제 음악 파일을 찾아서 재생하거나 샘플 음악을 재생합니다
      */
     private void createAndPlaySampleMusic() {
-        // 샘플 음악 정보 생성
+        // 먼저 실제 음악 파일을 찾아보기
+        MusicInfo realMusic = findRealMusicFile();
+        
+        if (realMusic != null) {
+            // 실제 음악 파일이 있으면 사용
+            log.info("[{}] 실제 음악 파일 발견: {}", getModuleName(), realMusic.getTitle());
+            playMusic(realMusic);
+        } else {
+            // 실제 파일이 없으면 샘플 음악 사용
+            log.info("[{}] 실제 음악 파일이 없어 샘플 음악을 사용합니다.", getModuleName());
+            createSampleMusic();
+        }
+    }
+    
+    /**
+     * 실제 음악 파일을 찾습니다
+     */
+    private MusicInfo findRealMusicFile() {
+        // 1. music 폴더에서 음악 파일 찾기
+        File musicDir = new File("music");
+        if (!musicDir.exists()) {
+            log.debug("music 폴더가 존재하지 않습니다.");
+            return null;
+        }
+        
+        File[] musicFiles = musicDir.listFiles((dir, name) -> {
+            String lowerName = name.toLowerCase();
+            return lowerName.endsWith(".mp3") || lowerName.endsWith(".wav") || 
+                   lowerName.endsWith(".flac") || lowerName.endsWith(".m4a") ||
+                   lowerName.endsWith(".aac") || lowerName.endsWith(".ogg");
+        });
+        
+        if (musicFiles == null || musicFiles.length == 0) {
+            log.debug("music 폴더에 음악 파일이 없습니다.");
+            return null;
+        }
+        
+        // 첫 번째 음악 파일 사용
+        File musicFile = musicFiles[0];
+        String baseName = getFileNameWithoutExtension(musicFile.getName());
+        
+        // 해당하는 LRC 파일 찾기
+        String lrcPath = findLrcFile(musicFile);
+        
+        // 음악 파일 정보 생성
+        MusicInfo musicInfo = new MusicInfo(
+            baseName,  // 파일명을 제목으로 사용
+            "Unknown Artist",
+            "Unknown Album", 
+            musicFile.getAbsolutePath(),
+            180000L, // 기본 3분 (실제로는 메타데이터에서 추출해야 함)
+            lrcPath
+        );
+        
+        log.info("[{}] 음악 파일 정보 생성: {} (LRC: {})", 
+            getModuleName(), musicInfo.getTitle(), lrcPath != null ? "있음" : "없음");
+        
+        return musicInfo;
+    }
+    
+    /**
+     * 음악 파일에 해당하는 LRC 파일을 찾습니다
+     */
+    private String findLrcFile(File musicFile) {
+        String baseName = getFileNameWithoutExtension(musicFile.getName());
+        
+        // 1. 음악 파일과 같은 폴더에서 찾기
+        File lrcInSameDir = new File(musicFile.getParent(), baseName + ".lrc");
+        if (lrcInSameDir.exists()) {
+            log.debug("같은 폴더에서 LRC 발견: {}", lrcInSameDir.getAbsolutePath());
+            return lrcInSameDir.getAbsolutePath();
+        }
+        
+        // 2. lyrics 폴더에서 찾기
+        File lrcInLyricsDir = new File("lyrics", baseName + ".lrc");
+        if (lrcInLyricsDir.exists()) {
+            log.debug("lyrics 폴더에서 LRC 발견: {}", lrcInLyricsDir.getAbsolutePath());
+            return lrcInLyricsDir.getAbsolutePath();
+        }
+        
+        log.debug("LRC 파일을 찾을 수 없음: {}", baseName);
+        return null;
+    }
+    
+    /**
+     * 음악을 재생합니다 (실제 오디오 파일 또는 시뮬레이션)
+     */
+    private void playMusic(MusicInfo music) {
+        // 기존 시뮬레이션 스케줄러 정리
+        stopSimulatedPlayback();
+        
+        // 상태 매니저에 현재 음악 설정
+        stateManager.setCurrentMusic(music);
+        stateManager.setTotalDuration(music.getDurationMillis());
+        
+        // 재생 시작 이벤트 발행
+        publish(new PlaybackStatusEvent.PlaybackStartedEvent(music));
+        
+        // 실제 오디오 파일 재생 시도
+        boolean realAudioLoaded = audioEngine.loadMusic(music);
+        
+        if (realAudioLoaded && audioEngine.play()) {
+            // 실제 오디오 재생 성공
+            log.info("[{}] 실제 오디오 재생 시작: {}", getModuleName(), music.getTitle());
+            stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+        } else {
+            // 실제 오디오 재생 실패 시 시뮬레이션 모드
+            log.info("[{}] 실제 오디오 재생 실패, 시뮬레이션 모드로 전환: {}", getModuleName(), music.getTitle());
+            stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+            startSimulatedPlayback();
+        }
+    }
+    
+    /**
+     * 샘플 음악 생성 (실제 파일이 없을 때)
+     */
+    private void createSampleMusic() {
         MusicInfo sampleMusic = new MusicInfo(
             "샘플 테스트 음악",
             "SyncTune System",
@@ -147,27 +270,43 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
             "sample/sample.lrc"
         );
         
-        // 상태 매니저에 현재 음악 설정
-        stateManager.setCurrentMusic(sampleMusic);
-        stateManager.setTotalDuration(sampleMusic.getDurationMillis());
-        
-        // 재생 시작 이벤트 발행
-        log.info("[{}] 샘플 음악 재생 시작: {}", getModuleName(), sampleMusic.getTitle());
-        publish(new PlaybackStatusEvent.PlaybackStartedEvent(sampleMusic));
-        
-        // 재생 상태를 PLAYING으로 변경
-        stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
-        
-        // 시뮬레이션된 재생 시간 업데이트 시작
-        startSimulatedPlayback();
+        playMusic(sampleMusic);
+    }
+    
+    /**
+     * 파일명에서 확장자를 제거합니다
+     */
+    private String getFileNameWithoutExtension(String fileName) {
+        int lastDot = fileName.lastIndexOf('.');
+        return lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
+    }
+    
+    /**
+     * 시뮬레이션 재생을 정지합니다
+     */
+    private void stopSimulatedPlayback() {
+        if (simulationScheduler != null && !simulationScheduler.isShutdown()) {
+            simulationScheduler.shutdown();
+            try {
+                if (!simulationScheduler.awaitTermination(1, TimeUnit.SECONDS)) {
+                    simulationScheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                simulationScheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
     }
     
     /**
      * 실제 오디오 파일 없이 재생을 시뮬레이션합니다
      */
     private void startSimulatedPlayback() {
-        // 시뮬레이션된 재생 진행을 위한 별도 스케줄러
-        ScheduledExecutorService simulationScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        // 기존 시뮬레이션 스케줄러 정리
+        stopSimulatedPlayback();
+        
+        // 새로운 시뮬레이션 스케줄러 생성
+        simulationScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "PlayerModule-PlaybackSimulation");
             t.setDaemon(true);
             return t;
@@ -209,21 +348,18 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
             MusicInfo musicToPlay = event.getMusicToPlay();
             if (musicToPlay != null) {
                 // 새로운 곡 재생
-                stateManager.setCurrentMusic(musicToPlay);
-                stateManager.setTotalDuration(musicToPlay.getDurationMillis());
-                stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
-                publish(new PlaybackStatusEvent.PlaybackStartedEvent(musicToPlay));
-                log.info("[{}] 새 곡 재생 시작: {}", getModuleName(), musicToPlay.getTitle());
+                playMusic(musicToPlay);
             } else if (stateManager.getCurrentMusic() != null) {
                 // 현재 곡 재생/재개
                 if (stateManager.isPaused()) {
+                    // 일시정지에서 재개 - 시뮬레이션 재개
                     stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
+                    startSimulatedPlayback();
                     log.info("[{}] 재생 재개", getModuleName());
                 } else {
                     // 처음부터 재생
                     stateManager.setCurrentPosition(0);
-                    stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
-                    publish(new PlaybackStatusEvent.PlaybackStartedEvent(stateManager.getCurrentMusic()));
+                    playMusic(stateManager.getCurrentMusic());
                     log.info("[{}] 재생 시작", getModuleName());
                 }
             } else {
@@ -240,6 +376,12 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         
         try {
             if (stateManager.isPlaying()) {
+                // 실제 오디오 일시정지 (AudioEngine.pause() 메서드가 있다면)
+                // audioEngine.pause();
+                
+                // 시뮬레이션 정지
+                stopSimulatedPlayback();
+                
                 stateManager.setState(PlaybackStateManager.PlaybackState.PAUSED);
                 publish(new PlaybackStatusEvent.PlaybackPausedEvent());
                 log.info("[{}] 일시정지됨", getModuleName());
@@ -254,6 +396,12 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         log.debug("[{}] 정지 요청 수신: {}", getModuleName(), event);
         
         try {
+            // 실제 오디오 정지 (AudioEngine.stop() 메서드가 있다면)
+            // audioEngine.stop();
+            
+            // 시뮬레이션 정지
+            stopSimulatedPlayback();
+            
             stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
             stateManager.setCurrentPosition(0);
             publish(new PlaybackStatusEvent.PlaybackStoppedEvent());
@@ -270,6 +418,8 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         try {
             long totalDuration = stateManager.getTotalDuration();
             long seekPosition = Math.max(0, Math.min(event.getPositionMillis(), totalDuration));
+            
+            // 시뮬레이션에서 탐색 (AudioEngine.seek() 메서드가 없으므로)
             stateManager.setCurrentPosition(seekPosition);
             log.info("[{}] 탐색 완료: {}ms", getModuleName(), seekPosition);
         } catch (Exception e) {

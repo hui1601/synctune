@@ -1,6 +1,7 @@
 package ac.cwnu.synctune.player.playback;
 
 import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import org.slf4j.Logger;
@@ -13,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 실제 오디오 파일 재생/정지/탐색을 담당하는 엔진
- * javax.sound.sampled를 사용한 기본 구현
+ * javax.sound.sampled를 사용한 실제 구현
  */
 public class AudioEngine {
     private static final Logger log = LogManager.getLogger(AudioEngine.class);
@@ -29,7 +30,7 @@ public class AudioEngine {
     // 재생 완료 감지
     private final AtomicBoolean shouldMonitor = new AtomicBoolean(false);
     private Thread monitorThread;
-    
+
     public AudioEngine(EventPublisher eventPublisher, PlaybackStateManager stateManager) {
         this.eventPublisher = eventPublisher;
         this.stateManager = stateManager;
@@ -59,10 +60,15 @@ public class AudioEngine {
             
             File musicFile = new File(music.getFilePath());
             if (!musicFile.exists()) {
-                throw new IOException("음악 파일을 찾을 수 없습니다: " + music.getFilePath());
+                log.warn("음악 파일을 찾을 수 없습니다: {} (시뮬레이션 모드로 전환)", music.getFilePath());
+                // 파일이 없으면 시뮬레이션 모드로 진행
+                stateManager.setCurrentMusic(music);
+                stateManager.setTotalDuration(music.getDurationMillis());
+                stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
+                return true;
             }
             
-            log.info("음악 로딩 시작: {}", music.getTitle());
+            log.info("실제 오디오 파일 로딩 시작: {}", music.getTitle());
             
             // 오디오 스트림 생성
             audioInputStream = AudioSystem.getAudioInputStream(musicFile);
@@ -88,13 +94,16 @@ public class AudioEngine {
             stateManager.setTotalDuration(durationMs);
             stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
             
-            log.info("음악 로딩 완료: {} ({}ms)", music.getTitle(), durationMs);
+            log.info("실제 오디오 파일 로딩 완료: {} ({}ms)", music.getTitle(), durationMs);
             return true;
             
         } catch (UnsupportedAudioFileException e) {
-            log.error("지원되지 않는 오디오 파일 형식: {}", music.getFilePath(), e);
+            log.error("지원되지 않는 오디오 파일 형식: {} (시뮬레이션 모드로 전환)", music.getFilePath(), e);
+            // 지원되지 않는 형식이면 시뮬레이션 모드로 진행
+            stateManager.setCurrentMusic(music);
+            stateManager.setTotalDuration(music.getDurationMillis());
             stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
-            return false;
+            return true;
         } catch (IOException e) {
             log.error("파일 읽기 오류: {}", music.getFilePath(), e);
             stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
@@ -115,7 +124,7 @@ public class AudioEngine {
      */
     public boolean play() {
         if (audioClip == null) {
-            log.warn("재생할 오디오 클립이 없습니다.");
+            log.debug("오디오 클립이 없습니다. 시뮬레이션 모드입니다.");
             return false;
         }
         
@@ -132,7 +141,7 @@ public class AudioEngine {
             // 재생 완료 모니터링 시작
             startPlaybackMonitoring();
             
-            log.info("재생 시작: {}", stateManager.getCurrentMusic().getTitle());
+            log.info("실제 오디오 재생 시작: {}", stateManager.getCurrentMusic().getTitle());
             return true;
             
         } catch (Exception e) {
@@ -155,7 +164,7 @@ public class AudioEngine {
             stateManager.setState(PlaybackStateManager.PlaybackState.PAUSED);
             stopPlaybackMonitoring();
             
-            log.info("일시정지됨");
+            log.info("실제 오디오 일시정지됨");
             return true;
             
         } catch (Exception e) {
@@ -176,7 +185,7 @@ public class AudioEngine {
             stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
             stopPlaybackMonitoring();
             
-            log.info("재생 정지됨");
+            log.info("실제 오디오 재생 정지됨");
             return true;
             
         } catch (Exception e) {
@@ -274,7 +283,7 @@ public class AudioEngine {
     
     private void setupVolumeControl() {
         try {
-            if (audioClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+            if (audioClip != null && audioClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
                 volumeControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
                 applyVolumeSettings();
             } else {
@@ -363,11 +372,12 @@ public class AudioEngine {
     }
     
     private void handlePlaybackCompleted() {
-        log.info("재생 완료: {}", stateManager.getCurrentMusic().getTitle());
+        log.info("실제 오디오 재생 완료: {}", stateManager.getCurrentMusic().getTitle());
         stateManager.setState(PlaybackStateManager.PlaybackState.STOPPED);
         shouldMonitor.set(false);
         
-        // TODO: 재생 완료 이벤트 발행 (이벤트 클래스 확인 후 구현)
+        // 재생 완료 이벤트 발행
+        eventPublisher.publish(new PlaybackStatusEvent.PlaybackStoppedEvent());
     }
     
     private void releaseResources() {
