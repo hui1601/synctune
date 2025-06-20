@@ -39,3 +39,17 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Potentially copyrighted files ###
+#### Audio files ####
+*.mp3
+*.mp4
+*.wav
+*.m4a
+*.pcm
+*.opus
+*.flac
+#### Lyrics files ####
+*.lrc
+#### Etc. ####
+sample/
