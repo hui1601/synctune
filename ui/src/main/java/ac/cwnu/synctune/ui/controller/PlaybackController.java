@@ -2,8 +2,10 @@ package ac.cwnu.synctune.ui.controller;
 
 import org.slf4j.Logger;
 
+import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
+import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.ui.view.PlayerControlsView;
 import javafx.application.Platform;
@@ -14,6 +16,7 @@ public class PlaybackController {
     private final PlayerControlsView view;
     private final EventPublisher publisher;
     private boolean isPlaybackActive = false;
+    private boolean isPaused = false;
     private boolean isUserSeeking = false;
 
     public PlaybackController(PlayerControlsView view, EventPublisher publisher) {
@@ -28,21 +31,18 @@ public class PlaybackController {
         view.getPlayButton().setOnAction(e -> {
             log.debug("재생 버튼 클릭됨");
             publisher.publish(new MediaControlEvent.RequestPlayEvent());
-            updatePlaybackState(true);
         });
 
         // 일시정지 버튼
         view.getPauseButton().setOnAction(e -> {
             log.debug("일시정지 버튼 클릭됨");
             publisher.publish(new MediaControlEvent.RequestPauseEvent());
-            updatePlaybackState(false);
         });
 
         // 정지 버튼
         view.getStopButton().setOnAction(e -> {
             log.debug("정지 버튼 클릭됨");
             publisher.publish(new MediaControlEvent.RequestStopEvent());
-            updatePlaybackState(false);
         });
 
         // 이전 곡 버튼
@@ -80,12 +80,62 @@ public class PlaybackController {
         });
     }
 
-    private void updatePlaybackState(boolean isPlaying) {
+    // 재생 상태 이벤트 리스너들
+    @EventListener
+    public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
+        log.debug("PlaybackStartedEvent 수신");
         Platform.runLater(() -> {
-            view.getPlayButton().setDisable(isPlaying);
-            view.getPauseButton().setDisable(!isPlaying);
-            isPlaybackActive = isPlaying;
+            isPlaybackActive = true;
+            isPaused = false;
+            updateButtonStates();
         });
+    }
+
+    @EventListener
+    public void onPlaybackPaused(PlaybackStatusEvent.PlaybackPausedEvent event) {
+        log.debug("PlaybackPausedEvent 수신");
+        Platform.runLater(() -> {
+            isPlaybackActive = false;
+            isPaused = true;
+            updateButtonStates();
+        });
+    }
+
+    @EventListener
+    public void onPlaybackStopped(PlaybackStatusEvent.PlaybackStoppedEvent event) {
+        log.debug("PlaybackStoppedEvent 수신");
+        Platform.runLater(() -> {
+            isPlaybackActive = false;
+            isPaused = false;
+            updateButtonStates();
+        });
+    }
+
+    @EventListener
+    public void onMusicChanged(PlaybackStatusEvent.MusicChangedEvent event) {
+        log.debug("MusicChangedEvent 수신");
+        // 곡이 변경되면 재생 상태로 설정
+        Platform.runLater(() -> {
+            isPlaybackActive = true;
+            isPaused = false;
+            updateButtonStates();
+        });
+    }
+
+    private void updateButtonStates() {
+        // 재생/일시정지 버튼 상태
+        view.getPlayButton().setDisable(isPlaybackActive);
+        view.getPauseButton().setDisable(!isPlaybackActive);
+        
+        // 정지 버튼은 재생 중이거나 일시정지 상태일 때 활성화
+        view.getStopButton().setDisable(!isPlaybackActive && !isPaused);
+        
+        // 이전/다음 곡 버튼은 항상 활성화 (플레이리스트가 있는 경우)
+        // TODO: 실제로는 플레이리스트 상태에 따라 결정해야 함
+        view.getPrevButton().setDisable(false);
+        view.getNextButton().setDisable(false);
+        
+        log.debug("버튼 상태 업데이트: playing={}, paused={}", isPlaybackActive, isPaused);
     }
 
     public boolean isUserSeeking() {
@@ -94,5 +144,9 @@ public class PlaybackController {
 
     public boolean isPlaybackActive() {
         return isPlaybackActive;
+    }
+
+    public boolean isPaused() {
+        return isPaused;
     }
 }

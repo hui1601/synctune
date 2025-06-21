@@ -321,6 +321,10 @@ public class MainApplicationWindow extends Stage {
         playbackController = new PlaybackController(controlsView, eventPublisher);
         playlistActionHandler = new PlaylistActionHandler(playlistView, eventPublisher);
         windowStateManager = new WindowStateManager(this, eventPublisher);
+        
+        // PlaybackController를 CoreModule의 EventBus에 등록하여 이벤트를 받을 수 있도록 함
+        // 이는 UIModule에서 처리되어야 하므로, UIModule에서 등록하도록 수정 필요
+        log.debug("컨트롤러들 초기화 완료");
     }
     
     private void setupGlobalKeyboardShortcuts() {

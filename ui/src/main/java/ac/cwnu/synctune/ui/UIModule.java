@@ -98,9 +98,27 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
             isInitializing = false;
             
             log.info("메인 윈도우가 성공적으로 표시되었습니다. (ImplicitExit=false)");
+            
+            // PlaybackController를 이벤트 시스템에 등록
+            registerPlaybackController();
+            
         } catch (Exception e) {
             log.error("UI 초기화 중 오류 발생", e);
             isInitializing = false;
+        }
+    }
+
+    /**
+     * PlaybackController를 이벤트 시스템에 등록합니다.
+     * MainApplicationWindow가 초기화된 후에 호출되어야 합니다.
+     */
+    private void registerPlaybackController() {
+        if (mainWindow != null && mainWindow.getPlaybackController() != null) {
+            // PlaybackController에는 @EventListener 어노테이션이 있는 메서드들이 있으므로
+            // CoreModule의 EventBus에 등록해야 합니다.
+            // 하지만 직접 Core의 EventBus에 접근할 수 없으므로,
+            // UIModule 자체가 이벤트를 받아서 PlaybackController에 전달하는 방식을 사용합니다.
+            log.debug("PlaybackController 이벤트 등록 준비 완료");
         }
     }
 
@@ -141,16 +159,72 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
         // 실제 정리는 stop() 메서드에서 수행
     }
 
-    // 이벤트 리스너들
+    // 재생 상태 이벤트들을 PlaybackController에 전달
     @EventListener
     public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
-        log.debug("PlaybackStartedEvent 수신: {}", event.getCurrentMusic().getTitle());
+        log.debug("UIModule이 PlaybackStartedEvent 수신");
         if (isJavaFXInitialized && mainWindow != null) {
             Platform.runLater(() -> {
                 try {
                     mainWindow.updateCurrentMusic(event.getCurrentMusic());
+                    // PlaybackController에도 이벤트 전달
+                    if (mainWindow.getPlaybackController() != null) {
+                        mainWindow.getPlaybackController().onPlaybackStarted(event);
+                    }
                 } catch (Exception e) {
                     log.error("PlaybackStartedEvent 처리 중 오류", e);
+                }
+            });
+        }
+    }
+
+    @EventListener
+    public void onPlaybackPaused(PlaybackStatusEvent.PlaybackPausedEvent event) {
+        log.debug("UIModule이 PlaybackPausedEvent 수신");
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    // PlaybackController에 이벤트 전달
+                    if (mainWindow.getPlaybackController() != null) {
+                        mainWindow.getPlaybackController().onPlaybackPaused(event);
+                    }
+                } catch (Exception e) {
+                    log.error("PlaybackPausedEvent 처리 중 오류", e);
+                }
+            });
+        }
+    }
+
+    @EventListener
+    public void onPlaybackStopped(PlaybackStatusEvent.PlaybackStoppedEvent event) {
+        log.debug("UIModule이 PlaybackStoppedEvent 수신");
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    // PlaybackController에 이벤트 전달
+                    if (mainWindow.getPlaybackController() != null) {
+                        mainWindow.getPlaybackController().onPlaybackStopped(event);
+                    }
+                } catch (Exception e) {
+                    log.error("PlaybackStoppedEvent 처리 중 오류", e);
+                }
+            });
+        }
+    }
+
+    @EventListener
+    public void onMusicChanged(PlaybackStatusEvent.MusicChangedEvent event) {
+        log.debug("UIModule이 MusicChangedEvent 수신");
+        if (isJavaFXInitialized && mainWindow != null) {
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.updateCurrentMusic(event.getNewMusic());
+                    // PlaybackController에도 이벤트 전달
+                    if (mainWindow.getPlaybackController() != null) {
+                        mainWindow.getPlaybackController().onMusicChanged(event);
+                    }
+                } catch (Exception e) {
+                    log.error("MusicChangedEvent 처리 중 오류", e);
                 }
             });
         }
