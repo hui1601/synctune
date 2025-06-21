@@ -4,6 +4,9 @@ import java.io.File;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
@@ -32,6 +35,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 public class MainApplicationWindow extends Stage {
+    private static final Logger log = LoggerFactory.getLogger(MainApplicationWindow.class);
     private final EventPublisher eventPublisher;
     
     // 뷰 컴포넌트들
@@ -79,46 +83,46 @@ public class MainApplicationWindow extends Stage {
     }
 
     private void initUI() {
-        BorderPane root = new BorderPane();
-        
-        // 메뉴바 생성
-        MenuBar menuBar = createMenuBar();
-        
-        // 뷰 컴포넌트 생성
-        controlsView = new PlayerControlsView();
-        playlistView = new PlaylistView();
-        lyricsView = new LyricsView();
-        
-        // 레이아웃 구성
-        VBox topContainer = new VBox();
-        topContainer.getChildren().addAll(menuBar);
-        
-        root.setTop(topContainer);
-        root.setBottom(controlsView);
-        root.setLeft(playlistView);
-        root.setCenter(lyricsView);
-        
-        // 여백 설정
-        BorderPane.setMargin(controlsView, new Insets(10));
-        BorderPane.setMargin(playlistView, new Insets(10));
-        BorderPane.setMargin(lyricsView, new Insets(10));
-        
-        Scene scene = new Scene(root);
-        
-        // CSS 파일 로드 (안전하게 처리)
-        try {
-            var cssResource = getClass().getResource("/styles.css");
-            if (cssResource != null) {
-                String cssFile = cssResource.toExternalForm();
-                scene.getStylesheets().add(cssFile);
-            }
-        } catch (Exception e) {
-            // CSS 파일이 없어도 애플리케이션은 계속 실행
-            System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
+    BorderPane root = new BorderPane();
+    
+    // 메뉴바 생성
+    MenuBar menuBar = createMenuBar();
+    
+    // 뷰 컴포넌트 생성 - EventPublisher 전달
+    controlsView = new PlayerControlsView();
+    playlistView = new PlaylistView(eventPublisher);  // EventPublisher 전달
+    lyricsView = new LyricsView();
+    
+    // 레이아웃 구성
+    VBox topContainer = new VBox();
+    topContainer.getChildren().addAll(menuBar);
+    
+    root.setTop(topContainer);
+    root.setBottom(controlsView);
+    root.setLeft(playlistView);
+    root.setCenter(lyricsView);
+    
+    // 여백 설정
+    BorderPane.setMargin(controlsView, new Insets(10));
+    BorderPane.setMargin(playlistView, new Insets(10));
+    BorderPane.setMargin(lyricsView, new Insets(10));
+    
+    Scene scene = new Scene(root);
+    
+    // CSS 파일 로드 (안전하게 처리)
+    try {
+        var cssResource = getClass().getResource("/styles.css");
+        if (cssResource != null) {
+            String cssFile = cssResource.toExternalForm();
+            scene.getStylesheets().add(cssFile);
         }
-        
-        setScene(scene);
+    } catch (Exception e) {
+        // CSS 파일이 없어도 애플리케이션은 계속 실행
+        System.err.println("CSS 파일을 로드할 수 없습니다: " + e.getMessage());
     }
+    
+    setScene(scene);
+}
 
     private MenuBar createMenuBar() {
         MenuBar menuBar = new MenuBar();
@@ -699,22 +703,75 @@ public class MainApplicationWindow extends Stage {
     
     // 헬퍼 메서드들
     private void playMusicFile(File musicFile) {
-        try {
-            // 파일에서 MusicInfo 생성
-            String fileName = musicFile.getName();
-            String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-            
-            MusicInfo musicInfo = new MusicInfo(
-                baseName, "Unknown Artist", "Unknown Album", 
-                musicFile.getAbsolutePath(), 180000L, null
-            );
-            
-            eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(musicInfo));
-            
-        } catch (Exception e) {
-            UIUtils.showError("오류", "음악 파일을 재생할 수 없습니다: " + e.getMessage());
+    try {
+        // 파일에서 MusicInfo 생성
+        String fileName = musicFile.getName();
+        String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+        
+        // 파일명 파싱 시도 (예: "Artist - Title.mp3")
+        String title = baseName;
+        String artist = "Unknown Artist";
+        
+        if (baseName.contains(" - ")) {
+            String[] parts = baseName.split(" - ", 2);
+            if (parts.length == 2) {
+                artist = parts[0].trim();
+                title = parts[1].trim();
+            }
         }
+        
+        // 파일 크기 기반 대략적인 재생 시간 계산
+        long fileSize = musicFile.length();
+        long estimatedDuration = estimateDuration(fileSize, fileName);
+        
+        // LRC 파일 찾기
+        String lrcPath = findLrcFileForMusic(musicFile);
+        
+        MusicInfo musicInfo = new MusicInfo(
+            title, artist, "Unknown Album", 
+            musicFile.getAbsolutePath(), estimatedDuration, lrcPath
+        );
+        
+        log.info("음악 파일 재생 요청: {} - {}", artist, title);
+        eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(musicInfo));
+        
+    } catch (Exception e) {
+        UIUtils.showError("오류", "음악 파일을 재생할 수 없습니다: " + e.getMessage());
+        log.error("음악 파일 재생 실패: {}", musicFile.getAbsolutePath(), e);
     }
+}
+
+    private String findLrcFileForMusic(File musicFile) {
+    try {
+        String baseName = musicFile.getName();
+        int lastDot = baseName.lastIndexOf('.');
+        if (lastDot > 0) {
+            baseName = baseName.substring(0, lastDot);
+        }
+        
+        // 같은 디렉토리에서 찾기
+        File lrcFile = new File(musicFile.getParent(), baseName + ".lrc");
+        if (lrcFile.exists()) {
+            log.debug("LRC 파일 발견: {}", lrcFile.getAbsolutePath());
+            return lrcFile.getAbsolutePath();
+        }
+        
+        // lyrics 폴더에서 찾기
+        File lyricsDir = new File("lyrics");
+        if (lyricsDir.exists()) {
+            File lrcInLyricsDir = new File(lyricsDir, baseName + ".lrc");
+            if (lrcInLyricsDir.exists()) {
+                log.debug("lyrics 폴더에서 LRC 파일 발견: {}", lrcInLyricsDir.getAbsolutePath());
+                return lrcInLyricsDir.getAbsolutePath();
+            }
+        }
+        
+        } catch (Exception e) {
+        log.debug("LRC 파일 찾기 실패: {}", musicFile.getName());
+        }
+    
+    return null;
+}
     
     private void showMultipleFilesDialog(List<File> files) {
         Alert dialog = new Alert(Alert.AlertType.CONFIRMATION);
@@ -747,6 +804,57 @@ public class MainApplicationWindow extends Stage {
             }
         }
     }
+
+    private long estimateDuration(long fileSize, String fileName) {
+        String ext = fileName.toLowerCase();
+    if (ext.endsWith(".mp3")) {
+        // MP3: 대략 1MB당 1분으로 추정
+        return Math.max((fileSize / (1024 * 1024)) * 60 * 1000, 30000); // 최소 30초
+    } else if (ext.endsWith(".wav")) {
+        // WAV: 무압축이므로 더 짧게 추정
+        return Math.max((fileSize / (10 * 1024 * 1024)) * 60 * 1000, 30000);
+    } else {
+        // 기본값: 3분
+        return 180000L;
+    }
+}
+
+    private MusicInfo createMusicInfoFromFile(File file) {
+    try {
+        // 파일명에서 기본 정보 추출
+        String fileName = file.getName();
+        String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+        
+        // 파일명 파싱 시도
+        String title = baseName;
+        String artist = "Unknown Artist";
+        String album = "Unknown Album";
+        
+        if (baseName.contains(" - ")) {
+            String[] parts = baseName.split(" - ", 2);
+            if (parts.length == 2) {
+                artist = parts[0].trim();
+                title = parts[1].trim();
+            }
+        }
+        
+        // 재생 시간 추정
+        long duration = estimateDuration(file.length(), fileName);
+        
+        // LRC 파일 찾기
+        String lrcPath = findLrcFileForMusic(file);
+        
+        log.debug("MusicInfo 생성: {} - {} ({})", artist, title, UIUtils.formatTime(duration));
+        
+        return new MusicInfo(title, artist, album, file.getAbsolutePath(), duration, lrcPath);
+        
+    } catch (Exception e) {
+        log.error("MusicInfo 생성 중 오류: {}", file.getName(), e);
+        // 기본값으로 반환
+        return new MusicInfo(file.getName(), "Unknown Artist", "Unknown Album", 
+                           file.getAbsolutePath(), 180000L, null);
+    }
+}
     
     private void scanFolderForMusic(File folder) {
         // TODO: 실제 폴더 스캔 기능 구현
@@ -781,15 +889,6 @@ public class MainApplicationWindow extends Stage {
         });
     }
     
-    private MusicInfo createMusicInfoFromFile(File file) {
-        String fileName = file.getName();
-        String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-        
-        return new MusicInfo(
-            baseName, "Unknown Artist", "Unknown Album", 
-            file.getAbsolutePath(), 180000L, null
-        );
-    }
     
     private boolean isSupportedAudioFile(File file) {
         String fileName = file.getName().toLowerCase();
@@ -799,11 +898,15 @@ public class MainApplicationWindow extends Stage {
     }
     
     private void playSelectedMusic() {
-        MusicInfo selectedMusic = playlistView.getSelectedMusic();
-        if (selectedMusic != null) {
-            eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(selectedMusic));
-        }
+    MusicInfo selectedMusic = playlistView.getSelectedMusic();
+    if (selectedMusic != null) {
+        log.debug("메인 윈도우에서 곡 재생 요청: {}", selectedMusic.getTitle());
+        eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(selectedMusic));
+    } else {
+        // 선택된 곡이 없으면 기본 재생 요청
+        eventPublisher.publish(new MediaControlEvent.RequestPlayEvent());
     }
+}
 
     // UI 업데이트 메서드들
     public void updateCurrentMusic(MusicInfo music) {

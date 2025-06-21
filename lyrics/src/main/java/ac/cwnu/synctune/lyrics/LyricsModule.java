@@ -1,25 +1,24 @@
 package ac.cwnu.synctune.lyrics;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+
+import org.slf4j.Logger;
+
 import ac.cwnu.synctune.lyrics.parser.LrcParser;
-import ac.cwnu.synctune.lyrics.provider.CurrentLyricsProvider;
 import ac.cwnu.synctune.lyrics.synchronizer.LyricsTimelineMatcher;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.LyricsEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent.PlaybackProgressUpdateEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent.PlaybackStartedEvent;
-import ac.cwnu.synctune.sdk.event.LyricsEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.LrcLine;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
-
-import org.slf4j.Logger;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
 
 @Module(name = "Lyrics", version = "1.0.0")
 public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListener {
@@ -82,6 +81,8 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
             return;
         }
 
+        log.debug("가사 파일 로딩 시도: {}", currentMusic.getTitle());
+        
         File lrcFile = findLrcFile(currentMusic);
         if (lrcFile != null && lrcFile.exists()) {
             try {
@@ -98,6 +99,7 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
                     if (firstLine.getTimeMillis() <= 1000) { // 1초 이내 시작하는 가사
                         publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
                         lastPublishedLine = firstLine;
+                        log.debug("첫 번째 가사 라인 발행: {}", firstLine.getText());
                     }
                 }
                 
@@ -108,10 +110,45 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
                 publish(new LyricsEvent.LyricsNotFoundEvent(currentMusic.getFilePath()));
             }
         } else {
-            log.info("가사 파일을 찾을 수 없습니다: {}", currentMusic.getTitle());
-            currentLyrics = null;
-            publish(new LyricsEvent.LyricsNotFoundEvent(currentMusic.getFilePath()));
+            log.info("가사 파일을 찾을 수 없습니다: {} - 샘플 가사 사용", currentMusic.getTitle());
+            
+            // 가사 파일이 없으면 샘플 LRC 사용
+            File sampleLrc = new File("sample/sample.lrc");
+            if (sampleLrc.exists()) {
+                try {
+                    currentLyrics = LrcParser.parse(sampleLrc);
+                    log.info("샘플 가사 파일 로드 성공 ({}줄)", currentLyrics.size());
+                    
+                    publish(new LyricsEvent.LyricsFoundEvent(currentMusic.getFilePath(), sampleLrc.getAbsolutePath()));
+                    publish(new LyricsEvent.LyricsParseCompleteEvent(currentMusic.getFilePath(), true));
+                    
+                    // 첫 번째 가사 라인 표시
+                    if (!currentLyrics.isEmpty()) {
+                        LrcLine firstLine = currentLyrics.get(0);
+                        publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
+                        lastPublishedLine = firstLine;
+                        log.debug("샘플 가사 첫 번째 라인 발행: {}", firstLine.getText());
+                    }
+                    
+                } catch (IOException e) {
+                    log.error("샘플 가사 파일 파싱 실패", e);
+                    handleNoLyrics();
+                }
+            } else {
+                handleNoLyrics();
+            }
         }
+    }
+    
+    /**
+     * 가사가 없을 때 처리
+     */
+    private void handleNoLyrics() {
+        currentLyrics = null;
+        publish(new LyricsEvent.LyricsNotFoundEvent(currentMusic.getFilePath()));
+        // 가사 없음 메시지 발행
+        publish(new LyricsEvent.NextLyricsEvent("가사를 찾을 수 없습니다", 0));
+        log.debug("가사 없음 메시지 발행");
     }
 
     /**
@@ -136,12 +173,16 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
      * 음악 파일에 해당하는 LRC 파일 찾기
      */
     private File findLrcFile(MusicInfo music) {
+        log.debug("LRC 파일 검색 시작: {}", music.getTitle());
+        
         // 1. MusicInfo에 LRC 경로가 설정되어 있는 경우
         if (music.getLrcPath() != null && !music.getLrcPath().isEmpty()) {
             File lrcFile = new File(music.getLrcPath());
             if (lrcFile.exists()) {
                 log.debug("MusicInfo에서 LRC 경로 사용: {}", lrcFile.getAbsolutePath());
                 return lrcFile;
+            } else {
+                log.debug("MusicInfo LRC 경로가 존재하지 않음: {}", music.getLrcPath());
             }
         }
 
@@ -153,7 +194,11 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
             if (lrcFile.exists()) {
                 log.debug("음악 파일과 같은 디렉토리에서 LRC 발견: {}", lrcFile.getAbsolutePath());
                 return lrcFile;
+            } else {
+                log.debug("같은 디렉토리에 LRC 파일 없음: {}", lrcFile.getAbsolutePath());
             }
+        } else {
+            log.debug("음악 파일이 존재하지 않음: {}", music.getFilePath());
         }
 
         // 3. lyrics 폴더에서 찾기
@@ -163,13 +208,16 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
         if (lrcInLyricsDir.exists()) {
             log.debug("lyrics 폴더에서 LRC 발견: {}", lrcInLyricsDir.getAbsolutePath());
             return lrcInLyricsDir;
+        } else {
+            log.debug("lyrics 폴더에 LRC 파일 없음: {}", lrcInLyricsDir.getAbsolutePath());
         }
 
-        // 4. 샘플 LRC 파일 사용 (테스트용)
-        File sampleLrc = new File("sample/sample.lrc");
-        if (sampleLrc.exists()) {
-            log.debug("샘플 LRC 파일 사용: {}", sampleLrc.getAbsolutePath());
-            return sampleLrc;
+        // 4. 음악 제목으로 찾기 (공백을 언더스코어로 변환)
+        String titleBasedName = music.getTitle().replaceAll("[^a-zA-Z0-9가-힣]", "_");
+        File titleBasedLrc = new File("lyrics", titleBasedName + ".lrc");
+        if (titleBasedLrc.exists()) {
+            log.debug("제목 기반 LRC 발견: {}", titleBasedLrc.getAbsolutePath());
+            return titleBasedLrc;
         }
 
         log.debug("LRC 파일을 찾을 수 없음: {}", music.getTitle());
@@ -191,14 +239,14 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
     private void createSampleLrcFileIfNotExists() {
         File sampleDir = new File("sample");
         if (!sampleDir.exists()) {
-            sampleDir.mkdirs();
+            boolean created = sampleDir.mkdirs();
+            log.debug("sample 디렉토리 생성: {}", created);
         }
 
         File sampleLrc = new File(sampleDir, "sample.lrc");
         if (!sampleLrc.exists()) {
             try {
-                java.nio.file.Files.write(sampleLrc.toPath(), 
-                    """
+                String sampleLyrics = """
                     [00:00.00]SyncTune 테스트 가사
                     [00:05.00]이것은 샘플 가사입니다
                     [00:10.00]LyricsModule이 정상적으로 작동하고 있습니다
@@ -208,11 +256,23 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
                     [00:30.00]가사 동기화가 완료되었습니다
                     [00:35.00]🎵 음악과 함께 즐기세요 🎵
                     [00:40.00]감사합니다!
-                    """.getBytes());
+                    [00:45.00]이 가사는 모든 곡에 공통으로 사용됩니다
+                    [00:50.00]실제 음악에는 해당 LRC 파일을 추가하세요
+                    """;
+                java.nio.file.Files.write(sampleLrc.toPath(), sampleLyrics.getBytes());
                 log.info("샘플 LRC 파일 생성: {}", sampleLrc.getAbsolutePath());
             } catch (IOException e) {
                 log.error("샘플 LRC 파일 생성 실패", e);
             }
+        } else {
+            log.debug("샘플 LRC 파일이 이미 존재함: {}", sampleLrc.getAbsolutePath());
+        }
+        
+        // lyrics 디렉토리도 생성
+        File lyricsDir = new File("lyrics");
+        if (!lyricsDir.exists()) {
+            boolean created = lyricsDir.mkdirs();
+            log.debug("lyrics 디렉토리 생성: {}", created);
         }
     }
 }

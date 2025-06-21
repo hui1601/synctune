@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import org.slf4j.Logger;
 
 import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
@@ -323,80 +324,149 @@ public class PlaylistActionHandler {
     }
     
     private MusicInfo createMusicInfoFromFile(File file) {
-        try {
-            // 파일명에서 기본 정보 추출
-            String fileName = file.getName();
-            String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-            
-            // 파일명 파싱 시도 (예: "Artist - Title.mp3")
-            String title = baseName;
-            String artist = "Unknown Artist";
-            String album = "Unknown Album";
-            
-            if (baseName.contains(" - ")) {
-                String[] parts = baseName.split(" - ", 2);
+    try {
+        // 파일명에서 기본 정보 추출
+        String fileName = file.getName();
+        String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+        
+        // 파일명 파싱 시도 (여러 패턴 지원)
+        String title = baseName;
+        String artist = "Unknown Artist";
+        String album = "Unknown Album";
+        
+        // 패턴 1: "Artist - Title.mp3"
+        if (baseName.contains(" - ")) {
+            String[] parts = baseName.split(" - ", 2);
+            if (parts.length == 2) {
+                artist = parts[0].trim();
+                title = parts[1].trim();
+            }
+        }
+        // 패턴 2: "01. Artist - Title.mp3" (트랙 번호 포함)
+        else if (baseName.matches("^\\d+\\.\\s*.*")) {
+            String withoutTrackNumber = baseName.replaceFirst("^\\d+\\.\\s*", "");
+            if (withoutTrackNumber.contains(" - ")) {
+                String[] parts = withoutTrackNumber.split(" - ", 2);
                 if (parts.length == 2) {
                     artist = parts[0].trim();
                     title = parts[1].trim();
                 }
+            } else {
+                title = withoutTrackNumber;
             }
-            
-            // 파일 크기 기반 대략적인 재생 시간 계산 (MP3 기준)
-            long fileSize = file.length();
-            long estimatedDuration = estimateDuration(fileSize, fileName);
-            
-            // LRC 파일 찾기
-            String lrcPath = findLrcFile(file);
-            
-            return new MusicInfo(title, artist, album, file.getAbsolutePath(), estimatedDuration, lrcPath);
-            
-        } catch (Exception e) {
-            log.error("MusicInfo 생성 중 오류: {}", file.getName(), e);
-            // 기본값으로 반환
-            return new MusicInfo(file.getName(), "Unknown Artist", "Unknown Album", 
-                               file.getAbsolutePath(), 180000L, null);
         }
-    }
-    
-    private long estimateDuration(long fileSize, String fileName) {
-        // 간단한 추정 공식 (실제로는 메타데이터를 읽어야 정확함)
-        String ext = fileName.toLowerCase();
-        if (ext.endsWith(".mp3")) {
-            // MP3: 대략 1MB당 1분으로 추정
-            return (fileSize / (1024 * 1024)) * 60 * 1000;
-        } else if (ext.endsWith(".wav")) {
-            // WAV: 무압축이므로 더 짧게 추정
-            return (fileSize / (10 * 1024 * 1024)) * 60 * 1000;
-        } else {
-            // 기본값: 3분
-            return 180000L;
-        }
-    }
-    
-    private String findLrcFile(File musicFile) {
-        try {
-            String baseName = musicFile.getName().substring(0, musicFile.getName().lastIndexOf('.'));
-            
-            // 같은 디렉토리에서 찾기
-            File lrcFile = new File(musicFile.getParent(), baseName + ".lrc");
-            if (lrcFile.exists()) {
-                return lrcFile.getAbsolutePath();
+        // 패턴 3: "Artist_Title.mp3" (언더스코어로 구분)
+        else if (baseName.contains("_")) {
+            String[] parts = baseName.split("_", 2);
+            if (parts.length == 2) {
+                artist = parts[0].trim();
+                title = parts[1].trim();
             }
-            
-            // lyrics 폴더에서 찾기
-            File lyricsDir = new File(musicFile.getParent(), "lyrics");
-            if (lyricsDir.exists()) {
-                File lrcInLyricsDir = new File(lyricsDir, baseName + ".lrc");
-                if (lrcInLyricsDir.exists()) {
-                    return lrcInLyricsDir.getAbsolutePath();
-                }
-            }
-            
-        } catch (Exception e) {
-            log.debug("LRC 파일 찾기 실패: {}", musicFile.getName());
         }
         
-        return null;
+        // 파일 크기 기반 대략적인 재생 시간 계산
+        long fileSize = file.length();
+        long estimatedDuration = estimateDuration(fileSize, fileName);
+        
+        // LRC 파일 찾기
+        String lrcPath = findLrcFile(file);
+        
+        log.debug("MusicInfo 생성: {} - {} ({}) [LRC: {}]", 
+                 artist, title, formatDuration(estimatedDuration), lrcPath != null ? "있음" : "없음");
+        
+        return new MusicInfo(title, artist, album, file.getAbsolutePath(), estimatedDuration, lrcPath);
+        
+    } catch (Exception e) {
+        log.error("MusicInfo 생성 중 오류: {}", file.getName(), e);
+        // 기본값으로 반환
+        return new MusicInfo(file.getName(), "Unknown Artist", "Unknown Album", 
+                           file.getAbsolutePath(), 180000L, null);
+    }
+}
+    private String formatDuration(long milliseconds) {
+    long seconds = milliseconds / 1000;
+    long minutes = seconds / 60;
+    seconds = seconds % 60;
+    return String.format("%d:%02d", minutes, seconds);
+    }
+
+    
+    private long estimateDuration(long fileSize, String fileName) {
+    String ext = fileName.toLowerCase();
+    long duration;
+    
+    if (ext.endsWith(".mp3")) {
+        // MP3: 평균 비트레이트 128kbps 기준으로 계산
+        // 128kbps = 16KB/s, 1분 = 960KB
+        duration = (fileSize * 1000) / (16 * 1024); // 밀리초
+    } else if (ext.endsWith(".wav")) {
+        // WAV: 44.1kHz, 16bit, 스테레오 기준 (176.4KB/s)
+        duration = (fileSize * 1000) / (176 * 1024);
+    } else if (ext.endsWith(".flac")) {
+        // FLAC: 대략 WAV의 50-60% 크기
+        duration = (fileSize * 1000) / (100 * 1024);
+    } else if (ext.endsWith(".m4a") || ext.endsWith(".aac")) {
+        // AAC: 대략 MP3와 비슷한 압축률
+        duration = (fileSize * 1000) / (20 * 1024);
+    } else {
+        // 기본값: 3분
+        duration = 180000L;
+    }
+    
+    // 최소 10초, 최대 2시간으로 제한
+    return Math.max(10000L, Math.min(duration, 7200000L));
+}
+    
+    private String findLrcFile(File musicFile) {
+    try {
+        String baseName = getFileNameWithoutExtension(musicFile.getName());
+        
+        // 1. 같은 디렉토리에서 찾기
+        File lrcFile = new File(musicFile.getParent(), baseName + ".lrc");
+        if (lrcFile.exists()) {
+            log.debug("LRC 파일 발견 (같은 디렉토리): {}", lrcFile.getAbsolutePath());
+            return lrcFile.getAbsolutePath();
+        }
+        
+        // 2. lyrics 폴더에서 찾기
+        File lyricsDir = new File(musicFile.getParent(), "lyrics");
+        if (lyricsDir.exists()) {
+            File lrcInLyricsDir = new File(lyricsDir, baseName + ".lrc");
+            if (lrcInLyricsDir.exists()) {
+                log.debug("LRC 파일 발견 (lyrics 폴더): {}", lrcInLyricsDir.getAbsolutePath());
+                return lrcInLyricsDir.getAbsolutePath();
+            }
+        }
+        
+        // 3. 루트 lyrics 폴더에서 찾기
+        File rootLyricsDir = new File("lyrics");
+        if (rootLyricsDir.exists()) {
+            File lrcInRootLyrics = new File(rootLyricsDir, baseName + ".lrc");
+            if (lrcInRootLyrics.exists()) {
+                log.debug("LRC 파일 발견 (루트 lyrics 폴더): {}", lrcInRootLyrics.getAbsolutePath());
+                return lrcInRootLyrics.getAbsolutePath();
+            }
+        }
+        
+        // 4. 음악 제목으로 찾기 (특수문자 제거)
+        String sanitizedTitle = baseName.replaceAll("[^a-zA-Z0-9가-힣\\s]", "_");
+        File titleBasedLrc = new File(rootLyricsDir, sanitizedTitle + ".lrc");
+        if (titleBasedLrc.exists()) {
+            log.debug("LRC 파일 발견 (제목 기반): {}", titleBasedLrc.getAbsolutePath());
+            return titleBasedLrc.getAbsolutePath();
+        }
+        
+    } catch (Exception e) {
+        log.debug("LRC 파일 찾기 실패: {}", musicFile.getName(), e);
+    }
+    
+    return null;
+}
+
+    private String getFileNameWithoutExtension(String fileName) {
+        if (fileName == null) return "";
+        int lastDot = fileName.lastIndexOf('.');
+        return lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
     }
 
     private void removeSelectedMusic() {
@@ -480,6 +550,17 @@ public class PlaylistActionHandler {
             importM3UPlaylist(playlistFile);
         }
     }
+    
+    public void playMusic(MusicInfo music) {
+    if (music != null && publisher != null) {
+        log.info("곡 재생 요청: {} - {}", music.getArtist(), music.getTitle());
+        publisher.publish(new MediaControlEvent.RequestPlayEvent(music));
+        
+        Platform.runLater(() -> {
+            view.updateStatusLabel("재생 중: " + music.getTitle(), false);
+        });
+    }
+}
     
     private void importM3UPlaylist(File playlistFile) {
         try {

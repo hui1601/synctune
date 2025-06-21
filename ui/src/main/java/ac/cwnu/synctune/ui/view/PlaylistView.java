@@ -1,5 +1,7 @@
 package ac.cwnu.synctune.ui.view;
 
+import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.component.StyledButton;
 import ac.cwnu.synctune.ui.util.UIUtils;
@@ -24,8 +26,11 @@ import java.io.File;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PlaylistView extends VBox {
+    private static final Logger log = LoggerFactory.getLogger(PlaylistView.class);
     // UI 컴포넌트들
     private TextField playlistNameInput;
     private StyledButton createButton;
@@ -62,6 +67,8 @@ public class PlaylistView extends VBox {
     // 기본 플레이리스트 목록
     private static final List<String> DEFAULT_PLAYLISTS = List.of("즐겨찾기", "최근 재생");
     
+    private EventPublisher eventPublisher;
+
     // 정렬 모드
     public enum SortMode {
         TITLE("제목순"),
@@ -146,7 +153,8 @@ public class PlaylistView extends VBox {
         }
     }
 
-    public PlaylistView() {
+    public PlaylistView(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
         playlists = FXCollections.observableArrayList();
         currentPlaylistItems = FXCollections.observableArrayList();
         originalMusicItems = FXCollections.observableArrayList();
@@ -802,17 +810,35 @@ public class PlaylistView extends VBox {
 }
 
     private void playSelectedMusic(MusicInfo music) {
-        // TODO: 실제 재생 이벤트 발행
-        updateStatusLabel("재생: " + music.getTitle(), false);
+    if (music != null && eventPublisher != null) {
+        log.debug("플레이리스트에서 곡 재생 요청: {}", music.getTitle());
+        eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(music));
+        updateStatusLabel("재생 요청: " + music.getTitle(), false);
+    } else {
+        log.warn("재생할 수 없음 - music: {}, eventPublisher: {}", music, eventPublisher);
+        updateStatusLabel("재생할 수 없습니다", true);
+    }
+    }
+    public void setEventPublisher(EventPublisher eventPublisher) {
+            this.eventPublisher = eventPublisher;
     }
     
     private void addSelectedToQueue() {
-        List<MusicInfo> selectedMusic = getSelectedMusicList();
-        if (!selectedMusic.isEmpty()) {
-            // TODO: 재생 대기열 추가 이벤트 발행
-            updateStatusLabel(selectedMusic.size() + "개 곡이 재생 대기열에 추가되었습니다.", false);
+    List<MusicInfo> selectedMusic = getSelectedMusicList();
+    if (!selectedMusic.isEmpty() && eventPublisher != null) {
+        // 현재는 첫 번째 곡만 재생 (향후 대기열 기능 추가 시 개선)
+        MusicInfo firstMusic = selectedMusic.get(0);
+        eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(firstMusic));
+        updateStatusLabel(firstMusic.getTitle() + " 재생 요청됨", false);
+        
+        if (selectedMusic.size() > 1) {
+            updateStatusLabel(String.format("%s 외 %d곡 (첫 번째 곡만 재생)", 
+                            firstMusic.getTitle(), selectedMusic.size() - 1), false);
         }
+    } else {
+        updateStatusLabel("재생할 곡을 선택하세요", true);
     }
+}
 
     private void renameSelectedPlaylist() {
         String selected = getSelectedPlaylist();
