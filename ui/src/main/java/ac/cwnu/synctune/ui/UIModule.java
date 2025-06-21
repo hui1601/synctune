@@ -28,6 +28,9 @@ public class UIModule extends SyncTuneModule {
         instance = this;
         log.info("UIModule이 시작되었습니다.");
 
+        // ✅ 수정: EventBus 등록 확인 로그 추가
+        log.info("★★★ UIModule이 EventBus에 등록됨 - EventListener 활성화 ★★★");
+
         // JavaFX 애플리케이션 초기화
         initializeJavaFX();
     }
@@ -85,6 +88,7 @@ public class UIModule extends SyncTuneModule {
             isJavaFXInitialized = true;
             
             log.info("메인 윈도우가 성공적으로 표시되었습니다.");
+            log.info("★★★ UI 초기화 완료 - 이벤트 수신 준비됨 ★★★");
             
         } catch (Exception e) {
             log.error("UI 초기화 중 오류 발생", e);
@@ -177,24 +181,30 @@ public class UIModule extends SyncTuneModule {
         }
     }
 
-    // 가사 이벤트 처리
+    // ✅ 수정: 가사 이벤트 처리 강화
     @EventListener
     public void onNextLyrics(LyricsEvent.NextLyricsEvent event) {
-        log.debug("NextLyricsEvent 수신: {}", event.getLyricLine());
+        log.info("★★★ NextLyricsEvent 수신됨 ★★★: {}", event.getLyricLine());
+        System.out.println("★★★ UI - NextLyricsEvent: " + event.getLyricLine());
+        
         if (isJavaFXInitialized && mainWindow != null) {
             Platform.runLater(() -> {
                 try {
                     mainWindow.updateLyrics(event.getLyricLine());
+                    log.info("★★★ UI 가사 업데이트 완료 ★★★");
                 } catch (Exception e) {
                     log.error("NextLyricsEvent 처리 중 오류", e);
                 }
             });
+        } else {
+            log.warn("★★★ JavaFX 초기화되지 않음 또는 mainWindow null ★★★ - initialized: {}, mainWindow: {}", 
+                    isJavaFXInitialized, mainWindow != null);
         }
     }
 
     @EventListener
     public void onLyricsFound(LyricsEvent.LyricsFoundEvent event) {
-        log.info("가사 파일 발견: {}", event.getLrcFilePath());
+        log.info("★★★ 가사 파일 발견 이벤트 수신 ★★★: {}", event.getLrcFilePath());
         if (isJavaFXInitialized && mainWindow != null) {
             Platform.runLater(() -> {
                 try {
@@ -208,7 +218,7 @@ public class UIModule extends SyncTuneModule {
 
     @EventListener
     public void onLyricsNotFound(LyricsEvent.LyricsNotFoundEvent event) {
-        log.info("가사 파일을 찾을 수 없음: {}", event.getMusicFilePath());
+        log.info("★★★ 가사 파일 없음 이벤트 수신 ★★★: {}", event.getMusicFilePath());
         if (isJavaFXInitialized && mainWindow != null) {
             Platform.runLater(() -> {
                 try {
@@ -222,7 +232,8 @@ public class UIModule extends SyncTuneModule {
 
     @EventListener
     public void onLyricsParseComplete(LyricsEvent.LyricsParseCompleteEvent event) {
-        log.debug("가사 파싱 완료: {} (성공: {})", event.getMusicFilePath(), event.isSuccess());
+        log.info("★★★ 가사 파싱 완료 이벤트 수신 ★★★: {} (성공: {})", 
+                event.getMusicFilePath(), event.isSuccess());
         // 파싱 완료 상태는 별도 UI 업데이트 없이 로그만 남김
     }
 

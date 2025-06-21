@@ -34,6 +34,9 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
         super.eventPublisher = publisher;
         log.info("LyricsModule이 시작되었습니다.");
 
+        // ✅ 수정: EventBus 등록 확인 로그 추가
+        log.info("★★★ LyricsModule이 EventBus에 등록됨 - EventListener 활성화 ★★★");
+
         // 샘플 LRC 파일 생성 (존재하지 않는 경우)
         createSampleLrcFileIfNotExists();
 
@@ -55,7 +58,7 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
      */
     @EventListener
     public void onPlaybackStarted(PlaybackStartedEvent event) {
-        log.info("PlaybackStartedEvent 수신: {}", event.getCurrentMusic().getTitle());
+        log.info("★★★ PlaybackStartedEvent 수신 ★★★: {}", event.getCurrentMusic().getTitle());
         currentMusic = event.getCurrentMusic();
         lastPublishedLine = null; // 새 곡이므로 초기화
         loadLyricsForCurrentMusic();
@@ -95,14 +98,15 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
                 publish(new LyricsEvent.LyricsFoundEvent(currentMusic.getFilePath(), lrcFile.getAbsolutePath()));
                 publish(new LyricsEvent.LyricsParseCompleteEvent(currentMusic.getFilePath(), true));
                 
-                // 첫 번째 가사 라인이 있으면 미리 표시
+                // ✅ 수정: 첫 번째 가사 라인 즉시 발행
                 if (!currentLyrics.isEmpty()) {
                     LrcLine firstLine = currentLyrics.get(0);
-                    if (firstLine.getTimeMillis() <= 1000) { // 1초 이내 시작하는 가사
-                        publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
-                        lastPublishedLine = firstLine;
-                        log.info("첫 번째 가사 라인 발행: {}", firstLine.getText());
-                    }
+                    log.info("★★★ 첫 번째 가사 라인 발행 ★★★: {}", firstLine.getText());
+                    publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
+                    lastPublishedLine = firstLine;
+                    
+                    // ✅ 추가: 시간이 0에 가까운 가사들도 미리 표시
+                    publishEarlyLyrics();
                 }
                 
             } catch (IOException e) {
@@ -124,12 +128,15 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
                     publish(new LyricsEvent.LyricsFoundEvent(currentMusic.getFilePath(), sampleLrc.getAbsolutePath()));
                     publish(new LyricsEvent.LyricsParseCompleteEvent(currentMusic.getFilePath(), true));
                     
-                    // 첫 번째 가사 라인 표시
+                    // ✅ 수정: 샘플 가사도 즉시 발행
                     if (!currentLyrics.isEmpty()) {
                         LrcLine firstLine = currentLyrics.get(0);
+                        log.info("★★★ 샘플 가사 첫 번째 라인 발행 ★★★: {}", firstLine.getText());
                         publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
                         lastPublishedLine = firstLine;
-                        log.info("샘플 가사 첫 번째 라인 발행: {}", firstLine.getText());
+                        
+                        // ✅ 추가: 샘플 가사의 초기 라인들도 발행
+                        publishEarlyLyrics();
                     }
                     
                 } catch (IOException e) {
@@ -137,10 +144,34 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
                     handleNoLyrics();
                 }
             } else {
+                log.warn("❌ 샘플 가사 파일도 없습니다: {}", sampleLrc.getAbsolutePath());
                 handleNoLyrics();
             }
         }
         log.info("=== 가사 파일 로딩 완료 ===");
+    }
+    
+    /**
+     * ✅ 추가: 초기 가사 라인들을 미리 발행 (0~3초 이내 시작하는 가사들)
+     */
+    private void publishEarlyLyrics() {
+        if (currentLyrics == null || currentLyrics.isEmpty()) {
+            return;
+        }
+        
+        // 처음 몇 줄의 가사를 미리 확인하여 빠른 시작 시간의 가사들을 발행
+        for (LrcLine line : currentLyrics) {
+            if (line.getTimeMillis() <= 3000) { // 3초 이내 시작하는 가사들
+                if (!line.equals(lastPublishedLine)) {
+                    log.info("★★★ 초기 가사 발행 ★★★: {} ({}ms)", line.getText(), line.getTimeMillis());
+                    publish(new LyricsEvent.NextLyricsEvent(line.getText(), line.getTimeMillis()));
+                    lastPublishedLine = line;
+                    break; // 첫 번째 것만 발행
+                }
+            } else {
+                break; // 3초 이후의 가사는 타이밍에 맞춰 발행
+            }
+        }
     }
     
     /**
@@ -149,9 +180,11 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
     private void handleNoLyrics() {
         currentLyrics = null;
         publish(new LyricsEvent.LyricsNotFoundEvent(currentMusic.getFilePath()));
-        // 가사 없음 메시지 발행
-        publish(new LyricsEvent.NextLyricsEvent("가사를 찾을 수 없습니다", 0));
-        log.info("가사 없음 메시지 발행");
+        
+        // ✅ 수정: 가사 없음 메시지도 강제로 발행
+        String noLyricsMessage = "가사를 찾을 수 없습니다";
+        log.info("★★★ 가사 없음 메시지 발행 ★★★: {}", noLyricsMessage);
+        publish(new LyricsEvent.NextLyricsEvent(noLyricsMessage, 0));
     }
 
     /**
@@ -166,7 +199,7 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
         
         // 새로운 가사 라인이 있고, 이전에 발행한 라인과 다를 때만 발행 (중복 방지)
         if (currentLine != null && !currentLine.equals(lastPublishedLine)) {
-            log.debug("현재 가사 업데이트: {} ({}ms)", currentLine.getText(), currentLine.getTimeMillis());
+            log.info("★★★ 현재 가사 업데이트 발행 ★★★: {} ({}ms)", currentLine.getText(), currentLine.getTimeMillis());
             publish(new LyricsEvent.NextLyricsEvent(currentLine.getText(), currentLine.getTimeMillis()));
             lastPublishedLine = currentLine;
         }
@@ -286,45 +319,65 @@ public class LyricsModule extends SyncTuneModule implements ModuleLifecycleListe
     }
 
     /**
-     * 샘플 LRC 파일 생성 (테스트용)
+     * ✅ 수정: 샘플 LRC 파일 생성 강화
      */
     private void createSampleLrcFileIfNotExists() {
         File sampleDir = new File("sample");
         if (!sampleDir.exists()) {
             boolean created = sampleDir.mkdirs();
-            log.debug("sample 디렉토리 생성: {}", created);
+            log.info("sample 디렉토리 생성: {}", created);
         }
 
         File sampleLrc = new File(sampleDir, "sample.lrc");
         if (!sampleLrc.exists()) {
             try {
+                // ✅ 수정: 더 명확한 샘플 가사 생성
                 String sampleLyrics = """
                     [00:00.00]SyncTune 테스트 가사
-                    [00:05.00]이것은 샘플 가사입니다
-                    [00:10.00]LyricsModule이 정상적으로 작동하고 있습니다
-                    [00:15.00]가사가 시간에 맞춰 표시됩니다
-                    [00:20.00]멋진 음악을 들어보세요
-                    [00:25.00]SyncTune으로 즐거운 시간 되세요
-                    [00:30.00]가사 동기화가 완료되었습니다
-                    [00:35.00]🎵 음악과 함께 즐기세요 🎵
-                    [00:40.00]감사합니다!
-                    [00:45.00]이 가사는 모든 곡에 공통으로 사용됩니다
-                    [00:50.00]실제 음악에는 해당 LRC 파일을 추가하세요
+                    [00:02.00]이것은 샘플 가사입니다
+                    [00:05.00]LyricsModule이 정상적으로 작동하고 있습니다
+                    [00:08.00]가사가 시간에 맞춰 표시됩니다
+                    [00:12.00]멋진 음악을 들어보세요
+                    [00:15.00]SyncTune으로 즐거운 시간 되세요
+                    [00:18.00]가사 동기화가 완료되었습니다
+                    [00:22.00]🎵 음악과 함께 즐기세요 🎵
+                    [00:25.00]감사합니다!
+                    [00:28.00]이 가사는 모든 곡에 공통으로 사용됩니다
+                    [00:32.00]실제 음악에는 해당 LRC 파일을 추가하세요
+                    [00:35.00]가사가 제대로 표시되고 있나요?
+                    [00:38.00]NextLyricsEvent가 정상 발행되었습니다
+                    [00:42.00]UI에서 가사를 확인해보세요
+                    [00:45.00]LyricsModule 테스트 완료!
                     """;
-                java.nio.file.Files.write(sampleLrc.toPath(), sampleLyrics.getBytes());
-                log.info("샘플 LRC 파일 생성: {}", sampleLrc.getAbsolutePath());
+                java.nio.file.Files.write(sampleLrc.toPath(), sampleLyrics.getBytes("UTF-8"));
+                log.info("★★★ 샘플 LRC 파일 생성 완료 ★★★: {}", sampleLrc.getAbsolutePath());
+                
+                // ✅ 추가: 생성된 파일 검증
+                if (sampleLrc.exists() && sampleLrc.length() > 0) {
+                    log.info("✅ 샘플 LRC 파일 검증 성공 - 크기: {} bytes", sampleLrc.length());
+                } else {
+                    log.error("❌ 샘플 LRC 파일 생성 실패");
+                }
+                
             } catch (IOException e) {
-                log.error("샘플 LRC 파일 생성 실패", e);
+                log.error("❌ 샘플 LRC 파일 생성 실패", e);
             }
         } else {
-            log.debug("샘플 LRC 파일이 이미 존재함: {}", sampleLrc.getAbsolutePath());
+            log.info("✅ 샘플 LRC 파일이 이미 존재함: {}", sampleLrc.getAbsolutePath());
+            
+            // ✅ 추가: 기존 파일 검증
+            if (sampleLrc.length() > 0) {
+                log.info("✅ 기존 샘플 LRC 파일 검증 성공 - 크기: {} bytes", sampleLrc.length());
+            } else {
+                log.warn("⚠️ 기존 샘플 LRC 파일이 비어있음 - 재생성 필요");
+            }
         }
         
         // lyrics 디렉토리도 생성
         File lyricsDir = new File("lyrics");
         if (!lyricsDir.exists()) {
             boolean created = lyricsDir.mkdirs();
-            log.debug("lyrics 디렉토리 생성: {}", created);
+            log.info("lyrics 디렉토리 생성: {}", created);
         }
     }
 }
