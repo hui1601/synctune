@@ -1,5 +1,14 @@
 package ac.cwnu.synctune.player;
 
+import java.io.File;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+
+import ac.cwnu.synctune.player.playback.AudioEngine;
+import ac.cwnu.synctune.player.playback.PlaybackStateManager;
 import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
@@ -9,14 +18,6 @@ import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
-import ac.cwnu.synctune.player.playback.AudioEngine;
-import ac.cwnu.synctune.player.playback.PlaybackStateManager;
-import org.slf4j.Logger;
-
-import java.io.File;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * PlayerModule은 SyncTune의 플레이어 기능을 구현합니다.
@@ -47,10 +48,8 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
         // 진행 상황 업데이트 스케줄러 시작
         startProgressUpdates();
         
-        // 실제 음악 파일 또는 샘플 음악 재생 시작
-        createAndPlaySampleMusic();
-        
-        log.info("[{}] 모듈 초기화 완료.", getModuleName());
+        // 자동 재생 제거 - 사용자가 직접 재생 버튼을 눌러야 재생됨
+        log.info("[{}] 모듈 초기화 완료. 재생할 음악을 선택하세요.", getModuleName());
     }
 
     @Override
@@ -141,20 +140,19 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
 
     /**
-     * 실제 음악 파일을 찾아서 재생하거나 샘플 음악을 재생합니다
+     * 샘플 음악을 준비합니다 (재생하지는 않음)
      */
-    private void createAndPlaySampleMusic() {
+    private MusicInfo prepareSampleMusic() {
         // 먼저 실제 음악 파일을 찾아보기
         MusicInfo realMusic = findRealMusicFile();
         
         if (realMusic != null) {
-            // 실제 음악 파일이 있으면 사용
             log.info("[{}] 실제 음악 파일 발견: {}", getModuleName(), realMusic.getTitle());
-            playMusic(realMusic);
+            return realMusic;
         } else {
-            // 실제 파일이 없으면 샘플 음악 사용
-            log.info("[{}] 실제 음악 파일이 없어 샘플 음악을 사용합니다.", getModuleName());
-            createSampleMusic();
+            // 실제 파일이 없으면 샘플 음악 정보만 생성
+            log.info("[{}] 실제 음악 파일이 없어 샘플 음악 정보를 준비합니다.", getModuleName());
+            return createSampleMusicInfo();
         }
     }
     
@@ -258,10 +256,10 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     }
     
     /**
-     * 샘플 음악 생성 (실제 파일이 없을 때)
+     * 샘플 음악 정보만 생성 (재생하지 않음)
      */
-    private void createSampleMusic() {
-        MusicInfo sampleMusic = new MusicInfo(
+    private MusicInfo createSampleMusicInfo() {
+        return new MusicInfo(
             "샘플 테스트 음악",
             "SyncTune System",
             "Test Album",
@@ -269,8 +267,6 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
             180000L, // 3분
             "sample/sample.lrc"
         );
-        
-        playMusic(sampleMusic);
     }
     
     /**
@@ -363,7 +359,10 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
                     log.info("[{}] 재생 시작", getModuleName());
                 }
             } else {
-                log.warn("[{}] 재생할 곡이 없습니다.", getModuleName());
+                // 재생할 곡이 없으면 샘플 음악 준비
+                log.info("[{}] 재생할 곡이 없어 샘플 음악을 준비합니다.", getModuleName());
+                MusicInfo sampleMusic = prepareSampleMusic();
+                playMusic(sampleMusic);
             }
         } catch (Exception e) {
             log.error("[{}] 재생 요청 처리 중 오류", getModuleName(), e);

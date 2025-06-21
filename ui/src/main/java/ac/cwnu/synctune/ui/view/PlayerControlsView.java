@@ -18,14 +18,14 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 public class PlayerControlsView extends VBox {
-    // 기본 컨트롤 버튼들
+    // 기본 컨트롤 버튼들 - Stop, Prev, Next만 텍스트로 변경
     private final StyledButton playButton = new StyledButton("▶", StyledButton.ButtonStyle.PRIMARY);
     private final StyledButton pauseButton = new StyledButton("⏸", StyledButton.ButtonStyle.CONTROL);
-    private final StyledButton stopButton = new StyledButton("⏹", StyledButton.ButtonStyle.CONTROL);
-    private final StyledButton prevButton = new StyledButton("⏮", StyledButton.ButtonStyle.CONTROL);
-    private final StyledButton nextButton = new StyledButton("⏭", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton stopButton = new StyledButton("Stop", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton prevButton = new StyledButton("Prev", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton nextButton = new StyledButton("Next", StyledButton.ButtonStyle.CONTROL);
     
-    // 추가 컨트롤 버튼들 (미구현 부분)
+    // 추가 컨트롤 버튼들 - 원래 아이콘으로 복원
     private final ToggleButton shuffleButton = new ToggleButton("🔀");
     private final ToggleButton repeatButton = new ToggleButton("🔁");
     private final ToggleButton muteButton = new ToggleButton("🔊");
@@ -97,7 +97,6 @@ public class PlayerControlsView extends VBox {
         
         // 초기 상태 설정
         pauseButton.setDisable(true);
-        // updateRepeatButton() 호출을 setupTooltips() 이후로 이동
     }
 
     private void setupToggleButtonStyles() {
@@ -169,12 +168,12 @@ public class PlayerControlsView extends VBox {
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
         
-        // 버튼 크기 조정
-        setButtonSize(prevButton, 40);
-        setButtonSize(playButton, 50);
-        setButtonSize(pauseButton, 50);
-        setButtonSize(stopButton, 40);
-        setButtonSize(nextButton, 40);
+        // 버튼 크기 조정 - 텍스트가 잘 보이도록 조정
+        setButtonSize(prevButton, 60, 35);
+        setButtonSize(playButton, 70, 40);
+        setButtonSize(pauseButton, 70, 40);
+        setButtonSize(stopButton, 60, 35);
+        setButtonSize(nextButton, 60, 35);
         
         buttonBox.getChildren().addAll(prevButton, playButton, pauseButton, stopButton, nextButton);
         return buttonBox;
@@ -218,10 +217,10 @@ public class PlayerControlsView extends VBox {
         return bottomBox;
     }
 
-    private void setButtonSize(Button button, double size) {
-        button.setPrefSize(size, size);
-        button.setMinSize(size, size);
-        button.setMaxSize(size, size);
+    private void setButtonSize(Button button, double width, double height) {
+        button.setPrefSize(width, height);
+        button.setMinSize(width, height);
+        button.setMaxSize(width, height);
     }
 
     private void setupEventHandlers() {
