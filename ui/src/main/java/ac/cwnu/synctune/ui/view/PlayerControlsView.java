@@ -1,12 +1,10 @@
 package ac.cwnu.synctune.ui.view;
 
 import ac.cwnu.synctune.sdk.model.MusicInfo;
-import ac.cwnu.synctune.ui.component.AlbumArtDisplay;
-import ac.cwnu.synctune.ui.component.MarqueeLabel;
 import ac.cwnu.synctune.ui.component.StyledButton;
+import ac.cwnu.synctune.ui.util.UIUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ToggleButton;
@@ -18,16 +16,14 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
 public class PlayerControlsView extends VBox {
-    // 기본 컨트롤 버튼들 - Stop, Prev, Next만 텍스트로 변경
+    // 기본 컨트롤 버튼들
     private final StyledButton playButton = new StyledButton("▶", StyledButton.ButtonStyle.PRIMARY);
     private final StyledButton pauseButton = new StyledButton("⏸", StyledButton.ButtonStyle.CONTROL);
-    private final StyledButton stopButton = new StyledButton("Stop", StyledButton.ButtonStyle.CONTROL);
-    private final StyledButton prevButton = new StyledButton("Prev", StyledButton.ButtonStyle.CONTROL);
-    private final StyledButton nextButton = new StyledButton("Next", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton stopButton = new StyledButton("⏹", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton prevButton = new StyledButton("⏮", StyledButton.ButtonStyle.CONTROL);
+    private final StyledButton nextButton = new StyledButton("⏭", StyledButton.ButtonStyle.CONTROL);
     
-    // 추가 컨트롤 버튼들 - 원래 아이콘으로 복원
-    private final ToggleButton shuffleButton = new ToggleButton("🔀");
-    private final ToggleButton repeatButton = new ToggleButton("🔁");
+    // 볼륨 컨트롤
     private final ToggleButton muteButton = new ToggleButton("🔊");
     
     // 슬라이더들
@@ -37,32 +33,8 @@ public class PlayerControlsView extends VBox {
     // 라벨들
     private final Label currentTimeLabel = new Label("00:00");
     private final Label totalTimeLabel = new Label("00:00");
-    private final MarqueeLabel titleLabel = new MarqueeLabel("재생 중인 곡이 없습니다");
+    private final Label titleLabel = new Label("재생 중인 곡이 없습니다");
     private final Label artistLabel = new Label("");
-    private final Label albumLabel = new Label("");
-    
-    // 앨범 아트 디스플레이
-    private final AlbumArtDisplay albumArt = new AlbumArtDisplay(80);
-    
-    // 재생 모드 상태
-    private RepeatMode currentRepeatMode = RepeatMode.NONE;
-    
-    public enum RepeatMode {
-        NONE("🔁", "반복 없음"),
-        ONE("🔂", "한 곡 반복"),
-        ALL("🔁", "전체 반복");
-        
-        private final String icon;
-        private final String description;
-        
-        RepeatMode(String icon, String description) {
-            this.icon = icon;
-            this.description = description;
-        }
-        
-        public String getIcon() { return icon; }
-        public String getDescription() { return description; }
-    }
 
     public PlayerControlsView() {
         initializeComponents();
@@ -85,21 +57,18 @@ public class PlayerControlsView extends VBox {
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
         titleLabel.setStyle("-fx-text-fill: #2c3e50;");
         
-        // 아티스트/앨범 라벨 스타일
+        // 아티스트 라벨 스타일
         artistLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
         artistLabel.setStyle("-fx-text-fill: #7f8c8d;");
         
-        albumLabel.setFont(Font.font("System", FontWeight.NORMAL, 10));
-        albumLabel.setStyle("-fx-text-fill: #95a5a6;");
-        
-        // 토글 버튼 스타일
-        setupToggleButtonStyles();
+        // 음소거 버튼 스타일
+        setupMuteButtonStyle();
         
         // 초기 상태 설정
         pauseButton.setDisable(true);
     }
 
-    private void setupToggleButtonStyles() {
+    private void setupMuteButtonStyle() {
         String toggleStyle = "-fx-background-color: #ecf0f1; -fx-text-fill: #7f8c8d; " +
                            "-fx-border-radius: 5; -fx-background-radius: 5; " +
                            "-fx-padding: 5 10; -fx-cursor: hand;";
@@ -107,18 +76,7 @@ public class PlayerControlsView extends VBox {
                                    "-fx-border-radius: 5; -fx-background-radius: 5; " +
                                    "-fx-padding: 5 10; -fx-cursor: hand;";
         
-        shuffleButton.setStyle(toggleStyle);
-        repeatButton.setStyle(toggleStyle);
         muteButton.setStyle(toggleStyle);
-        
-        // 선택 상태 스타일 변경
-        shuffleButton.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            shuffleButton.setStyle(newVal ? toggleSelectedStyle : toggleStyle);
-        });
-        
-        repeatButton.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            updateRepeatButton();
-        });
         
         muteButton.selectedProperty().addListener((obs, oldVal, newVal) -> {
             muteButton.setStyle(newVal ? toggleSelectedStyle : toggleStyle);
@@ -141,26 +99,21 @@ public class PlayerControlsView extends VBox {
         // 진행 바 영역
         HBox progressBox = createProgressBox();
         
-        // 하단: 부가 컨트롤들 (볼륨, 셔플, 반복)
-        HBox bottomControlBox = createBottomControlBox();
+        // 하단: 볼륨 컨트롤
+        HBox volumeBox = createVolumeBox();
 
-        getChildren().addAll(infoBox, mainControlBox, progressBox, bottomControlBox);
+        getChildren().addAll(infoBox, mainControlBox, progressBox, volumeBox);
     }
 
     private HBox createMusicInfoBox() {
-        HBox infoBox = new HBox(15);
-        infoBox.setAlignment(Pos.CENTER_LEFT);
-        infoBox.setPrefHeight(100);
+        HBox infoBox = new HBox(10);
+        infoBox.setAlignment(Pos.CENTER);
         
-        // 곡 정보 텍스트 영역
         VBox textInfo = new VBox(2);
-        textInfo.setAlignment(Pos.CENTER_LEFT);
-        textInfo.setPrefWidth(300);
+        textInfo.setAlignment(Pos.CENTER);
+        textInfo.getChildren().addAll(titleLabel, artistLabel);
         
-        textInfo.getChildren().addAll(titleLabel, artistLabel, albumLabel);
-        
-        infoBox.getChildren().addAll(albumArt, textInfo);
-        
+        infoBox.getChildren().add(textInfo);
         return infoBox;
     }
 
@@ -168,12 +121,12 @@ public class PlayerControlsView extends VBox {
         HBox buttonBox = new HBox(15);
         buttonBox.setAlignment(Pos.CENTER);
         
-        // 버튼 크기 조정 - 텍스트가 잘 보이도록 조정
-        setButtonSize(prevButton, 60, 35);
-        setButtonSize(playButton, 70, 40);
-        setButtonSize(pauseButton, 70, 40);
-        setButtonSize(stopButton, 60, 35);
-        setButtonSize(nextButton, 60, 35);
+        // 버튼 크기 설정
+        setButtonSize(prevButton, 50, 35);
+        setButtonSize(playButton, 60, 40);
+        setButtonSize(pauseButton, 60, 40);
+        setButtonSize(stopButton, 50, 35);
+        setButtonSize(nextButton, 50, 35);
         
         buttonBox.getChildren().addAll(prevButton, playButton, pauseButton, stopButton, nextButton);
         return buttonBox;
@@ -195,29 +148,14 @@ public class PlayerControlsView extends VBox {
         return progressBox;
     }
 
-    private HBox createBottomControlBox() {
-        HBox bottomBox = new HBox(20);
-        bottomBox.setAlignment(Pos.CENTER);
-        
-        // 왼쪽: 재생 모드 컨트롤
-        HBox modeControls = new HBox(10);
-        modeControls.setAlignment(Pos.CENTER_LEFT);
-        modeControls.getChildren().addAll(shuffleButton, repeatButton);
-        
-        // 오른쪽: 볼륨 컨트롤
-        HBox volumeControls = new HBox(10);
-        volumeControls.setAlignment(Pos.CENTER_RIGHT);
-        volumeControls.getChildren().addAll(muteButton, volumeSlider);
-        
-        // 공간 분배
-        HBox spacer = new HBox();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        
-        bottomBox.getChildren().addAll(modeControls, spacer, volumeControls);
-        return bottomBox;
+    private HBox createVolumeBox() {
+        HBox volumeBox = new HBox(10);
+        volumeBox.setAlignment(Pos.CENTER);
+        volumeBox.getChildren().addAll(muteButton, volumeSlider);
+        return volumeBox;
     }
 
-    private void setButtonSize(Button button, double width, double height) {
+    private void setButtonSize(StyledButton button, double width, double height) {
         button.setPrefSize(width, height);
         button.setMinSize(width, height);
         button.setMaxSize(width, height);
@@ -246,10 +184,7 @@ public class PlayerControlsView extends VBox {
             }
         });
         
-        // 반복 모드 버튼 처리
-        repeatButton.setOnAction(e -> cycleRepeatMode());
-        
-        // 키보드 단축키 지원 (향후 확장)
+        // 키보드 단축키 지원
         setOnKeyPressed(event -> {
             switch (event.getCode()) {
                 case SPACE:
@@ -284,70 +219,22 @@ public class PlayerControlsView extends VBox {
         stopButton.setTooltip(new Tooltip("정지"));
         prevButton.setTooltip(new Tooltip("이전 곡 (Ctrl+←)"));
         nextButton.setTooltip(new Tooltip("다음 곡 (Ctrl+→)"));
-        
-        shuffleButton.setTooltip(new Tooltip("셔플 재생"));
-        repeatButton.setTooltip(new Tooltip("반복 모드"));
         muteButton.setTooltip(new Tooltip("음소거"));
-        
         progressSlider.setTooltip(new Tooltip("재생 위치 조절"));
         volumeSlider.setTooltip(new Tooltip("볼륨 조절"));
-        
-        // Tooltip 설정 후 repeatButton 업데이트
-        updateRepeatButton();
-    }
-
-    private void cycleRepeatMode() {
-        switch (currentRepeatMode) {
-            case NONE:
-                currentRepeatMode = RepeatMode.ALL;
-                break;
-            case ALL:
-                currentRepeatMode = RepeatMode.ONE;
-                break;
-            case ONE:
-                currentRepeatMode = RepeatMode.NONE;
-                break;
-        }
-        updateRepeatButton();
-    }
-
-    private void updateRepeatButton() {
-        repeatButton.setText(currentRepeatMode.getIcon());
-        
-        // Tooltip이 존재하는지 확인하고 안전하게 처리
-        Tooltip tooltip = repeatButton.getTooltip();
-        if (tooltip != null) {
-            tooltip.setText(currentRepeatMode.getDescription());
-        } else {
-            // Tooltip이 없으면 새로 생성
-            repeatButton.setTooltip(new Tooltip(currentRepeatMode.getDescription()));
-        }
-        
-        String style = currentRepeatMode == RepeatMode.NONE ? 
-            "-fx-background-color: #ecf0f1; -fx-text-fill: #7f8c8d;" :
-            "-fx-background-color: #3498db; -fx-text-fill: white;";
-        style += " -fx-border-radius: 5; -fx-background-radius: 5; -fx-padding: 5 10; -fx-cursor: hand;";
-        
-        repeatButton.setStyle(style);
     }
 
     public void updateMusicInfo(MusicInfo music) {
         if (music != null) {
             titleLabel.setText(music.getTitle());
             artistLabel.setText(music.getArtist());
-            albumLabel.setText(music.getAlbum());
             progressSlider.setMax(music.getDurationMillis());
             updateTimeLabel(totalTimeLabel, music.getDurationMillis());
-            
-            // 앨범 아트 업데이트 (구현 예정)
-            albumArt.clearAlbumArt();
         } else {
             titleLabel.setText("재생 중인 곡이 없습니다");
             artistLabel.setText("");
-            albumLabel.setText("");
             progressSlider.setMax(100);
             updateTimeLabel(totalTimeLabel, 0);
-            albumArt.clearAlbumArt();
         }
     }
 
@@ -365,18 +252,7 @@ public class PlayerControlsView extends VBox {
     }
 
     private void updateTimeLabel(Label label, long timeMs) {
-        long seconds = timeMs / 1000;
-        long minutes = seconds / 60;
-        long hours = minutes / 60;
-        
-        seconds = seconds % 60;
-        minutes = minutes % 60;
-        
-        if (hours > 0) {
-            label.setText(String.format("%02d:%02d:%02d", hours, minutes, seconds));
-        } else {
-            label.setText(String.format("%02d:%02d", minutes, seconds));
-        }
+        label.setText(UIUtils.formatTime(timeMs));
     }
 
     public void setPlaybackState(boolean isPlaying, boolean isPaused) {
@@ -386,16 +262,12 @@ public class PlayerControlsView extends VBox {
     }
 
     // Getter 메서드들
-    public Button getPlayButton() { return playButton; }
-    public Button getPauseButton() { return pauseButton; }
-    public Button getStopButton() { return stopButton; }
-    public Button getPrevButton() { return prevButton; }
-    public Button getNextButton() { return nextButton; }
-    public ToggleButton getShuffleButton() { return shuffleButton; }
-    public ToggleButton getRepeatButton() { return repeatButton; }
+    public StyledButton getPlayButton() { return playButton; }
+    public StyledButton getPauseButton() { return pauseButton; }
+    public StyledButton getStopButton() { return stopButton; }
+    public StyledButton getPrevButton() { return prevButton; }
+    public StyledButton getNextButton() { return nextButton; }
     public ToggleButton getMuteButton() { return muteButton; }
     public Slider getProgressSlider() { return progressSlider; }
     public Slider getVolumeSlider() { return volumeSlider; }
-    public RepeatMode getRepeatMode() { return currentRepeatMode; }
-    public AlbumArtDisplay getAlbumArt() { return albumArt; }
 }
