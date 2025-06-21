@@ -460,6 +460,18 @@ public class MainApplicationWindow extends Stage {
             }
         }
     }
+    
+    public void showLyricsFound(String lrcPath) {
+        if (lyricsView != null) {
+            lyricsView.showLyricsLoading();
+        }
+    }
+
+    public void showLyricsNotFound() {
+        if (lyricsView != null) {
+            lyricsView.showLyricsNotFound();
+        }
+    }
 
     /**
      * UIModule.stop()에서 호출되는 강제 종료 메서드
