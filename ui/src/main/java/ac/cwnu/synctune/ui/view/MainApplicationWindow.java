@@ -3,6 +3,7 @@ package ac.cwnu.synctune.ui.view;
 import java.io.File;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,29 +11,41 @@ import org.slf4j.LoggerFactory;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
+import ac.cwnu.synctune.ui.UIModule;
 import ac.cwnu.synctune.ui.controller.PlaybackController;
 import ac.cwnu.synctune.ui.controller.PlaylistActionHandler;
 import ac.cwnu.synctune.ui.controller.WindowStateManager;
+import ac.cwnu.synctune.ui.scanner.MusicFolderScanner;
 import ac.cwnu.synctune.ui.util.UIUtils;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.SelectionMode;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+
 
 public class MainApplicationWindow extends Stage {
     private static final Logger log = LoggerFactory.getLogger(MainApplicationWindow.class);
@@ -122,6 +135,57 @@ public class MainApplicationWindow extends Stage {
     }
     
     setScene(scene);
+}
+    public PlaybackController getPlaybackController() {
+    return playbackController;
+    }
+
+    public void updatePlaybackButtonStates(boolean isPlaying, boolean isPaused) {
+    if (controlsView != null) {
+        controlsView.setPlaybackState(isPlaying, isPaused);
+        }
+    }
+
+    public void setPlaybackActive(boolean playing) {
+    if (controlsView != null) {
+        // 재생 중일 때: 재생 버튼 비활성화, 일시정지/정지 버튼 활성화
+        // 정지 중일 때: 재생 버튼 활성화, 일시정지/정지 버튼 비활성화
+        controlsView.getPlayButton().setDisable(playing);
+        controlsView.getPauseButton().setDisable(!playing);
+        controlsView.getStopButton().setDisable(!playing);
+        
+        // 이전/다음 곡 버튼은 항상 활성화 (플레이리스트가 있는 경우)
+        // TODO: 실제로는 플레이리스트 상태에 따라 결정해야 함
+        controlsView.getPrevButton().setDisable(false);
+        controlsView.getNextButton().setDisable(false);
+        
+        log.debug("재생 버튼 상태 업데이트 - playing: {}", playing);
+        }
+    }
+
+    public void setPausedState() {
+    if (controlsView != null) {
+        // 일시정지 상태: 재생 버튼 활성화, 일시정지 버튼 비활성화, 정지 버튼 활성화
+        controlsView.getPlayButton().setDisable(false);
+        controlsView.getPauseButton().setDisable(true);
+        controlsView.getStopButton().setDisable(false);
+        
+        log.debug("일시정지 버튼 상태 업데이트");
+        }
+    }
+
+    public void setStoppedState() {
+    if (controlsView != null) {
+        // 정지 상태: 재생 버튼 활성화, 일시정지/정지 버튼 비활성화
+        controlsView.getPlayButton().setDisable(false);
+        controlsView.getPauseButton().setDisable(true);
+        controlsView.getStopButton().setDisable(true);
+        
+        // 진행바도 초기화
+        controlsView.updateProgress(0, (long) controlsView.getProgressSlider().getMax());
+        
+        log.debug("정지 버튼 상태 업데이트");
+    }
 }
 
     private MenuBar createMenuBar() {
@@ -389,13 +453,526 @@ public class MainApplicationWindow extends Stage {
     private void openMusicFolder() {
         DirectoryChooser directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle("음악 폴더 선택");
-        
+    
         File selectedDirectory = directoryChooser.showDialog(this);
         if (selectedDirectory != null) {
-            // 폴더에서 음악 파일 스캔 및 플레이리스트에 추가
-            scanFolderForMusic(selectedDirectory);
+            // UIModule의 MusicFolderScanner를 사용하여 폴더 스캔
+            scanFolderForMusicWithScanner(selectedDirectory);
         }
     }
+
+    private void scanFolderForMusicWithScanner(File folder) {
+    UIModule uiModule = UIModule.getInstance();
+    if (uiModule == null || uiModule.getMusicFolderScanner() == null) {
+        // 폴백: 기존 방식으로 처리
+        scanFolderForMusic(folder);
+        return;
+    }
+
+    // 진행 상황 다이얼로그 생성
+    Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
+    progressDialog.setTitle("폴더 스캔");
+    progressDialog.setHeaderText("음악 파일을 검색하고 있습니다...");
+    progressDialog.setContentText("폴더: " + folder.getName());
+    
+    ButtonType cancelButton = new ButtonType("취소");
+    progressDialog.getButtonTypes().setAll(cancelButton);
+    
+    // 비동기적으로 다이얼로그 표시
+    progressDialog.show();
+    
+    // 스캔 진행 상황 콜백
+    MusicFolderScanner.ScanProgressCallback callback = new MusicFolderScanner.ScanProgressCallback() {
+        @Override
+        public void onProgress(int scannedFiles, int foundMusic, String currentFile) {
+            Platform.runLater(() -> {
+                progressDialog.setContentText(String.format(
+                    "스캔 중... %d개 파일 검사 완료\n%d개 음악 파일 발견\n현재: %s", 
+                    scannedFiles, foundMusic, truncateFileName(currentFile, 40)));
+            });
+        }
+        
+        @Override
+        public void onDirectoryEntered(String directoryPath) {
+            Platform.runLater(() -> {
+                progressDialog.setHeaderText("검색 중: " + truncateFileName(directoryPath, 50));
+            });
+        }
+        
+        @Override
+        public void onComplete(MusicFolderScanner.ScanResult result) {
+            Platform.runLater(() -> {
+                progressDialog.close();
+                handleScanResult(result, folder);
+            });
+        }
+        
+        @Override
+        public void onError(String error) {
+            Platform.runLater(() -> {
+                progressDialog.close();
+                UIUtils.showError("스캔 오류", "폴더 스캔 중 오류가 발생했습니다: " + error);
+            });
+        }
+    };
+    
+    // Task 생성 및 실행
+    Task<MusicFolderScanner.ScanResult> scanTask = uiModule.createMusicScanTask(folder, callback);
+    
+    // 취소 버튼 처리
+    progressDialog.setOnCloseRequest(e -> {
+        scanTask.cancel();
+        uiModule.cancelCurrentScan();
+    });
+    
+    progressDialog.showAndWait().ifPresent(result -> {
+        if (result == cancelButton) {
+            scanTask.cancel();
+            uiModule.cancelCurrentScan();
+        }
+    });
+    
+    // 백그라운드에서 실행
+    Thread scanThread = new Thread(scanTask);
+    scanThread.setDaemon(true);
+    scanThread.start();
+}
+    private void handleScanResult(MusicFolderScanner.ScanResult result, File scannedFolder) {
+    if (result.isCancelled()) {
+        UIUtils.showInfo("스캔 취소", "폴더 스캔이 취소되었습니다.");
+        return;
+    }
+    
+    if (!result.isSuccess()) {
+        String errorMsg = result.getErrorMessage() != null ? 
+            result.getErrorMessage() : "알 수 없는 오류가 발생했습니다.";
+        UIUtils.showError("스캔 실패", "폴더 스캔에 실패했습니다: " + errorMsg);
+        return;
+    }
+    
+    List<MusicInfo> foundMusic = result.getMusicFiles();
+    
+    if (foundMusic.isEmpty()) {
+        Alert infoAlert = new Alert(Alert.AlertType.INFORMATION);
+        infoAlert.setTitle("스캔 완료");
+        infoAlert.setHeaderText("음악 파일을 찾을 수 없습니다");
+        infoAlert.setContentText(String.format(
+            "폴더: %s\n검사한 파일: %d개\n검사한 폴더: %d개\n소요 시간: %.1f초",
+            scannedFolder.getName(),
+            result.getTotalFilesScanned(),
+            result.getDirectoriesScanned(),
+            result.getScanTimeMs() / 1000.0));
+        infoAlert.showAndWait();
+        return;
+    }
+    
+    // 발견된 음악 파일들을 플레이리스트에 추가할지 확인
+    Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+    confirmAlert.setTitle("음악 파일 발견");
+    confirmAlert.setHeaderText("음악 파일을 발견했습니다!");
+    
+    String content = String.format(
+        "폴더: %s\n" +
+        "발견된 음악 파일: %d개\n" +
+        "검사한 파일: %d개\n" +
+        "검사한 폴더: %d개\n" +
+        "소요 시간: %.1f초\n\n" +
+        "플레이리스트에 추가하시겠습니까?",
+        scannedFolder.getName(),
+        foundMusic.size(),
+        result.getTotalFilesScanned(),
+        result.getDirectoriesScanned(),
+        result.getScanTimeMs() / 1000.0);
+    
+    confirmAlert.setContentText(content);
+    
+    ButtonType addToCurrentButton = new ButtonType("현재 플레이리스트에 추가");
+    ButtonType createNewButton = new ButtonType("새 플레이리스트 생성");
+    ButtonType cancelButton = new ButtonType("취소", ButtonBar.ButtonData.CANCEL_CLOSE);
+    
+    confirmAlert.getButtonTypes().setAll(addToCurrentButton, createNewButton, cancelButton);
+    
+    Optional<ButtonType> choice = confirmAlert.showAndWait();
+    
+    if (choice.isPresent()) {
+        if (choice.get() == addToCurrentButton) {
+            addFoundMusicToCurrentPlaylist(foundMusic);
+        } else if (choice.get() == createNewButton) {
+            createNewPlaylistWithFoundMusic(foundMusic, scannedFolder.getName());
+        }
+    }
+    
+    // 스캔 결과에 대한 추가 정보 표시 (경고나 오류가 있는 경우)
+    if (result.getScanTimeMs() > 30000) { // 30초 이상 걸린 경우
+        UIUtils.showInfo("스캔 완료", 
+            String.format("대용량 폴더 스캔이 완료되었습니다. 소요 시간: %.1f초", 
+                         result.getScanTimeMs() / 1000.0));
+    }
+}
+    private void addFoundMusicToCurrentPlaylist(List<MusicInfo> musicList) {
+    String selectedPlaylist = playlistView.getSelectedPlaylist();
+    String currentPlaylist;
+    
+    if (selectedPlaylist == null) {
+        // 현재 선택된 플레이리스트가 없으면 기본 플레이리스트 생성
+        String defaultName = "새 플레이리스트";
+        playlistView.addPlaylist(defaultName);
+        playlistView.selectPlaylist(defaultName);
+        currentPlaylist = defaultName;
+    } else {
+        currentPlaylist = selectedPlaylist;
+    }
+    
+    // 진행 상황 표시
+    playlistView.showProgress(true);
+    playlistView.updateStatusLabel("음악 파일을 추가하는 중...", false);
+    
+    final String finalCurrentPlaylist = currentPlaylist;
+    // 백그라운드에서 추가 작업 수행
+    CompletableFuture.runAsync(() -> {
+        int addedCount = 0;
+        
+        for (int i = 0; i < musicList.size(); i++) {
+            MusicInfo music = musicList.get(i);
+            
+            Platform.runLater(() -> {
+                playlistView.addMusicToCurrentPlaylist(music);
+            });
+            
+            addedCount++;
+            
+            // 진행 상황 업데이트
+            final int currentIndex = i + 1;
+            final int finalAddedCount = addedCount;
+            Platform.runLater(() -> {
+                playlistView.updateStatusLabel(
+                    String.format("음악 파일 추가 중... (%d/%d)", currentIndex, musicList.size()), 
+                    false);
+            });
+            
+            // UI 업데이트를 위한 짧은 대기
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        
+        // 완료 처리
+        final int finalTotalAdded = addedCount;
+        Platform.runLater(() -> {
+            playlistView.showProgress(false);
+            playlistView.updateStatusLabel(
+                String.format("%d개의 음악 파일이 '%s'에 추가되었습니다.", 
+                             finalTotalAdded, finalCurrentPlaylist), 
+                false);
+        });
+    });
+    }
+    private void createNewPlaylistWithFoundMusic(List<MusicInfo> musicList, String folderName) {
+    TextInputDialog dialog = new TextInputDialog(folderName + " 음악");
+    dialog.setTitle("새 플레이리스트 생성");
+    dialog.setHeaderText("발견된 음악 파일들로 새 플레이리스트를 만듭니다");
+    dialog.setContentText("플레이리스트 이름:");
+    
+    Optional<String> result = dialog.showAndWait();
+    result.ifPresent(playlistName -> {
+        if (!playlistName.trim().isEmpty()) {
+            // 중복 이름 확인 및 처리
+            String finalName = playlistName.trim();
+            int counter = 1;
+            while (playlistView.getPlaylists().contains(finalName)) {
+                finalName = playlistName.trim() + " (" + counter + ")";
+                counter++;
+            }
+            
+            // 플레이리스트 생성 및 선택
+            playlistView.addPlaylist(finalName);
+            playlistView.selectPlaylist(finalName);
+            
+            // 음악 파일들 추가
+            addFoundMusicToCurrentPlaylist(musicList);
+        }
+    });
+    }
+    private void scanMusicLibrary() {
+    DirectoryChooser directoryChooser = new DirectoryChooser();
+    directoryChooser.setTitle("음악 라이브러리 폴더 선택");
+    
+    // 기본 음악 폴더로 시작
+    String defaultMusicPath = System.getProperty("user.home") + "/Music";
+    File defaultMusicDir = new File(defaultMusicPath);
+    if (defaultMusicDir.exists()) {
+        directoryChooser.setInitialDirectory(defaultMusicDir);
+    }
+    
+    File selectedDirectory = directoryChooser.showDialog(this);
+    if (selectedDirectory != null) {
+        scanMusicLibraryAdvanced(selectedDirectory);
+    }
+}
+    private void scanMusicLibraryAdvanced(File rootDirectory) {
+    UIModule uiModule = UIModule.getInstance();
+    if (uiModule == null || uiModule.getMusicFolderScanner() == null) {
+        UIUtils.showError("오류", "음악 스캐너를 사용할 수 없습니다.");
+        return;
+    }
+    
+    // 스캔 옵션 선택 다이얼로그
+    Alert optionsDialog = new Alert(Alert.AlertType.CONFIRMATION);
+    optionsDialog.setTitle("라이브러리 스캔 옵션");
+    optionsDialog.setHeaderText("스캔 옵션을 선택하세요");
+    optionsDialog.setContentText("선택한 폴더: " + rootDirectory.getAbsolutePath());
+    
+    ButtonType quickScanButton = new ButtonType("빠른 스캔 (최대 3단계 깊이)");
+    ButtonType fullScanButton = new ButtonType("전체 스캔 (모든 하위 폴더)");
+    ButtonType customScanButton = new ButtonType("사용자 정의 스캔");
+    ButtonType cancelButton = new ButtonType("취소", ButtonBar.ButtonData.CANCEL_CLOSE);
+    
+    optionsDialog.getButtonTypes().setAll(quickScanButton, fullScanButton, customScanButton, cancelButton);
+    
+    Optional<ButtonType> choice = optionsDialog.showAndWait();
+    
+    if (choice.isPresent() && choice.get() != cancelButton) {
+        MusicFolderScanner.ScanOptions scanOptions;
+        
+        if (choice.get() == quickScanButton) {
+            scanOptions = uiModule.getQuickScanOptions();
+        } else if (choice.get() == fullScanButton) {
+            scanOptions = uiModule.getDefaultScanOptions();
+        } else {
+            // 사용자 정의 스캔 옵션
+            scanOptions = showCustomScanOptionsDialog(uiModule.getDefaultScanOptions());
+            if (scanOptions == null) return; // 사용자가 취소함
+        }
+        
+        performLibraryScan(rootDirectory, scanOptions);
+    }
+}
+    private MusicFolderScanner.ScanOptions showCustomScanOptionsDialog(MusicFolderScanner.ScanOptions defaultOptions) {
+    // 커스텀 다이얼로그 생성 (간단한 구현)
+    Alert customDialog = new Alert(Alert.AlertType.CONFIRMATION);
+    customDialog.setTitle("사용자 정의 스캔 설정");
+    customDialog.setHeaderText("스캔 설정을 선택하세요");
+    
+    VBox content = new VBox(10);
+    
+    CheckBox recursiveCheck = new CheckBox("하위 폴더까지 스캔");
+    recursiveCheck.setSelected(defaultOptions.isRecursive());
+    
+    CheckBox hiddenFilesCheck = new CheckBox("숨김 파일 포함");
+    hiddenFilesCheck.setSelected(defaultOptions.isIncludeHiddenFiles());
+    
+    CheckBox symlinksCheck = new CheckBox("심볼릭 링크 따라가기");
+    symlinksCheck.setSelected(defaultOptions.isFollowSymlinks());
+    
+    HBox depthBox = new HBox(10);
+    depthBox.getChildren().addAll(
+        new Label("최대 깊이:"),
+        new Spinner<>(1, 50, Math.min(defaultOptions.getMaxDepth(), 20))
+    );
+    
+    content.getChildren().addAll(recursiveCheck, hiddenFilesCheck, symlinksCheck, depthBox);
+    
+    customDialog.getDialogPane().setContent(content);
+    
+    Optional<ButtonType> result = customDialog.showAndWait();
+    if (result.isPresent() && result.get() == ButtonType.OK) {
+        Spinner<Integer> depthSpinner = (Spinner<Integer>) ((HBox) content.getChildren().get(3)).getChildren().get(1);
+        
+        return new MusicFolderScanner.ScanOptions()
+            .setRecursive(recursiveCheck.isSelected())
+            .setIncludeHiddenFiles(hiddenFilesCheck.isSelected())
+            .setFollowSymlinks(symlinksCheck.isSelected())
+            .setMaxDepth(depthSpinner.getValue())
+            .setMaxFileSize(defaultOptions.getMaxFileSize());
+    }
+    
+    return null;
+}
+    private void performLibraryScan(File directory, MusicFolderScanner.ScanOptions options) {
+    UIModule uiModule = UIModule.getInstance();
+    
+    // 진행 상황 다이얼로그
+    Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
+    progressDialog.setTitle("라이브러리 스캔");
+    progressDialog.setHeaderText("음악 라이브러리를 스캔하고 있습니다...");
+    progressDialog.setContentText("준비 중...");
+    
+    ButtonType cancelButton = new ButtonType("취소");
+    progressDialog.getButtonTypes().setAll(cancelButton);
+    
+    ProgressBar progressBar = new ProgressBar();
+    progressBar.setPrefWidth(300);
+    
+    VBox progressContent = new VBox(10);
+    progressContent.getChildren().addAll(new Label("진행 상황:"), progressBar);
+    progressDialog.getDialogPane().setExpandableContent(progressContent);
+    progressDialog.getDialogPane().setExpanded(true);
+    
+    progressDialog.show();
+    
+    // 스캔 콜백
+    MusicFolderScanner.ScanProgressCallback callback = new MusicFolderScanner.ScanProgressCallback() {
+        private long startTime = System.currentTimeMillis();
+        
+        @Override
+        public void onProgress(int scannedFiles, int foundMusic, String currentFile) {
+            Platform.runLater(() -> {
+                long elapsed = System.currentTimeMillis() - startTime;
+                progressDialog.setContentText(String.format(
+                    "검사 완료: %d개 파일\n발견: %d개 음악 파일\n경과 시간: %.1f초\n현재: %s",
+                    scannedFiles, foundMusic, elapsed / 1000.0, 
+                    truncateFileName(currentFile, 50)));
+                
+                // 대략적인 진행률 표시
+                if (scannedFiles > 0) {
+                    progressBar.setProgress(Math.min(0.95, scannedFiles / 10000.0));
+                }
+            });
+        }
+        
+        @Override
+        public void onDirectoryEntered(String directoryPath) {
+            Platform.runLater(() -> {
+                progressDialog.setHeaderText("스캔 중: " + truncateFileName(directoryPath, 60));
+            });
+        }
+        
+        @Override
+        public void onComplete(MusicFolderScanner.ScanResult result) {
+            Platform.runLater(() -> {
+                progressDialog.close();
+                handleLibraryScanResult(result, directory);
+            });
+        }
+        
+        @Override
+        public void onError(String error) {
+            Platform.runLater(() -> {
+                progressDialog.close();
+                UIUtils.showError("라이브러리 스캔 오류", 
+                    "라이브러리 스캔 중 오류가 발생했습니다: " + error);
+            });
+        }
+    };
+    
+    // Task 생성 및 실행
+    Task<MusicFolderScanner.ScanResult> scanTask = uiModule.createCustomMusicScanTask(directory, options, callback);
+    
+    // 취소 처리
+    progressDialog.setOnCloseRequest(e -> {
+        scanTask.cancel();
+        uiModule.cancelCurrentScan();
+    });
+    
+    progressDialog.showAndWait().ifPresent(result -> {
+        if (result == cancelButton) {
+            scanTask.cancel();
+            uiModule.cancelCurrentScan();
+        }
+    });
+    
+    // 백그라운드 실행
+    Thread scanThread = new Thread(scanTask);
+    scanThread.setDaemon(true);
+    scanThread.start();
+}
+private void handleLibraryScanResult(MusicFolderScanner.ScanResult result, File scannedDirectory) {
+    if (result.isCancelled()) {
+        UIUtils.showInfo("스캔 취소", "라이브러리 스캔이 취소되었습니다.");
+        return;
+    }
+    
+    if (!result.isSuccess()) {
+        String errorMsg = result.getErrorMessage() != null ? 
+            result.getErrorMessage() : "알 수 없는 오류가 발생했습니다.";
+        UIUtils.showError("스캔 실패", "라이브러리 스캔에 실패했습니다: " + errorMsg);
+        return;
+    }
+    
+    List<MusicInfo> foundMusic = result.getMusicFiles();
+    
+    // 결과 표시
+    Alert resultDialog = new Alert(Alert.AlertType.INFORMATION);
+    resultDialog.setTitle("라이브러리 스캔 완료");
+    resultDialog.setHeaderText("음악 라이브러리 스캔이 완료되었습니다");
+    
+    String content = String.format(
+        "스캔 대상: %s\n" +
+        "발견된 음악 파일: %d개\n" +
+        "검사한 파일: %d개\n" +
+        "검사한 폴더: %d개\n" +
+        "소요 시간: %.1f초",
+        scannedDirectory.getAbsolutePath(),
+        foundMusic.size(),
+        result.getTotalFilesScanned(),
+        result.getDirectoriesScanned(),
+        result.getScanTimeMs() / 1000.0);
+    
+    resultDialog.setContentText(content);
+    
+    if (!foundMusic.isEmpty()) {
+        ButtonType addAllButton = new ButtonType("모든 음악 추가");
+        ButtonType selectiveButton = new ButtonType("선택적 추가");
+        ButtonType closeButton = new ButtonType("닫기", ButtonBar.ButtonData.CANCEL_CLOSE);
+        
+        resultDialog.getButtonTypes().setAll(addAllButton, selectiveButton, closeButton);
+        
+        Optional<ButtonType> choice = resultDialog.showAndWait();
+        if (choice.isPresent()) {
+            if (choice.get() == addAllButton) {
+                createNewPlaylistWithFoundMusic(foundMusic, scannedDirectory.getName() + " 라이브러리");
+            } else if (choice.get() == selectiveButton) {
+                showSelectiveMusicAddDialog(foundMusic);
+            }
+        }
+    } else {
+        resultDialog.showAndWait();
+    }
+}
+    private void showSelectiveMusicAddDialog(List<MusicInfo> musicList) {
+    // 간단한 구현: 아티스트별로 그룹화하여 선택할 수 있는 다이얼로그
+    Alert selectDialog = new Alert(Alert.AlertType.CONFIRMATION);
+    selectDialog.setTitle("음악 파일 선택");
+    selectDialog.setHeaderText("추가할 음악 파일을 선택하세요");
+    
+    ListView<MusicInfo> musicListView = new ListView<>();
+    musicListView.getItems().addAll(musicList);
+    musicListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+    musicListView.setPrefHeight(300);
+    
+    // 전체 선택/해제 버튼
+    CheckBox selectAllCheck = new CheckBox("전체 선택/해제");
+    selectAllCheck.setOnAction(e -> {
+        if (selectAllCheck.isSelected()) {
+            musicListView.getSelectionModel().selectAll();
+        } else {
+            musicListView.getSelectionModel().clearSelection();
+        }
+    });
+    
+    VBox content = new VBox(10);
+    content.getChildren().addAll(selectAllCheck, musicListView);
+    content.setPrefWidth(500);
+    
+    selectDialog.getDialogPane().setContent(content);
+    
+    Optional<ButtonType> result = selectDialog.showAndWait();
+    if (result.isPresent() && result.get() == ButtonType.OK) {
+        List<MusicInfo> selectedMusic = musicListView.getSelectionModel().getSelectedItems();
+        if (!selectedMusic.isEmpty()) {
+            createNewPlaylistWithFoundMusic(selectedMusic, "선택된 음악");
+        }
+    }
+}
+    private String truncateFileName(String fileName, int maxLength) {
+    if (fileName == null || fileName.length() <= maxLength) {
+        return fileName;
+    }
+    return "..." + fileName.substring(fileName.length() - maxLength + 3);
+}
     
     private void createNewPlaylist() {
         TextInputDialog dialog = new TextInputDialog();
@@ -550,22 +1127,6 @@ public class MainApplicationWindow extends Stage {
         boolean isVisible = lyricsView.isVisible();
         lyricsView.setVisible(!isVisible);
         lyricsView.setManaged(!isVisible);
-    }
-    
-    private void scanMusicLibrary() {
-        DirectoryChooser directoryChooser = new DirectoryChooser();
-        directoryChooser.setTitle("음악 라이브러리 폴더 선택");
-        
-        File selectedDirectory = directoryChooser.showDialog(this);
-        if (selectedDirectory != null) {
-            // TODO: 전체 라이브러리 스캔 기능 구현
-            Alert dialog = new Alert(Alert.AlertType.INFORMATION);
-            dialog.setTitle("라이브러리 스캔");
-            dialog.setHeaderText("라이브러리 스캔 (미구현)");
-            dialog.setContentText("선택된 폴더: " + selectedDirectory.getAbsolutePath() + "\n\n" +
-                                 "전체 라이브러리 스캔 기능은 향후 버전에서 제공될 예정입니다.");
-            dialog.showAndWait();
-        }
     }
     
     private void findDuplicateFiles() {

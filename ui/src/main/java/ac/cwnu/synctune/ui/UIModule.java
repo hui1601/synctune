@@ -1,5 +1,10 @@
 package ac.cwnu.synctune.ui;
 
+import java.io.File;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import org.slf4j.Logger;
 
 import ac.cwnu.synctune.sdk.annotation.EventListener;
@@ -11,9 +16,11 @@ import ac.cwnu.synctune.sdk.event.SystemEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.module.ModuleLifecycleListener;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
+import ac.cwnu.synctune.ui.scanner.MusicFolderScanner;
 import ac.cwnu.synctune.ui.view.MainApplicationWindow;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.stage.Stage;
 
 @Module(name = "UI", version = "1.0.0")
@@ -23,6 +30,10 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     private MainApplicationWindow mainWindow;
     private boolean isJavaFXInitialized = false;
     private volatile boolean isInitializing = false;
+    
+    // MusicFolderScanner 관련 필드
+    private MusicFolderScanner musicFolderScanner;
+    private ExecutorService scannerExecutorService;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -30,8 +41,171 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
         instance = this;
         log.info("UIModule이 시작되었습니다.");
 
+        // MusicFolderScanner 초기화
+        initializeMusicFolderScanner();
+
         // JavaFX 플랫폼 초기화를 별도 스레드에서 수행
         initializeJavaFX();
+    }
+
+    /**
+     * MusicFolderScanner 및 관련 리소스 초기화
+     */
+    private void initializeMusicFolderScanner() {
+        try {
+            musicFolderScanner = new MusicFolderScanner();
+            scannerExecutorService = Executors.newFixedThreadPool(2, r -> {
+                Thread t = new Thread(r, "MusicScanner-Thread");
+                t.setDaemon(true);
+                return t;
+            });
+            log.info("MusicFolderScanner가 초기화되었습니다.");
+        } catch (Exception e) {
+            log.error("MusicFolderScanner 초기화 실패", e);
+        }
+    }
+
+    /**
+     * 폴더를 비동기적으로 스캔하여 음악 파일을 찾습니다.
+     * 
+     * @param folder 스캔할 폴더
+     * @param callback 스캔 진행 상황 콜백
+     * @return CompletableFuture<MusicFolderScanner.ScanResult>
+     */
+    public CompletableFuture<MusicFolderScanner.ScanResult> scanMusicFolderAsync(
+            File folder, MusicFolderScanner.ScanProgressCallback callback) {
+        
+        if (musicFolderScanner == null || scannerExecutorService == null) {
+            log.error("MusicFolderScanner가 초기화되지 않았습니다.");
+            return CompletableFuture.failedFuture(
+                new IllegalStateException("MusicFolderScanner not initialized"));
+        }
+
+        MusicFolderScanner.ScanOptions options = MusicFolderScanner.createDefaultOptions();
+        
+        return CompletableFuture.supplyAsync(() -> {
+            log.info("음악 폴더 스캔 시작: {}", folder.getAbsolutePath());
+            
+            MusicFolderScanner.ScanResult result = musicFolderScanner.scanFolder(
+                folder, options, callback);
+            
+            log.info("음악 폴더 스캔 완료: {}", result);
+            return result;
+        }, scannerExecutorService);
+    }
+
+    /**
+     * JavaFX Task를 생성하여 UI와 연동된 폴더 스캔을 수행합니다.
+     * 
+     * @param folder 스캔할 폴더
+     * @param callback 스캔 진행 상황 콜백
+     * @return Task<MusicFolderScanner.ScanResult>
+     */
+    public Task<MusicFolderScanner.ScanResult> createMusicScanTask(
+            File folder, MusicFolderScanner.ScanProgressCallback callback) {
+        
+        if (musicFolderScanner == null) {
+            throw new IllegalStateException("MusicFolderScanner not initialized");
+        }
+
+        MusicFolderScanner.ScanOptions options = MusicFolderScanner.createDefaultOptions();
+        return musicFolderScanner.createScanTask(folder, options, callback);
+    }
+
+    /**
+     * 빠른 스캔을 위한 Task 생성 (얕은 깊이 스캔)
+     * 
+     * @param folder 스캔할 폴더
+     * @param callback 스캔 진행 상황 콜백
+     * @return Task<MusicFolderScanner.ScanResult>
+     */
+    public Task<MusicFolderScanner.ScanResult> createQuickMusicScanTask(
+            File folder, MusicFolderScanner.ScanProgressCallback callback) {
+        
+        if (musicFolderScanner == null) {
+            throw new IllegalStateException("MusicFolderScanner not initialized");
+        }
+
+        MusicFolderScanner.ScanOptions options = MusicFolderScanner.createQuickScanOptions();
+        return musicFolderScanner.createScanTask(folder, options, callback);
+    }
+
+    /**
+     * 커스텀 옵션으로 스캔 Task 생성
+     * 
+     * @param folder 스캔할 폴더
+     * @param options 스캔 옵션
+     * @param callback 스캔 진행 상황 콜백
+     * @return Task<MusicFolderScanner.ScanResult>
+     */
+    public Task<MusicFolderScanner.ScanResult> createCustomMusicScanTask(
+            File folder, 
+            MusicFolderScanner.ScanOptions options,
+            MusicFolderScanner.ScanProgressCallback callback) {
+        
+        if (musicFolderScanner == null) {
+            throw new IllegalStateException("MusicFolderScanner not initialized");
+        }
+
+        return musicFolderScanner.createScanTask(folder, options, callback);
+    }
+
+    /**
+     * 현재 진행 중인 스캔을 취소합니다.
+     */
+    public void cancelCurrentScan() {
+        if (musicFolderScanner != null) {
+            musicFolderScanner.cancelScan();
+            log.info("음악 폴더 스캔 취소 요청됨");
+        }
+    }
+
+    /**
+     * 파일이 지원되는 음악 파일인지 확인
+     * 
+     * @param file 확인할 파일
+     * @return 지원되는 음악 파일 여부
+     */
+    public boolean isSupportedMusicFile(File file) {
+        MusicFolderScanner.ScanOptions options = MusicFolderScanner.createDefaultOptions();
+        return MusicFolderScanner.isSupportedMusicFile(file, options);
+    }
+
+    /**
+     * 기본 스캔 옵션을 반환합니다.
+     * 
+     * @return 기본 스캔 옵션
+     */
+    public MusicFolderScanner.ScanOptions getDefaultScanOptions() {
+        return MusicFolderScanner.createDefaultOptions();
+    }
+
+    /**
+     * 빠른 스캔 옵션을 반환합니다.
+     * 
+     * @return 빠른 스캔 옵션
+     */
+    public MusicFolderScanner.ScanOptions getQuickScanOptions() {
+        return MusicFolderScanner.createQuickScanOptions();
+    }
+
+    /**
+     * MainApplicationWindow에서 폴더 스캔 기능에 접근할 수 있도록 
+     * UIModule 인스턴스를 반환합니다.
+     * 
+     * @return UIModule 인스턴스
+     */
+    public static UIModule getInstance() {
+        return instance;
+    }
+
+    /**
+     * MusicFolderScanner 인스턴스를 반환합니다.
+     * 
+     * @return MusicFolderScanner 인스턴스 또는 null
+     */
+    public MusicFolderScanner getMusicFolderScanner() {
+        return musicFolderScanner;
     }
 
     private void initializeJavaFX() {
@@ -126,12 +300,47 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
     public void stop() {
         log.info("UIModule이 종료됩니다. Core로부터 종료 신호를 받았습니다.");
         
+        // MusicFolderScanner 리소스 정리
+        cleanupMusicFolderScanner();
+        
         if (Platform.isFxApplicationThread()) {
             // UI 스레드에서 호출된 경우
             cleanupAndExit();
         } else {
             // 다른 스레드에서 호출된 경우 UI 스레드에서 실행
             Platform.runLater(this::cleanupAndExit);
+        }
+    }
+
+    /**
+     * MusicFolderScanner 관련 리소스 정리
+     */
+    private void cleanupMusicFolderScanner() {
+        try {
+            if (musicFolderScanner != null) {
+                musicFolderScanner.cancelScan();
+                musicFolderScanner = null;
+                log.debug("MusicFolderScanner 정리 완료");
+            }
+            
+            if (scannerExecutorService != null && !scannerExecutorService.isShutdown()) {
+                scannerExecutorService.shutdown();
+                // 강제 종료를 위해 일정 시간 대기 후 shutdownNow 호출
+                try {
+                    if (!scannerExecutorService.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                        scannerExecutorService.shutdownNow();
+                        log.debug("스캐너 스레드풀 강제 종료됨");
+                    } else {
+                        log.debug("스캐너 스레드풀 정상 종료됨");
+                    }
+                } catch (InterruptedException e) {
+                    scannerExecutorService.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+                scannerExecutorService = null;
+            }
+        } catch (Exception e) {
+            log.error("MusicFolderScanner 정리 중 오류", e);
         }
     }
 
@@ -274,10 +483,6 @@ public class UIModule extends SyncTuneModule implements ModuleLifecycleListener 
                 }
             });
         }
-    }
-
-    public static UIModule getInstance() {
-        return instance;
     }
 
     /**

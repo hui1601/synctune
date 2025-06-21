@@ -83,59 +83,84 @@ public class PlaybackController {
     // 재생 상태 이벤트 리스너들
     @EventListener
     public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
-        log.debug("PlaybackStartedEvent 수신");
+        log.debug("PlaybackController: PlaybackStartedEvent 수신");
         Platform.runLater(() -> {
             isPlaybackActive = true;
             isPaused = false;
             updateButtonStates();
+            log.debug("재생 시작 상태로 버튼 업데이트됨");
         });
     }
 
     @EventListener
     public void onPlaybackPaused(PlaybackStatusEvent.PlaybackPausedEvent event) {
-        log.debug("PlaybackPausedEvent 수신");
+        log.debug("PlaybackController: PlaybackPausedEvent 수신");
         Platform.runLater(() -> {
             isPlaybackActive = false;
             isPaused = true;
             updateButtonStates();
+            log.debug("일시정지 상태로 버튼 업데이트됨");
         });
     }
 
     @EventListener
     public void onPlaybackStopped(PlaybackStatusEvent.PlaybackStoppedEvent event) {
-        log.debug("PlaybackStoppedEvent 수신");
+        log.debug("PlaybackController: PlaybackStoppedEvent 수신");
         Platform.runLater(() -> {
             isPlaybackActive = false;
             isPaused = false;
             updateButtonStates();
+        
+            // 정지 시 진행바도 초기화
+            if (!isUserSeeking()) {
+            view.getProgressSlider().setValue(0);
+            }
+        
+            log.debug("정지 상태로 버튼 업데이트됨");
         });
     }
 
     @EventListener
     public void onMusicChanged(PlaybackStatusEvent.MusicChangedEvent event) {
-        log.debug("MusicChangedEvent 수신");
-        // 곡이 변경되면 재생 상태로 설정
+        log.debug("PlaybackController: MusicChangedEvent 수신");
         Platform.runLater(() -> {
+            // 곡이 변경되면 보통 재생 상태가 됨
             isPlaybackActive = true;
             isPaused = false;
             updateButtonStates();
+            log.debug("음악 변경으로 재생 상태로 버튼 업데이트됨");
         });
     }
 
     private void updateButtonStates() {
+        log.debug("버튼 상태 업데이트 시작 - playing: {}, paused: {}", isPlaybackActive, isPaused);
+    
         // 재생/일시정지 버튼 상태
         view.getPlayButton().setDisable(isPlaybackActive);
         view.getPauseButton().setDisable(!isPlaybackActive);
-        
+    
         // 정지 버튼은 재생 중이거나 일시정지 상태일 때 활성화
         view.getStopButton().setDisable(!isPlaybackActive && !isPaused);
-        
+    
         // 이전/다음 곡 버튼은 항상 활성화 (플레이리스트가 있는 경우)
         // TODO: 실제로는 플레이리스트 상태에 따라 결정해야 함
         view.getPrevButton().setDisable(false);
         view.getNextButton().setDisable(false);
-        
-        log.debug("버튼 상태 업데이트: playing={}, paused={}", isPlaybackActive, isPaused);
+    
+        log.debug("버튼 상태 업데이트 완료 - 재생버튼: {}, 일시정지버튼: {}, 정지버튼: {}", 
+             view.getPlayButton().isDisabled(), 
+             view.getPauseButton().isDisabled(), 
+             view.getStopButton().isDisabled());
+    }
+
+    public void resetToInitialState() {
+        Platform.runLater(() -> {
+            isPlaybackActive = false;
+            isPaused = false;
+            updateButtonStates();
+            view.getProgressSlider().setValue(0);
+            log.debug("PlaybackController 초기 상태로 리셋됨");
+        });
     }
 
     public boolean isUserSeeking() {

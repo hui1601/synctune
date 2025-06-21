@@ -1,16 +1,24 @@
 package ac.cwnu.synctune.player.playback;
 
-import ac.cwnu.synctune.sdk.event.EventPublisher;
-import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
-import ac.cwnu.synctune.sdk.log.LogManager;
-import ac.cwnu.synctune.sdk.model.MusicInfo;
-import org.slf4j.Logger;
-
-import javax.sound.sampled.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.LineUnavailableException;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
+import org.slf4j.Logger;
+
+import ac.cwnu.synctune.sdk.event.EventPublisher;
+import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
+import ac.cwnu.synctune.sdk.log.LogManager;
+import ac.cwnu.synctune.sdk.model.MusicInfo;
 
 /**
  * 실제 오디오 파일 재생/정지/탐색을 담당하는 엔진
@@ -127,23 +135,24 @@ public class AudioEngine {
             log.debug("오디오 클립이 없습니다. 시뮬레이션 모드입니다.");
             return false;
         }
-        
+    
         try {
-            // 일시정지 상태였다면 해당 위치부터 재생
+            // 일시정지 상태였다면 resume 처리
             if (stateManager.isPaused()) {
-                long pausePosition = stateManager.getPausePosition();
-                seekToPosition(pausePosition);
+                return resume();
             }
-            
+        
+            // 처음부터 재생하는 경우
+            audioClip.setFramePosition(0); // 처음부터 시작
             audioClip.start();
             stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
-            
+        
             // 재생 완료 모니터링 시작
             startPlaybackMonitoring();
-            
+        
             log.info("실제 오디오 재생 시작: {}", stateManager.getCurrentMusic().getTitle());
             return true;
-            
+        
         } catch (Exception e) {
             log.error("재생 시작 중 오류 발생", e);
             return false;
@@ -158,15 +167,20 @@ public class AudioEngine {
             log.debug("일시정지할 수 없습니다. 재생 중이 아닙니다.");
             return false;
         }
-        
+    
         try {
+            // 현재 재생 위치를 정확히 업데이트하고 저장
+            updateCurrentPosition();
+        
+            // 오디오 클립 정지
             audioClip.stop();
-            stateManager.setState(PlaybackStateManager.PlaybackState.PAUSED);
+        
+            // 모니터링 정지
             stopPlaybackMonitoring();
-            
-            log.info("실제 오디오 일시정지됨");
+        
+            log.info("실제 오디오 일시정지됨 (위치: {}ms)", stateManager.getCurrentPosition());
             return true;
-            
+        
         } catch (Exception e) {
             log.error("일시정지 중 오류 발생", e);
             return false;
@@ -193,6 +207,32 @@ public class AudioEngine {
             return false;
         }
     }
+
+    public boolean resume() {
+    if (audioClip == null || !stateManager.isPaused()) {
+        log.debug("재개할 수 없습니다. 일시정지 상태가 아닙니다.");
+        return false;
+    }
+    
+    try {
+        // 일시정지된 위치로 이동
+        long pausePosition = stateManager.getPausePosition();
+        seekToPosition(pausePosition);
+        
+        // 재생 시작
+        audioClip.start();
+        
+        // 모니터링 재시작
+        startPlaybackMonitoring();
+        
+        log.info("실제 오디오 재개됨 (위치: {}ms)", pausePosition);
+        return true;
+        
+    } catch (Exception e) {
+        log.error("재생 재개 중 오류 발생", e);
+        return false;
+    }
+}
     
     /**
      * 특정 위치로 탐색합니다 (밀리초)

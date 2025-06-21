@@ -400,43 +400,51 @@ public class PlayerModule extends SyncTuneModule implements ModuleLifecycleListe
     // ========== 이벤트 리스너들 ==========
     
     @EventListener
-public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
-    log.debug("[{}] 재생 요청 수신: {}", getModuleName(), event);
+    public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
+        log.debug("[{}] 재생 요청 수신: {}", getModuleName(), event);
     
-    try {
-        MusicInfo musicToPlay = event.getMusicToPlay();
-        if (musicToPlay != null) {
-            // 새로운 곡 재생 요청
-            log.info("[{}] 새로운 곡 재생 요청: {} - {}", getModuleName(), 
+        try {
+            MusicInfo musicToPlay = event.getMusicToPlay();
+            if (musicToPlay != null) {
+                    // 새로운 곡 재생 요청
+                    log.info("[{}] 새로운 곡 재생 요청: {} - {}", getModuleName(), 
                     musicToPlay.getArtist(), musicToPlay.getTitle());
-            playMusic(musicToPlay);
-        } else if (stateManager.getCurrentMusic() != null) {
-            // 현재 곡 재생/재개
-            if (stateManager.isPaused()) {
-                // 일시정지에서 재개
+                    playMusic(musicToPlay);
+            } else if (stateManager.getCurrentMusic() != null) {
+                    // 현재 곡 재생/재개
+                if (stateManager.isPaused()) {
+                    // 일시정지에서 재개
                 resumePlayback();
                 log.info("[{}] 재생 재개", getModuleName());
             } else {
-                // 처음부터 재생
-                stateManager.setCurrentPosition(0);
-                playMusic(stateManager.getCurrentMusic());
-                log.info("[{}] 현재 곡 재시작", getModuleName());
+                // 처음부터 재생 또는 다시 재생
+                if (stateManager.isStopped()) {
+                    playMusic(stateManager.getCurrentMusic());
+                    log.info("[{}] 현재 곡 재시작", getModuleName());
+                } else {
+                    // 이미 재생 중이면 처음부터 다시 시작
+                    stateManager.setCurrentPosition(0);
+                    playMusic(stateManager.getCurrentMusic());
+                    log.info("[{}] 현재 곡 처음부터 재시작", getModuleName());
+                    }
+                }
+            } else {
+                // 재생할 곡이 없으면 샘플 음악 준비
+                log.info("[{}] 재생할 곡이 없어 샘플 음악을 준비합니다.", getModuleName());
+                MusicInfo sampleMusic = prepareSampleMusic();
+                playMusic(sampleMusic);
             }
-        } else {
-            // 재생할 곡이 없으면 샘플 음악 준비
-            log.info("[{}] 재생할 곡이 없어 샘플 음악을 준비합니다.", getModuleName());
-            MusicInfo sampleMusic = prepareSampleMusic();
-            playMusic(sampleMusic);
+        } catch (Exception e) {
+            log.error("[{}] 재생 요청 처리 중 오류", getModuleName(), e);
+            publish(new ErrorEvent("재생 요청 처리 중 오류: " + e.getMessage(), e, false));
         }
-    } catch (Exception e) {
-        log.error("[{}] 재생 요청 처리 중 오류", getModuleName(), e);
-        publish(new ErrorEvent("재생 요청 처리 중 오류: " + e.getMessage(), e, false));
     }
-}
     private void resumePlayback() {
     if (stateManager.isPaused()) {
-        // 실제 오디오 재개 시도
-        if (audioEngine.play()) {
+        // 실제 오디오 재개 시도 - resume() 메서드 사용
+        boolean audioResumed = audioEngine.resume();
+        
+        if (audioResumed) {
             stateManager.setState(PlaybackStateManager.PlaybackState.PLAYING);
             log.info("[{}] 실제 오디오 재개됨", getModuleName());
         } else {
@@ -454,8 +462,7 @@ public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
         
         try {
             if (stateManager.isPlaying()) {
-                // 실제 오디오 일시정지 (AudioEngine.pause() 메서드가 있다면)
-                // audioEngine.pause();
+                audioEngine.pause();
                 
                 // 시뮬레이션 정지
                 stopSimulatedPlayback();
@@ -474,8 +481,7 @@ public void onPlayRequest(MediaControlEvent.RequestPlayEvent event) {
         log.debug("[{}] 정지 요청 수신: {}", getModuleName(), event);
         
         try {
-            // 실제 오디오 정지 (AudioEngine.stop() 메서드가 있다면)
-            // audioEngine.stop();
+            audioEngine.stop();
             
             // 시뮬레이션 정지
             stopSimulatedPlayback();
