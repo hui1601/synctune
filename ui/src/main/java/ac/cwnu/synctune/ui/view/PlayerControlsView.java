@@ -97,7 +97,7 @@ public class PlayerControlsView extends VBox {
         
         // 초기 상태 설정
         pauseButton.setDisable(true);
-        updateRepeatButton();
+        // updateRepeatButton() 호출을 setupTooltips() 이후로 이동
     }
 
     private void setupToggleButtonStyles() {
@@ -292,6 +292,9 @@ public class PlayerControlsView extends VBox {
         
         progressSlider.setTooltip(new Tooltip("재생 위치 조절"));
         volumeSlider.setTooltip(new Tooltip("볼륨 조절"));
+        
+        // Tooltip 설정 후 repeatButton 업데이트
+        updateRepeatButton();
     }
 
     private void cycleRepeatMode() {
@@ -311,7 +314,15 @@ public class PlayerControlsView extends VBox {
 
     private void updateRepeatButton() {
         repeatButton.setText(currentRepeatMode.getIcon());
-        repeatButton.getTooltip().setText(currentRepeatMode.getDescription());
+        
+        // Tooltip이 존재하는지 확인하고 안전하게 처리
+        Tooltip tooltip = repeatButton.getTooltip();
+        if (tooltip != null) {
+            tooltip.setText(currentRepeatMode.getDescription());
+        } else {
+            // Tooltip이 없으면 새로 생성
+            repeatButton.setTooltip(new Tooltip(currentRepeatMode.getDescription()));
+        }
         
         String style = currentRepeatMode == RepeatMode.NONE ? 
             "-fx-background-color: #ecf0f1; -fx-text-fill: #7f8c8d;" :
