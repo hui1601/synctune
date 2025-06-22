@@ -1,5 +1,8 @@
 package ac.cwnu.synctune.sdk.event;
 
+import java.util.List;
+import ac.cwnu.synctune.sdk.model.LrcLine;
+
 /**
  * 가사 처리와 관련된 이벤트들을 정의합니다.
  */
@@ -95,24 +98,24 @@ public class LyricsEvent {
     }
     public static class LyricsFullTextEvent extends BaseEvent {
         private final String musicFilePath;
-        private final String[] fullLyricsLines;
+        private final List<LrcLine> fullLyricsLines;
 
-        public LyricsFullTextEvent(String musicFilePath, String[] fullLyricsLines) {
-        this.musicFilePath = musicFilePath;
-        this.fullLyricsLines = fullLyricsLines;
+        public LyricsFullTextEvent(String musicFilePath, List<LrcLine> fullLyricsLines) {
+            this.musicFilePath = musicFilePath;
+            this.fullLyricsLines = fullLyricsLines;
         }
 
         public String getMusicFilePath() {
             return musicFilePath;
         }
 
-        public String[] getFullLyricsLines() {
+        public List<LrcLine> getFullLyricsLines() {
             return fullLyricsLines;
         }
 
         @Override
         public String toString() {
-            return super.toString() + " {musicFile=" + musicFilePath + ", lines=" + fullLyricsLines.length + "}";
+            return super.toString() + " {musicFile=" + musicFilePath + ", lines=" + fullLyricsLines.size() + "}";
         }
     }
 

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
+import ac.cwnu.synctune.sdk.model.LrcLine;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.controller.PlaybackController;
 import ac.cwnu.synctune.ui.controller.PlaylistActionHandler;
@@ -46,6 +47,8 @@ public class MainApplicationWindow extends Stage {
     private PlaybackController playbackController;
     private PlaylistActionHandler playlistActionHandler;
     private WindowStateManager windowStateManager;
+
+    private int lastIndex = -1;
 
     public MainApplicationWindow(EventPublisher publisher) {
         this.eventPublisher = publisher;
@@ -493,17 +496,6 @@ public class MainApplicationWindow extends Stage {
             controlsView.updateProgress(currentMs, totalMs);
         }
     }
-
-    public void updateLyrics(String lyrics, long timestamp) {
-        if (lyricsView != null) {
-            if (lyrics == null || lyrics.trim().isEmpty() || lyrics.equals("가사를 찾을 수 없습니다")) {
-                lyricsView.showLyricsNotFound();
-            } else {
-                int idx = findCurrentLyricIndex(lyrics, timestamp);
-                lyricsView.updateLyrics(lyrics, idx);
-            }
-        }
-    }
     
     public void showLyricsFound(String lrcPath) {
         if (lyricsView != null) {
@@ -531,28 +523,62 @@ public class MainApplicationWindow extends Stage {
     }
 
     public int findCurrentLyricIndex(String lyric, long timestamp) {
-        // lyricsView.getFullLyricsLines() 같은 전체 가사 배열을 가지고 있어야 함
-        String[] allLines = lyricsView.getFullLyricsLines(); // 만약 없으면 setFullLyrics에서 배열을 저장해둬야 함
-        if (allLines == null) return -1;
+        List<LrcLine> allLyricsLines = lyricsView.getFullLyricsLines();
+        if (allLyricsLines == null) return -1;
 
-        // 완벽하게 일치하는 첫 번째 라인 인덱스 반환 (동일 가사 여러줄이면 가장 빠른 거)
-        for (int i = 0; i < allLines.length; i++) {
-            if (allLines[i].equals(lyric)) {
-                return i;
+        String target = lyric.trim().toLowerCase();
+
+        // 탐색 범위: lastIndex ~ lastIndex+5
+        int start = lastIndex >= 0 ? lastIndex : 0;
+        int end = Math.min(allLyricsLines.size(), start + 5);
+
+        // 1. 근처 탐색
+        for (int i = start; i < end; i++) {
+            LrcLine line = allLyricsLines.get(i);
+            String lineText = line.getText().trim().toLowerCase();
+
+            if (lineText.equals(target) && Math.abs(line.getTimeMillis() - timestamp) <= 1000) {
+                if (i >= lastIndex) { // 인덱스가 뒤로 가는 경우만 허용
+                    lastIndex = i;
+                    return i;
+                }
             }
         }
+
+        // 2. 전체 탐색 (이전 탐색 범위 제외)
+        for (int i = 0; i < allLyricsLines.size(); i++) {
+            if (i >= start && i < end) continue;
+
+            LrcLine line = allLyricsLines.get(i);
+            String lineText = line.getText().trim().toLowerCase();
+
+            if (lineText.equals(target) && Math.abs(line.getTimeMillis() - timestamp) <= 1000) {
+                if (i >= lastIndex) {
+                    lastIndex = i;
+                    return i;
+                }
+            }
+        }
+
         return -1;
     }
 
-    // index로 넘기는 updateLyrics
-    public void updateLyrics(String lyric, int index) {
+
+    // timestamp로 넘기는 updateLyrics
+    public void updateLyrics(String lyric, long timestamp) {
         if (lyricsView != null) {
-            lyricsView.updateLyrics(lyric, index);
+            if (lyric == null || lyric.trim().isEmpty() || lyric.equals("가사를 찾을 수 없습니다")) {
+                lyricsView.showLyricsNotFound();
+            } else {
+                int idx = findCurrentLyricIndex(lyric, timestamp);
+                lyricsView.updateLyrics(lyric, idx);
+            }
         }
     }
 
 
-    public void setFullLyrics(String[] lines) {
+
+    public void setFullLyrics(List<LrcLine> lines) {
         if (lyricsView != null) {
             lyricsView.setFullLyrics(lines);
         }

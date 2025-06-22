@@ -1,5 +1,8 @@
 package ac.cwnu.synctune.ui.view;
 
+import java.util.List;
+
+import ac.cwnu.synctune.sdk.model.LrcLine;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -8,6 +11,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextAlignment;
+import ac.cwnu.synctune.sdk.model.LrcLine;
 
 public class LyricsView extends VBox {
     // 현재 가사 표시용 라벨 (MarqueeLabel 대신 일반 Label 사용)
@@ -15,7 +19,7 @@ public class LyricsView extends VBox {
     private final VBox lyricsContainer = new VBox(5);
     private final ScrollPane lyricsScrollPane;
     private final Label statusLabel = new Label("가사 상태: 대기 중");
-    private String[] allLyricsLines = null;
+    private List<LrcLine> allLyricsLines;
 
     public LyricsView() {
         // ScrollPane은 lyricsContainer가 필요하므로 생성자에서 초기화
@@ -87,14 +91,17 @@ public class LyricsView extends VBox {
     }
 
     public void updateLyrics(String lyric, int index) {
+        System.out.println("updateLyrics 호출: lyric=" + lyric + ", index=" + index);
         currentLyricsLabel.setText(lyric);
+
+        System.out.println("lyricsContainer 자식 수: " + lyricsContainer.getChildren().size());
 
         // 전체 가사 중 index번째만 형광펜 스타일
         for (int i = 0; i < lyricsContainer.getChildren().size(); i++) {
             if (lyricsContainer.getChildren().get(i) instanceof Label label) {
-                if (i == index) {
-                    label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-background-color: #ffeaa7; -fx-padding: 8; -fx-background-radius: 3;");
-                    scrollToLabel(label);
+                if (i == index && index >= 0) {
+                    /*label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-background-color: #ffeaa7; -fx-padding: 8; -fx-background-radius: 3;");
+                    scrollToLabel(label);*/
                 } else {
                     label.setStyle("-fx-text-fill: #2c3e50; -fx-font-weight: normal; -fx-padding: 5;");
                 }
@@ -102,32 +109,54 @@ public class LyricsView extends VBox {
         }
     }
 
+    public void updateLyrics(String lyric, long timestamp) {
+        if (allLyricsLines == null) return;
+        int highlightIdx = -1;
+        for (int i = 0; i < allLyricsLines.size(); i++) {
+            LrcLine l = allLyricsLines.get(i);
 
-    public void setFullLyrics(String[] lyricsLines) {
-        this.allLyricsLines = lyricsLines;
+            String lText = l.getText().trim().toLowerCase();
+            String targetText = lyric.trim().toLowerCase();
+
+            if (lText.equals(targetText) && Math.abs(l.getTimeMillis() - timestamp) <= 300) {
+                highlightIdx = i;
+                break;
+            }
+        }
+        System.out.println("DEBUG: highlightIdx = " + highlightIdx + ", lyric = " + lyric + ", timestamp = " + timestamp);
+        updateLyrics(lyric, highlightIdx);
+    }
+
+
+
+    public void setFullLyrics(List<LrcLine> lines) {
+        this.allLyricsLines = lines;
         lyricsContainer.getChildren().clear();
+
+        System.out.println("setFullLyrics 호출: lines.size() = " + (lines == null ? 0 : lines.size()));
         
-        if (lyricsLines == null || lyricsLines.length == 0) {
+        if (lines == null || lines.size() == 0) {
             updateDefaultMessage();
             return;
         }
         
-        for (int i = 0; i < lyricsLines.length; i++) {
-            String line = lyricsLines[i];
-            if (line == null) line = "";
-            
-            Label lineLabel = new Label((i + 1) + ". " + line);
+        for (int i = 0; i < lines.size(); i++) {
+            String text = lines.get(i).getText();
+            Label lineLabel = new Label((i + 1) + ". " + text);
             lineLabel.setWrapText(true);
             lineLabel.setStyle("-fx-text-fill: #2c3e50; -fx-padding: 5;");
             lineLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
             lineLabel.setPrefWidth(330); // ScrollPane에 맞는 너비
             lyricsContainer.getChildren().add(lineLabel);
         }
+
+        System.out.println("lyricsContainer children count: " + lyricsContainer.getChildren().size());
+
         
-        statusLabel.setText("가사 상태: " + lyricsLines.length + "줄 로드됨");
+        statusLabel.setText("가사 상태: " + lines.size() + "줄 로드됨");
     }
 
-    public String[] getFullLyricsLines() { return allLyricsLines; }
+    public List<LrcLine> getFullLyricsLines() { return allLyricsLines; }
 
     private void updateDefaultMessage() {
         lyricsContainer.getChildren().clear();

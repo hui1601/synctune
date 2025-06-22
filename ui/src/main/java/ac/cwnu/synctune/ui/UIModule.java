@@ -34,7 +34,7 @@ public class UIModule extends SyncTuneModule {
 
     @EventListener
     public void onLyricsFullText(LyricsEvent.LyricsFullTextEvent event) {
-        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().length);
+        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().size());
         if (mainWindow != null) {
             Platform.runLater(() -> mainWindow.setFullLyrics(event.getFullLyricsLines()));
         }
@@ -184,6 +184,8 @@ public class UIModule extends SyncTuneModule {
         if (mainWindow != null) {
             Platform.runLater(() -> {
                 int currentIndex = mainWindow.findCurrentLyricIndex(event.getLyricLine(), event.getStartTimeMillis());
+                log.info("findCurrentLyricIndex: lyric='{}', timestamp={}, index={}",
+                     event.getLyricLine(), event.getStartTimeMillis(), currentIndex);
                 mainWindow.updateLyrics(event.getLyricLine(), currentIndex);
             });
         }
