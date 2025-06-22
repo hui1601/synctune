@@ -7,6 +7,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.UnsupportedAudioFileException;
+
 import org.slf4j.Logger;
 
 import ac.cwnu.synctune.sdk.annotation.EventListener;
@@ -22,15 +28,22 @@ import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 public class PlayerModule extends SyncTuneModule {
     private static final Logger log = LogManager.getLogger(PlayerModule.class);
     
-    // 간소화된 상태 관리
+    // 실제 오디오 재생을 위한 컴포넌트들
+    private AudioInputStream audioInputStream;
+    private Clip audioClip;
+    private FloatControl volumeControl;
+    
+    // 현재 상태 관리
     private MusicInfo currentMusic;
     private final AtomicBoolean isPlaying = new AtomicBoolean(false);
     private final AtomicBoolean isPaused = new AtomicBoolean(false);
     private final AtomicLong currentPosition = new AtomicLong(0);
     private final AtomicLong totalDuration = new AtomicLong(0);
+    private final AtomicLong pausePosition = new AtomicLong(0);
     
     // 진행 상황 업데이트용 스케줄러
     private ScheduledExecutorService scheduler;
+    private boolean isSimulationMode = false;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -44,9 +57,6 @@ public class PlayerModule extends SyncTuneModule {
             return t;
         });
         
-        // 샘플 음악 준비
-        prepareSampleMusic();
-        
         log.info("[{}] 모듈 초기화 완료.", getModuleName());
     }
 
@@ -55,6 +65,7 @@ public class PlayerModule extends SyncTuneModule {
         log.info("[{}] 종료됩니다.", getModuleName());
         
         stopPlayback();
+        releaseResources();
         
         if (scheduler != null && !scheduler.isShutdown()) {
             scheduler.shutdown();
@@ -77,8 +88,7 @@ public class PlayerModule extends SyncTuneModule {
                 playMusic(currentMusic);
             }
         } else {
-            // 기본 샘플 음악 재생
-            playMusic(createSampleMusic());
+            log.warn("재생할 음악이 지정되지 않았습니다.");
         }
     }
 
@@ -97,23 +107,53 @@ public class PlayerModule extends SyncTuneModule {
     @EventListener
     public void onSeekRequest(MediaControlEvent.RequestSeekEvent event) {
         log.info("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
-        long seekPos = Math.max(0, Math.min(event.getPositionMillis(), totalDuration.get()));
-        currentPosition.set(seekPos);
+        seekTo(event.getPositionMillis());
     }
 
     /**
-     * 음악 재생 (시뮬레이션)
+     * 음악 재생 시작
      */
     private void playMusic(MusicInfo music) {
         if (music == null) return;
         
         log.info("[{}] 음악 재생 시작: {}", getModuleName(), music.getTitle());
         
+        // 기존 재생 정지
+        stopPlayback();
+        
         currentMusic = music;
-        totalDuration.set(music.getDurationMillis());
-        currentPosition.set(0);
-        isPlaying.set(true);
-        isPaused.set(false);
+        File musicFile = new File(music.getFilePath());
+        
+        if (!musicFile.exists()) {
+            log.warn("음악 파일을 찾을 수 없습니다: {} (시뮬레이션 모드로 진행)", music.getFilePath());
+            startSimulationMode(music);
+            return;
+        }
+        
+        try {
+            // 실제 오디오 파일 로드
+            if (loadAudioFile(musicFile)) {
+                // 실제 재생 시작
+                if (audioClip != null) {
+                    audioClip.setFramePosition(0);
+                    audioClip.start();
+                    isPlaying.set(true);
+                    isPaused.set(false);
+                    isSimulationMode = false;
+                    
+                    // 실제 재생 시간 계산
+                    calculateActualDuration();
+                    
+                    log.info("실제 오디오 재생 시작: {} ({}ms)", music.getTitle(), totalDuration.get());
+                }
+            } else {
+                // 로드 실패 시 시뮬레이션 모드
+                startSimulationMode(music);
+            }
+        } catch (Exception e) {
+            log.error("음악 재생 중 오류 발생: {}", e.getMessage(), e);
+            startSimulationMode(music);
+        }
         
         // 재생 시작 이벤트 발행
         publish(new PlaybackStatusEvent.PlaybackStartedEvent(music));
@@ -121,31 +161,179 @@ public class PlayerModule extends SyncTuneModule {
         // 진행 상황 업데이트 시작
         startProgressUpdates();
     }
+    
+    /**
+     * 실제 오디오 파일 로드
+     */
+    private boolean loadAudioFile(File musicFile) {
+        try {
+            releaseResources();
+            
+            // 오디오 스트림 생성
+            audioInputStream = AudioSystem.getAudioInputStream(musicFile);
+            
+            // PCM 형식으로 변환 (필요한 경우)
+            audioInputStream = AudioSystem.getAudioInputStream(
+                audioInputStream.getFormat(), audioInputStream);
+            
+            // Clip 생성 및 오디오 로드
+            audioClip = AudioSystem.getClip();
+            audioClip.open(audioInputStream);
+            
+            // 볼륨 컨트롤 설정
+            if (audioClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                volumeControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
+            }
+            
+            log.debug("오디오 파일 로드 성공: {}", musicFile.getName());
+            return true;
+            
+        } catch (UnsupportedAudioFileException e) {
+            log.warn("지원되지 않는 오디오 파일 형식: {}", musicFile.getName());
+            return false;
+        } catch (Exception e) {
+            log.error("오디오 파일 로드 실패: {}", musicFile.getName(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * 실제 재생 시간 계산
+     */
+    private void calculateActualDuration() {
+        if (audioClip != null) {
+            try {
+                long frameLength = audioClip.getFrameLength();
+                float frameRate = audioClip.getFormat().getFrameRate();
+                
+                if (frameLength != AudioSystem.NOT_SPECIFIED && frameRate != AudioSystem.NOT_SPECIFIED) {
+                    long durationMs = (long) (frameLength / frameRate * 1000);
+                    totalDuration.set(durationMs);
+                    
+                    // MusicInfo 업데이트 (실제 길이로)
+                    if (currentMusic != null && currentMusic.getDurationMillis() != durationMs) {
+                        currentMusic = new MusicInfo(
+                            currentMusic.getTitle(),
+                            currentMusic.getArtist(),
+                            currentMusic.getAlbum(),
+                            currentMusic.getFilePath(),
+                            durationMs,
+                            currentMusic.getLrcPath()
+                        );
+                    }
+                    
+                    log.debug("실제 재생 시간 계산됨: {}ms", durationMs);
+                } else {
+                    // 계산할 수 없으면 기본값 사용
+                    totalDuration.set(currentMusic.getDurationMillis());
+                }
+            } catch (Exception e) {
+                log.warn("재생 시간 계산 실패, 기본값 사용: {}", e.getMessage());
+                totalDuration.set(currentMusic.getDurationMillis());
+            }
+        }
+    }
+    
+    /**
+     * 시뮬레이션 모드로 재생 (파일이 없거나 지원되지 않는 형식)
+     */
+    private void startSimulationMode(MusicInfo music) {
+        isSimulationMode = true;
+        totalDuration.set(music.getDurationMillis() > 0 ? music.getDurationMillis() : 180000L); // 기본 3분
+        currentPosition.set(0);
+        isPlaying.set(true);
+        isPaused.set(false);
+        
+        log.info("시뮬레이션 모드로 재생: {} ({}ms)", music.getTitle(), totalDuration.get());
+    }
 
     private void pausePlayback() {
-        if (isPlaying.get()) {
+        if (!isPlaying.get()) {
+            log.debug("재생 중이 아니므로 일시정지할 수 없습니다.");
+            return;
+        }
+        
+        if (isSimulationMode) {
+            pausePosition.set(currentPosition.get());
             isPlaying.set(false);
             isPaused.set(true);
-            publish(new PlaybackStatusEvent.PlaybackPausedEvent());
-            log.info("[{}] 일시정지됨", getModuleName());
+        } else if (audioClip != null && audioClip.isRunning()) {
+            pausePosition.set(getCurrentPositionFromClip());
+            audioClip.stop();
+            isPlaying.set(false);
+            isPaused.set(true);
         }
+        
+        publish(new PlaybackStatusEvent.PlaybackPausedEvent());
+        log.info("[{}] 일시정지됨 (위치: {}ms)", getModuleName(), pausePosition.get());
     }
 
     private void resumePlayback() {
-        if (isPaused.get()) {
+        if (!isPaused.get()) {
+            log.debug("일시정지 상태가 아니므로 재개할 수 없습니다.");
+            return;
+        }
+        
+        if (isSimulationMode) {
+            currentPosition.set(pausePosition.get());
             isPlaying.set(true);
             isPaused.set(false);
-            startProgressUpdates();
-            log.info("[{}] 재생 재개됨", getModuleName());
+        } else if (audioClip != null) {
+            try {
+                // 일시정지된 위치로 이동
+                long framePosition = (long) (pausePosition.get() * audioClip.getFormat().getFrameRate() / 1000);
+                audioClip.setFramePosition((int) Math.min(framePosition, audioClip.getFrameLength() - 1));
+                
+                audioClip.start();
+                isPlaying.set(true);
+                isPaused.set(false);
+            } catch (Exception e) {
+                log.error("재생 재개 중 오류: {}", e.getMessage());
+                return;
+            }
         }
+        
+        publish(new PlaybackStatusEvent.PlaybackStartedEvent(currentMusic));
+        log.info("[{}] 재생 재개됨 (위치: {}ms)", getModuleName(), pausePosition.get());
     }
 
     private void stopPlayback() {
+        if (audioClip != null) {
+            audioClip.stop();
+        }
+        
         isPlaying.set(false);
         isPaused.set(false);
         currentPosition.set(0);
+        pausePosition.set(0);
+        
         publish(new PlaybackStatusEvent.PlaybackStoppedEvent());
-        log.info("[{}] 정지됨", getModuleName());
+        log.info("[{}] 재생 정지됨", getModuleName());
+    }
+    
+    private void seekTo(long positionMs) {
+        long validPosition = Math.max(0, Math.min(positionMs, totalDuration.get()));
+        
+        if (isSimulationMode) {
+            currentPosition.set(validPosition);
+            if (isPaused.get()) {
+                pausePosition.set(validPosition);
+            }
+        } else if (audioClip != null) {
+            try {
+                long framePosition = (long) (validPosition * audioClip.getFormat().getFrameRate() / 1000);
+                audioClip.setFramePosition((int) Math.min(framePosition, audioClip.getFrameLength() - 1));
+                currentPosition.set(validPosition);
+                
+                if (isPaused.get()) {
+                    pausePosition.set(validPosition);
+                }
+            } catch (Exception e) {
+                log.error("탐색 중 오류: {}", e.getMessage());
+            }
+        }
+        
+        log.debug("탐색 완료: {}ms", validPosition);
     }
 
     /**
@@ -155,60 +343,70 @@ public class PlayerModule extends SyncTuneModule {
         if (scheduler == null || scheduler.isShutdown()) return;
         
         scheduler.scheduleAtFixedRate(() -> {
-            if (isPlaying.get()) {
-                long current = currentPosition.addAndGet(500); // 0.5초씩 증가
-                long total = totalDuration.get();
-                
-                // 진행 상황 이벤트 발행
-                publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(current, total));
-                
-                // 재생 완료 체크
-                if (current >= total) {
-                    stopPlayback();
+            try {
+                if (isPlaying.get()) {
+                    long current;
+                    
+                    if (isSimulationMode) {
+                        // 시뮬레이션 모드: 시간 증가
+                        current = currentPosition.addAndGet(500);
+                    } else {
+                        // 실제 재생: Clip에서 현재 위치 가져오기
+                        current = getCurrentPositionFromClip();
+                        currentPosition.set(current);
+                    }
+                    
+                    long total = totalDuration.get();
+                    
+                    // 진행 상황 이벤트 발행
+                    publish(new PlaybackStatusEvent.PlaybackProgressUpdateEvent(current, total));
+                    
+                    // 재생 완료 체크
+                    if (current >= total || (audioClip != null && !audioClip.isRunning() && !isPaused.get())) {
+                        stopPlayback();
+                    }
                 }
+            } catch (Exception e) {
+                log.error("진행 상황 업데이트 중 오류", e);
             }
         }, 0, 500, TimeUnit.MILLISECONDS);
     }
-
+    
     /**
-     * 샘플 음악 준비
+     * Clip에서 현재 재생 위치 가져오기
      */
-    private void prepareSampleMusic() {
-        MusicInfo sample = createSampleMusic();
-        log.info("[{}] 샘플 음악 준비됨: {}", getModuleName(), sample.getTitle());
-    }
-
-    private MusicInfo createSampleMusic() {
-        return new MusicInfo(
-            "샘플 테스트 음악",
-            "SyncTune System",
-            "Test Album",
-            findFirstMusicFile(), // 실제 파일이 있으면 사용, 없으면 샘플 경로
-            180000L, // 3분
-            "sample/sample.lrc"
-        );
-    }
-
-    /**
-     * 실제 음악 파일 찾기 (간소화)
-     */
-    private String findFirstMusicFile() {
-        File musicDir = new File("music");
-        if (musicDir.exists() && musicDir.isDirectory()) {
-            File[] files = musicDir.listFiles((dir, name) -> {
-                String lower = name.toLowerCase();
-                return lower.endsWith(".mp3") || lower.endsWith(".wav") || 
-                       lower.endsWith(".flac") || lower.endsWith(".m4a");
-            });
-            
-            if (files != null && files.length > 0) {
-                log.info("[{}] 실제 음악 파일 발견: {}", getModuleName(), files[0].getName());
-                return files[0].getAbsolutePath();
-            }
-        }
+    private long getCurrentPositionFromClip() {
+        if (audioClip == null) return currentPosition.get();
         
-        // 실제 파일이 없으면 샘플 경로 반환
-        return "sample/test.mp3";
+        try {
+            long framePosition = audioClip.getFramePosition();
+            float frameRate = audioClip.getFormat().getFrameRate();
+            return (long) (framePosition * 1000.0 / frameRate);
+        } catch (Exception e) {
+            return currentPosition.get();
+        }
+    }
+    
+    /**
+     * 리소스 해제
+     */
+    private void releaseResources() {
+        try {
+            if (audioClip != null) {
+                audioClip.close();
+                audioClip = null;
+            }
+            
+            if (audioInputStream != null) {
+                audioInputStream.close();
+                audioInputStream = null;
+            }
+            
+            volumeControl = null;
+            
+        } catch (Exception e) {
+            log.error("리소스 해제 중 오류", e);
+        }
     }
 
     // 상태 조회 메서드들
@@ -230,5 +428,9 @@ public class PlayerModule extends SyncTuneModule {
 
     public long getTotalDuration() {
         return totalDuration.get();
+    }
+    
+    public boolean isSimulationMode() {
+        return isSimulationMode;
     }
 }

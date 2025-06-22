@@ -141,7 +141,7 @@ public class PlaylistView extends VBox {
         setupCustomCellFactories();
         
         // 상태 표시
-        statusLabel = new Label("플레이리스트를 선택하세요");
+        statusLabel = new Label("플레이리스트를 선택하거나 생성하세요");
         statusLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 11px;");
         
         playlistCountLabel = new Label("플레이리스트: 0개");
@@ -353,9 +353,8 @@ public class PlaylistView extends VBox {
         Platform.runLater(() -> {
             playlists.addAll(DEFAULT_PLAYLISTS);
             updateCounts();
-            if (!playlists.isEmpty()) {
-                playlistListView.getSelectionModel().selectFirst();
-            }
+            // 기본 플레이리스트는 빈 상태로 시작
+            updateStatusLabel("플레이리스트를 선택하거나 새로 생성하여 곡을 추가하세요", false);
         });
     }
 
@@ -366,27 +365,15 @@ public class PlaylistView extends VBox {
             return;
         }
         
-        // 현재는 샘플 데이터 생성
+        // 모든 플레이리스트는 빈 상태로 시작
         currentPlaylistItems.clear();
         
-        if (playlistName.equals("즐겨찾기")) {
-            addSampleMusic("My Favorite Song", "Favorite Artist", "Best Album");
-            addSampleMusic("Amazing Grace", "Classical Artist", "Hymns Collection");
-        } else if (playlistName.equals("최근 재생")) {
-            addSampleMusic("Recently Played 1", "Recent Artist", "New Album");
-            addSampleMusic("Recently Played 2", "Another Artist", "Latest Hits");
+        // 상태 메시지 업데이트
+        if (currentPlaylistItems.isEmpty()) {
+            updateStatusLabel(String.format("'%s' 플레이리스트가 선택되었습니다. '곡 추가' 버튼으로 음악을 추가하세요.", playlistName), false);
+        } else {
+            updateStatusLabel(String.format("%s (%d곡)", playlistName, currentPlaylistItems.size()), false);
         }
-        
-        updateStatusLabel(String.format("%s (%d곡)", playlistName, currentPlaylistItems.size()), false);
-    }
-
-    private void addSampleMusic(String title, String artist, String album) {
-        MusicInfo sampleMusic = new MusicInfo(title, artist, album, 
-                                            "sample/" + title.replaceAll(" ", "_") + ".mp3", 
-                                            (long)(Math.random() * 300000) + 120000, 
-                                            null);
-        MusicInfoItem item = new MusicInfoItem(sampleMusic);
-        currentPlaylistItems.add(item);
     }
 
     private void updateButtonStates() {
@@ -475,9 +462,11 @@ public class PlaylistView extends VBox {
                 MusicInfoItem item = new MusicInfoItem(music);
                 if (!currentPlaylistItems.contains(item)) {
                     currentPlaylistItems.add(item);
-                    updateStatusLabel(String.format("%s에 추가됨: %s", selectedPlaylistName, music.getTitle()), false);
+                    updateStatusLabel(String.format("'%s'에 추가됨: %s", selectedPlaylistName, music.getTitle()), false);
                     updateButtonStates();
                     updateCounts();
+                } else {
+                    updateStatusLabel("이미 플레이리스트에 있는 곡입니다: " + music.getTitle(), true);
                 }
             });
         }
@@ -498,6 +487,11 @@ public class PlaylistView extends VBox {
                     updateStatusLabel("곡이 제거되었습니다: " + music.getTitle(), false);
                     updateButtonStates();
                     updateCounts();
+                    
+                    // 플레이리스트가 비었을 때 안내 메시지
+                    if (currentPlaylistItems.isEmpty() && selectedPlaylistName != null) {
+                        updateStatusLabel(String.format("'%s' 플레이리스트가 비어있습니다. '곡 추가' 버튼으로 음악을 추가하세요.", selectedPlaylistName), false);
+                    }
                 }
             });
         }
@@ -520,6 +514,12 @@ public class PlaylistView extends VBox {
         Platform.runLater(() -> {
             currentPlaylistItems.clear();
             updateCounts();
+            updateButtonStates();
+            
+            // 플레이리스트가 비었을 때 안내 메시지
+            if (selectedPlaylistName != null) {
+                updateStatusLabel(String.format("'%s' 플레이리스트가 비워졌습니다. '곡 추가' 버튼으로 음악을 추가하세요.", selectedPlaylistName), false);
+            }
         });
     }
 

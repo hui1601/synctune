@@ -14,6 +14,7 @@ import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.model.Playlist;
 import ac.cwnu.synctune.ui.view.PlaylistView;
+import ac.cwnu.synctune.ui.util.MusicInfoHelper;
 import ac.cwnu.synctune.ui.util.UIUtils;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
@@ -25,11 +26,6 @@ public class PlaylistActionHandler {
     
     private final PlaylistView view;
     private final EventPublisher publisher;
-    
-    // 지원되는 음악 파일 확장자
-    private static final List<String> SUPPORTED_EXTENSIONS = List.of(
-        "mp3", "wav", "flac", "m4a", "aac", "ogg", "wma"
-    );
 
     public PlaylistActionHandler(PlaylistView view, EventPublisher publisher) {
         this.view = view;
@@ -120,12 +116,14 @@ public class PlaylistActionHandler {
         fileChooser.setTitle("음악 파일 선택");
         
         // 확장자 필터 설정
-        FileChooser.ExtensionFilter musicFilter = new FileChooser.ExtensionFilter(
-            "음악 파일", 
-            SUPPORTED_EXTENSIONS.stream().map(ext -> "*." + ext).toArray(String[]::new)
-        );
-        fileChooser.getExtensionFilters().add(musicFilter);
-        fileChooser.getExtensionFilters().add(
+        fileChooser.getExtensionFilters().addAll(
+            new FileChooser.ExtensionFilter("모든 음악 파일", "*.mp3", "*.wav", "*.flac", "*.m4a", "*.aac", "*.ogg"),
+            new FileChooser.ExtensionFilter("MP3 파일", "*.mp3"),
+            new FileChooser.ExtensionFilter("WAV 파일", "*.wav"),
+            new FileChooser.ExtensionFilter("FLAC 파일", "*.flac"),
+            new FileChooser.ExtensionFilter("M4A 파일", "*.m4a"),
+            new FileChooser.ExtensionFilter("AAC 파일", "*.aac"),
+            new FileChooser.ExtensionFilter("OGG 파일", "*.ogg"),
             new FileChooser.ExtensionFilter("모든 파일", "*.*")
         );
         
@@ -142,133 +140,78 @@ public class PlaylistActionHandler {
         
         view.updateStatusLabel("음악 파일을 추가하는 중...", false);
         
-        // 백그라운드에서 처리
-        Platform.runLater(() -> {
+        // 백그라운드에서 처리 (UI 블로킹 방지)
+        Thread processThread = new Thread(() -> {
             int addedCount = 0;
+            int errorCount = 0;
+            List<String> errorMessages = new ArrayList<>();
             
             for (File file : files) {
                 try {
-                    if (isSupportedMusicFile(file)) {
-                        MusicInfo musicInfo = createMusicInfoFromFile(file);
-                        view.addMusicToCurrentPlaylist(musicInfo);
-                        publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(playlistName, musicInfo));
+                    if (MusicInfoHelper.isSupportedAudioFile(file)) {
+                        log.debug("음악 파일 처리 시작: {}", file.getName());
+                        
+                        // MusicInfoHelper를 사용하여 정확한 메타데이터 추출
+                        MusicInfo musicInfo = MusicInfoHelper.createFromFile(file);
+                        
+                        Platform.runLater(() -> {
+                            view.addMusicToCurrentPlaylist(musicInfo);
+                            publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(playlistName, musicInfo));
+                        });
+                        
                         addedCount++;
+                        log.debug("음악 파일 추가 완료: {} - {} ({}ms)", 
+                            musicInfo.getArtist(), musicInfo.getTitle(), musicInfo.getDurationMillis());
+                    } else {
+                        errorCount++;
+                        errorMessages.add(file.getName() + " (지원되지 않는 형식)");
+                        log.warn("지원되지 않는 파일 형식: {}", file.getName());
                     }
                 } catch (Exception e) {
-                    log.warn("음악 파일 처리 중 오류: {} - {}", file.getName(), e.getMessage());
+                    errorCount++;
+                    errorMessages.add(file.getName() + " (" + e.getMessage() + ")");
+                    log.error("음악 파일 처리 중 오류: {} - {}", file.getName(), e.getMessage());
                 }
             }
             
-            view.updateStatusLabel(String.format("%d개의 음악 파일이 추가되었습니다.", addedCount), false);
+            // UI 업데이트 (메인 스레드에서)
+            final int finalAddedCount = addedCount;
+            final int finalErrorCount = errorCount;
+            final List<String> finalErrorMessages = new ArrayList<>(errorMessages);
             
-            if (addedCount < files.size()) {
-                int failedCount = files.size() - addedCount;
-                showAlert("경고", String.format("%d개 파일이 추가되지 못했습니다.", failedCount), 
-                         Alert.AlertType.WARNING);
-            }
-        });
-    }
-    
-    private boolean isSupportedMusicFile(File file) {
-        String fileName = file.getName().toLowerCase();
-        return SUPPORTED_EXTENSIONS.stream().anyMatch(ext -> fileName.endsWith("." + ext));
-    }
-    
-    private MusicInfo createMusicInfoFromFile(File file) {
-        try {
-            // 파일명에서 기본 정보 추출
-            String fileName = file.getName();
-            String baseName = fileName.substring(0, fileName.lastIndexOf('.'));
-            
-            // 파일명 파싱 시도
-            String title = baseName;
-            String artist = "Unknown Artist";
-            String album = "Unknown Album";
-            
-            if (baseName.contains(" - ")) {
-                String[] parts = baseName.split(" - ", 2);
-                if (parts.length == 2) {
-                    artist = parts[0].trim();
-                    title = parts[1].trim();
+            Platform.runLater(() -> {
+                if (finalAddedCount > 0) {
+                    view.updateStatusLabel(String.format("%d개의 음악 파일이 추가되었습니다.", finalAddedCount), false);
                 }
-            } else if (baseName.matches("^\\d+\\.\\s*.*")) {
-                String withoutTrackNumber = baseName.replaceFirst("^\\d+\\.\\s*", "");
-                if (withoutTrackNumber.contains(" - ")) {
-                    String[] parts = withoutTrackNumber.split(" - ", 2);
-                    if (parts.length == 2) {
-                        artist = parts[0].trim();
-                        title = parts[1].trim();
+                
+                if (finalErrorCount > 0) {
+                    StringBuilder errorMsg = new StringBuilder();
+                    errorMsg.append(String.format("%d개 파일이 추가되지 못했습니다:\n", finalErrorCount));
+                    
+                    // 최대 5개까지만 표시
+                    int showCount = Math.min(finalErrorMessages.size(), 5);
+                    for (int i = 0; i < showCount; i++) {
+                        errorMsg.append("• ").append(finalErrorMessages.get(i)).append("\n");
                     }
-                } else {
-                    title = withoutTrackNumber;
+                    
+                    if (finalErrorMessages.size() > 5) {
+                        errorMsg.append(String.format("... 및 %d개 더", finalErrorMessages.size() - 5));
+                    }
+                    
+                    showAlert("경고", errorMsg.toString(), Alert.AlertType.WARNING);
                 }
-            }
-            
-            // 파일 크기 기반 대략적인 재생 시간 계산
-            long estimatedDuration = estimateDuration(file.length(), fileName);
-            
-            // LRC 파일 찾기
-            String lrcPath = findLrcFile(file);
-            
-            log.debug("MusicInfo 생성: {} - {} ({})", artist, title, UIUtils.formatTime(estimatedDuration));
-            
-            return new MusicInfo(title, artist, album, file.getAbsolutePath(), estimatedDuration, lrcPath);
-            
-        } catch (Exception e) {
-            log.error("MusicInfo 생성 중 오류: {}", file.getName(), e);
-            return new MusicInfo(file.getName(), "Unknown Artist", "Unknown Album", 
-                               file.getAbsolutePath(), 180000L, null);
-        }
+                
+                if (finalAddedCount == 0 && finalErrorCount > 0) {
+                    view.updateStatusLabel("선택한 파일 중 추가할 수 있는 음악 파일이 없습니다.", true);
+                }
+            });
+        });
+        
+        processThread.setName("MusicFileProcessor");
+        processThread.setDaemon(true);
+        processThread.start();
     }
     
-    private long estimateDuration(long fileSize, String fileName) {
-        String ext = fileName.toLowerCase();
-        long duration;
-        
-        if (ext.endsWith(".mp3")) {
-            duration = (fileSize * 1000) / (16 * 1024);
-        } else if (ext.endsWith(".wav")) {
-            duration = (fileSize * 1000) / (176 * 1024);
-        } else if (ext.endsWith(".flac")) {
-            duration = (fileSize * 1000) / (100 * 1024);
-        } else {
-            duration = 180000L; // 기본 3분
-        }
-        
-        return Math.max(10000L, Math.min(duration, 7200000L));
-    }
-    
-    private String findLrcFile(File musicFile) {
-        try {
-            String baseName = getFileNameWithoutExtension(musicFile.getName());
-            
-            // 같은 디렉토리에서 찾기
-            File lrcFile = new File(musicFile.getParent(), baseName + ".lrc");
-            if (lrcFile.exists()) {
-                return lrcFile.getAbsolutePath();
-            }
-            
-            // lyrics 폴더에서 찾기
-            File lyricsDir = new File("lyrics");
-            if (lyricsDir.exists()) {
-                File lrcInRootLyrics = new File(lyricsDir, baseName + ".lrc");
-                if (lrcInRootLyrics.exists()) {
-                    return lrcInRootLyrics.getAbsolutePath();
-                }
-            }
-        } catch (Exception e) {
-            log.debug("LRC 파일 찾기 실패: {}", musicFile.getName(), e);
-        }
-        
-        return null;
-    }
-
-    private String getFileNameWithoutExtension(String fileName) {
-        if (fileName == null) return "";
-        int lastDot = fileName.lastIndexOf('.');
-        return lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
-    }
-
     private void removeSelectedMusic() {
         String selectedPlaylist = view.getSelectedPlaylist();
         List<MusicInfo> selectedMusic = view.getSelectedMusicList();
@@ -370,5 +313,107 @@ public class PlaylistActionHandler {
         Platform.runLater(() -> {
             view.updatePlaylistItems(musicList);
         });
+    }
+    
+    /**
+     * 여러 파일을 한 번에 추가 (외부에서 호출)
+     */
+    public void addMusicFiles(List<File> files) {
+        String selectedPlaylist = view.getSelectedPlaylist();
+        if (selectedPlaylist == null) {
+            showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
+            return;
+        }
+        
+        if (files != null && !files.isEmpty()) {
+            addFilesToPlaylist(files, selectedPlaylist);
+        }
+    }
+    
+    /**
+     * 단일 파일 추가 (외부에서 호출)
+     */
+    public void addMusicFile(File file) {
+        if (file != null) {
+            addMusicFiles(List.of(file));
+        }
+    }
+    
+    /**
+     * 폴더에서 음악 파일들을 추가
+     */
+    public void addMusicFromDirectory(File directory, boolean recursive) {
+        if (directory == null || !directory.isDirectory()) {
+            showAlert("오류", "유효한 폴더를 선택해주세요.", Alert.AlertType.WARNING);
+            return;
+        }
+        
+        String selectedPlaylist = view.getSelectedPlaylist();
+        if (selectedPlaylist == null) {
+            showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
+            return;
+        }
+        
+        // 백그라운드에서 폴더 스캔
+        Thread scanThread = new Thread(() -> {
+            try {
+                Platform.runLater(() -> view.updateStatusLabel("폴더를 스캔하는 중...", false));
+                
+                List<File> musicFiles = findMusicFilesInDirectory(directory, recursive);
+                
+                if (musicFiles.isEmpty()) {
+                    Platform.runLater(() -> {
+                        view.updateStatusLabel("폴더에서 음악 파일을 찾을 수 없습니다.", true);
+                        showAlert("알림", "선택한 폴더에서 지원되는 음악 파일을 찾을 수 없습니다.", Alert.AlertType.INFORMATION);
+                    });
+                    return;
+                }
+                
+                Platform.runLater(() -> {
+                    view.updateStatusLabel(String.format("폴더에서 %d개의 음악 파일을 발견했습니다.", musicFiles.size()), false);
+                });
+                
+                // 파일들을 플레이리스트에 추가
+                addFilesToPlaylist(musicFiles, selectedPlaylist);
+                
+            } catch (Exception e) {
+                log.error("폴더 스캔 중 오류", e);
+                Platform.runLater(() -> {
+                    view.updateStatusLabel("폴더 스캔 중 오류가 발생했습니다.", true);
+                    showAlert("오류", "폴더 스캔 중 오류가 발생했습니다: " + e.getMessage(), Alert.AlertType.ERROR);
+                });
+            }
+        });
+        
+        scanThread.setName("DirectoryScanner");
+        scanThread.setDaemon(true);
+        scanThread.start();
+    }
+    
+    private List<File> findMusicFilesInDirectory(File directory, boolean recursive) {
+        List<File> musicFiles = new ArrayList<>();
+        
+        if (!directory.isDirectory()) {
+            return musicFiles;
+        }
+        
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return musicFiles;
+        }
+        
+        for (File file : files) {
+            if (file.isFile() && MusicInfoHelper.isSupportedAudioFile(file)) {
+                musicFiles.add(file);
+            } else if (file.isDirectory() && recursive && !file.getName().startsWith(".")) {
+                // 숨김 폴더는 스캔하지 않음
+                musicFiles.addAll(findMusicFilesInDirectory(file, true));
+            }
+        }
+        
+        // 파일명으로 정렬
+        musicFiles.sort((f1, f2) -> f1.getName().compareToIgnoreCase(f2.getName()));
+        
+        return musicFiles;
     }
 }

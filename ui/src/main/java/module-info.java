@@ -2,6 +2,7 @@ module synctune.ui.main {
     // JavaFX 모듈들
     requires javafx.controls;
     requires javafx.fxml;
+    requires java.desktop;
     
     // SyncTune SDK
     requires transitive synctune.sdk.main;
