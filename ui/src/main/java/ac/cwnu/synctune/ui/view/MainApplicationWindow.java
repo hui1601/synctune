@@ -542,4 +542,10 @@ public class MainApplicationWindow extends Stage {
     public PlaybackController getPlaybackController() {
         return playbackController;
     }
+    public PlayerControlsView getControlsView() {
+        return controlsView;
+    }
+    public PlaylistView getPlaylistView() {
+        return playlistView;
+    }
 }
