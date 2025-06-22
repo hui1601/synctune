@@ -7,10 +7,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javax.sound.sampled.AudioFileFormat;
+import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
+import javax.sound.sampled.DataLine;
 import javax.sound.sampled.FloatControl;
+import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
 import org.slf4j.Logger;
@@ -30,6 +34,7 @@ public class PlayerModule extends SyncTuneModule {
     
     // 실제 오디오 재생을 위한 컴포넌트들
     private AudioInputStream audioInputStream;
+    private AudioInputStream decodedAudioInputStream;
     private Clip audioClip;
     private FloatControl volumeControl;
     
@@ -56,6 +61,9 @@ public class PlayerModule extends SyncTuneModule {
             t.setDaemon(true);
             return t;
         });
+        
+        // 지원 가능한 오디오 포맷 로깅
+        logSupportedFormats();
         
         log.info("[{}] 모듈 초기화 완료.", getModuleName());
     }
@@ -108,6 +116,21 @@ public class PlayerModule extends SyncTuneModule {
     public void onSeekRequest(MediaControlEvent.RequestSeekEvent event) {
         log.info("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
         seekTo(event.getPositionMillis());
+    }
+
+    /**
+     * 지원 가능한 오디오 포맷 로깅
+     */
+    private void logSupportedFormats() {
+        try {
+            AudioFileFormat.Type[] types = AudioSystem.getAudioFileTypes();
+            log.info("지원되는 오디오 파일 형식:");
+            for (AudioFileFormat.Type type : types) {
+                log.info("  - {}", type.toString());
+            }
+        } catch (Exception e) {
+            log.debug("지원 형식 조회 실패: {}", e.getMessage());
+        }
     }
 
     /**
@@ -166,7 +189,7 @@ public class PlayerModule extends SyncTuneModule {
     }
     
     /**
-     * 실제 오디오 파일 로드
+     * 실제 오디오 파일 로드 (MP3 지원 포함)
      */
     private boolean loadAudioFile(File musicFile) {
         try {
@@ -174,14 +197,68 @@ public class PlayerModule extends SyncTuneModule {
             
             log.debug("오디오 파일 로드 시도: {}", musicFile.getName());
             
-            // 오디오 스트림 생성
-            audioInputStream = AudioSystem.getAudioInputStream(musicFile);
+            // 1단계: 원본 오디오 스트림 획득
+            try {
+                audioInputStream = AudioSystem.getAudioInputStream(musicFile);
+                log.debug("원본 오디오 스트림 생성 성공");
+            } catch (UnsupportedAudioFileException e) {
+                log.error("지원되지 않는 오디오 파일 형식: {} - {}", musicFile.getName(), e.getMessage());
+                return false;
+            }
             
-            // Clip 생성 및 오디오 로드
-            audioClip = AudioSystem.getClip();
-            audioClip.open(audioInputStream);
+            AudioFormat sourceFormat = audioInputStream.getFormat();
+            log.debug("원본 포맷: {}", formatToString(sourceFormat));
             
-            // 볼륨 컨트롤 설정
+            // 2단계: PCM 포맷으로 변환이 필요한지 확인
+            AudioFormat.Encoding targetEncoding = AudioFormat.Encoding.PCM_SIGNED;
+            AudioFormat targetFormat;
+            
+            if (sourceFormat.getEncoding().equals(targetEncoding)) {
+                // 이미 PCM 형식
+                decodedAudioInputStream = audioInputStream;
+                targetFormat = sourceFormat;
+                log.debug("이미 PCM 형식입니다.");
+            } else {
+                // PCM으로 변환 필요 (MP3 등)
+                log.debug("PCM 형식으로 변환 시도...");
+                
+                // 대상 포맷 생성
+                targetFormat = new AudioFormat(
+                    targetEncoding,
+                    sourceFormat.getSampleRate() == AudioSystem.NOT_SPECIFIED ? 44100.0f : sourceFormat.getSampleRate(),
+                    sourceFormat.getSampleSizeInBits() == AudioSystem.NOT_SPECIFIED ? 16 : sourceFormat.getSampleSizeInBits(),
+                    sourceFormat.getChannels() == AudioSystem.NOT_SPECIFIED ? 2 : sourceFormat.getChannels(),
+                    sourceFormat.getChannels() == AudioSystem.NOT_SPECIFIED ? 4 : (sourceFormat.getChannels() * 2),
+                    sourceFormat.getSampleRate() == AudioSystem.NOT_SPECIFIED ? 44100.0f : sourceFormat.getSampleRate(),
+                    false
+                );
+                
+                log.debug("대상 포맷: {}", formatToString(targetFormat));
+                
+                // 변환 가능한지 확인
+                if (!AudioSystem.isConversionSupported(targetFormat, sourceFormat)) {
+                    log.error("오디오 형식 변환이 지원되지 않습니다: {} -> {}", 
+                             sourceFormat.getEncoding(), targetFormat.getEncoding());
+                    return false;
+                }
+                
+                // 변환된 스트림 생성
+                decodedAudioInputStream = AudioSystem.getAudioInputStream(targetFormat, audioInputStream);
+                log.debug("PCM 변환 성공");
+            }
+            
+            // 3단계: Clip 생성 및 데이터 로드
+            DataLine.Info clipInfo = new DataLine.Info(Clip.class, targetFormat);
+            
+            if (!AudioSystem.isLineSupported(clipInfo)) {
+                log.error("오디오 라인이 지원되지 않습니다: {}", formatToString(targetFormat));
+                return false;
+            }
+            
+            audioClip = (Clip) AudioSystem.getLine(clipInfo);
+            audioClip.open(decodedAudioInputStream);
+            
+            // 4단계: 볼륨 컨트롤 설정
             if (audioClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
                 volumeControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
                 log.debug("볼륨 컨트롤 사용 가능");
@@ -189,16 +266,30 @@ public class PlayerModule extends SyncTuneModule {
                 log.debug("볼륨 컨트롤 지원되지 않음");
             }
             
-            log.info("오디오 파일 로드 성공: {}", musicFile.getName());
+            log.info("오디오 파일 로드 성공: {} (포맷: {})", musicFile.getName(), formatToString(targetFormat));
             return true;
             
-        } catch (UnsupportedAudioFileException e) {
-            log.warn("지원되지 않는 오디오 파일 형식: {} - {}", musicFile.getName(), e.getMessage());
+        } catch (LineUnavailableException e) {
+            log.error("오디오 라인을 사용할 수 없습니다: {}", e.getMessage());
             return false;
         } catch (Exception e) {
             log.error("오디오 파일 로드 실패: {} - {}", musicFile.getName(), e.getMessage(), e);
             return false;
         }
+    }
+    
+    /**
+     * AudioFormat을 읽기 쉬운 문자열로 변환
+     */
+    private String formatToString(AudioFormat format) {
+        return String.format("%s, %.1f Hz, %d bit, %d channels, %s, %s",
+            format.getEncoding(),
+            format.getSampleRate(),
+            format.getSampleSizeInBits(),
+            format.getChannels(),
+            format.isBigEndian() ? "big endian" : "little endian",
+            format.getFrameSize() + " bytes/frame"
+        );
     }
     
     /**
@@ -410,6 +501,11 @@ public class PlayerModule extends SyncTuneModule {
             if (audioClip != null) {
                 audioClip.close();
                 audioClip = null;
+            }
+            
+            if (decodedAudioInputStream != null) {
+                decodedAudioInputStream.close();
+                decodedAudioInputStream = null;
             }
             
             if (audioInputStream != null) {

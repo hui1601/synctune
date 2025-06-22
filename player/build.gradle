@@ -12,7 +12,7 @@ repositories {
 dependencies {
     api project(':sdk')
 
-    // MP3 디코딩을 위한 라이브러리 추가
+    // MP3 디코딩을 위한 라이브러리들
     implementation 'com.googlecode.soundlibs:mp3spi:1.9.5.4'
     implementation 'com.googlecode.soundlibs:jlayer:1.0.1.4'
     
@@ -21,6 +21,7 @@ dependencies {
     implementation 'com.googlecode.soundlibs:tritonus-share:0.3.7.4'
 
     testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
