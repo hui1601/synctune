@@ -18,6 +18,7 @@ import ac.cwnu.synctune.ui.view.PlaylistView;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 
 public class PlaylistActionHandler {
@@ -38,10 +39,16 @@ public class PlaylistActionHandler {
     }
 
     private void attachEventHandlers() {
-        // 곡 추가 버튼
+        // 파일 추가 버튼
         view.getAddButton().setOnAction(e -> {
-            log.debug("곡 추가 버튼 클릭됨");
+            log.debug("파일 추가 버튼 클릭됨");
             addMusicFiles();
+        });
+
+        // 폴더 추가 버튼 (새로 추가)
+        view.getAddFolderButton().setOnAction(e -> {
+            log.debug("폴더 추가 버튼 클릭됨");
+            addMusicFolderWithDialog();
         });
 
         // 곡 제거 버튼
@@ -81,6 +88,52 @@ public class PlaylistActionHandler {
             addFilesToPlaylist(selectedFiles);
         }
     }
+
+    /**
+     * 폴더 추가 다이얼로그 표시 (새로 추가)
+     */
+    private void addMusicFolderWithDialog() {
+        // 폴더 선택 다이얼로그
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("음악 폴더 선택");
+        
+        // 기본 폴더를 사용자 홈 디렉토리로 설정
+        try {
+            String userHome = System.getProperty("user.home");
+            File homeDir = new File(userHome);
+            if (homeDir.exists()) {
+                directoryChooser.setInitialDirectory(homeDir);
+            }
+        } catch (Exception e) {
+            log.debug("기본 폴더 설정 실패", e);
+        }
+        
+        File selectedDirectory = directoryChooser.showDialog(view.getScene().getWindow());
+        
+        if (selectedDirectory != null) {
+            // 하위 폴더 포함 여부 확인 다이얼로그
+            Alert recursiveAlert = new Alert(Alert.AlertType.CONFIRMATION);
+            recursiveAlert.setTitle("폴더 추가 방식 선택");
+            recursiveAlert.setHeaderText("폴더 내 음악 파일 검색 방식을 선택하세요");
+            recursiveAlert.setContentText("하위 폴더까지 포함하여 검색하시겠습니까?");
+            
+            ButtonType yesButton = new ButtonType("하위 폴더 포함");
+            ButtonType noButton = new ButtonType("현재 폴더만");
+            ButtonType cancelButton = new ButtonType("취소", ButtonType.CANCEL.getButtonData());
+            
+            recursiveAlert.getButtonTypes().setAll(yesButton, noButton, cancelButton);
+            
+            Optional<ButtonType> result = recursiveAlert.showAndWait();
+            if (result.isPresent()) {
+                if (result.get() == yesButton) {
+                    addMusicFromDirectory(selectedDirectory, true);  // 재귀적 검색
+                } else if (result.get() == noButton) {
+                    addMusicFromDirectory(selectedDirectory, false); // 현재 폴더만
+                }
+                // 취소인 경우 아무것도 하지 않음
+            }
+        }
+    }
     
     private void addFilesToPlaylist(List<File> files) {
         if (files.isEmpty()) return;
@@ -98,7 +151,7 @@ public class PlaylistActionHandler {
                     if (MusicInfoHelper.isSupportedAudioFile(file)) {
                         log.debug("음악 파일 처리 시작: {}", file.getName());
                         
-                        // MusicInfoHelper를 사용하여 정확한 메타데이터 추출
+                        // MusicInfoHelper를 사용하여 정확한 메타데이터 추출 (개선된 LRC 검색 포함)
                         MusicInfo musicInfo = MusicInfoHelper.createFromFile(file);
                         
                         Platform.runLater(() -> {
@@ -107,8 +160,9 @@ public class PlaylistActionHandler {
                         });
                         
                         addedCount++;
-                        log.debug("음악 파일 추가 완료: {} - {} ({}ms)", 
-                            musicInfo.getArtist(), musicInfo.getTitle(), musicInfo.getDurationMillis());
+                        log.debug("음악 파일 추가 완료: {} - {} ({}ms) [LRC: {}]", 
+                            musicInfo.getArtist(), musicInfo.getTitle(), musicInfo.getDurationMillis(),
+                            musicInfo.getLrcPath() != null ? "있음" : "없음");
                     } else {
                         errorCount++;
                         errorMessages.add(file.getName() + " (지원되지 않는 형식)");
@@ -342,13 +396,15 @@ public class PlaylistActionHandler {
     }
     
     /**
-     * 폴더에서 음악 파일들을 추가
+     * 폴더에서 음악 파일들을 추가 (개선된 버전)
      */
     public void addMusicFromDirectory(File directory, boolean recursive) {
         if (directory == null || !directory.isDirectory()) {
             showAlert("오류", "유효한 폴더를 선택해주세요.", Alert.AlertType.WARNING);
             return;
         }
+        
+        log.info("폴더에서 음악 파일 추가 시작: {} (재귀: {})", directory.getAbsolutePath(), recursive);
         
         // 백그라운드에서 폴더 스캔
         Thread scanThread = new Thread(() -> {
@@ -369,6 +425,8 @@ public class PlaylistActionHandler {
                     view.updateStatusLabel(String.format("폴더에서 %d개의 음악 파일을 발견했습니다.", musicFiles.size()), false);
                 });
                 
+                log.info("폴더 스캔 완료: {}개 파일 발견", musicFiles.size());
+                
                 // 파일들을 재생목록에 추가
                 addFilesToPlaylist(musicFiles);
                 
@@ -381,11 +439,14 @@ public class PlaylistActionHandler {
             }
         });
         
-        scanThread.setName("DirectoryScanner");
+        scanThread.setName("DirectoryScanner-" + directory.getName());
         scanThread.setDaemon(true);
         scanThread.start();
     }
     
+    /**
+     * 개선된 폴더 내 음악 파일 검색 (재귀 옵션 포함)
+     */
     private List<File> findMusicFilesInDirectory(File directory, boolean recursive) {
         List<File> musicFiles = new ArrayList<>();
         
@@ -401,15 +462,40 @@ public class PlaylistActionHandler {
         for (File file : files) {
             if (file.isFile() && MusicInfoHelper.isSupportedAudioFile(file)) {
                 musicFiles.add(file);
-            } else if (file.isDirectory() && recursive && !file.getName().startsWith(".")) {
-                // 숨김 폴더는 스캔하지 않음
-                musicFiles.addAll(findMusicFilesInDirectory(file, true));
+                log.debug("음악 파일 발견: {}", file.getAbsolutePath());
+            } else if (file.isDirectory() && recursive && !isExcludedDirectory(file)) {
+                // 재귀적으로 하위 디렉토리 스캔 (제외 디렉토리가 아닌 경우)
+                List<File> subDirFiles = findMusicFilesInDirectory(file, true);
+                musicFiles.addAll(subDirFiles);
+                log.debug("하위 디렉토리 스캔: {} ({}개 파일)", file.getName(), subDirFiles.size());
             }
         }
         
-        // 파일명으로 정렬
-        musicFiles.sort((f1, f2) -> f1.getName().compareToIgnoreCase(f2.getName()));
+        // 파일명으로 정렬 (자연스러운 순서)
+        musicFiles.sort((f1, f2) -> {
+            String name1 = f1.getName().toLowerCase();
+            String name2 = f2.getName().toLowerCase();
+            return name1.compareToIgnoreCase(name2);
+        });
         
         return musicFiles;
+    }
+    
+    /**
+     * 제외해야 할 디렉토리인지 확인
+     */
+    private boolean isExcludedDirectory(File directory) {
+        String dirName = directory.getName().toLowerCase();
+        
+        // 숨김 폴더나 시스템 폴더 제외
+        return dirName.startsWith(".") || 
+               dirName.equals("system") ||
+               dirName.equals("windows") ||
+               dirName.equals("program files") ||
+               dirName.equals("program files (x86)") ||
+               dirName.equals("$recycle.bin") ||
+               dirName.equals("recycler") ||
+               dirName.equals("temp") ||
+               dirName.equals("tmp");
     }
 }

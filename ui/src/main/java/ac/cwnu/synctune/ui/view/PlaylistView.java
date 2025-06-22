@@ -26,8 +26,9 @@ import org.slf4j.LoggerFactory;
 public class PlaylistView extends VBox {
     private static final Logger log = LoggerFactory.getLogger(PlaylistView.class);
     
-    // UI 컴포넌트들 - 플레이리스트 관리 버튼들 제거
+    // UI 컴포넌트들 - 폴더 추가 버튼 포함
     private StyledButton addButton;
+    private StyledButton addFolderButton;  // 새로 추가
     private StyledButton removeButton;
     private StyledButton clearButton;
     
@@ -109,8 +110,9 @@ public class PlaylistView extends VBox {
     }
 
     private void initializeComponents() {
-        // 버튼들 - 플레이리스트 생성/삭제 버튼 제거
-        addButton = new StyledButton("곡 추가", StyledButton.ButtonStyle.SUCCESS);
+        // 버튼들 - 폴더 추가 버튼 포함
+        addButton = new StyledButton("파일 추가", StyledButton.ButtonStyle.SUCCESS);
+        addFolderButton = new StyledButton("폴더 추가", StyledButton.ButtonStyle.SUCCESS);  // 새로 추가
         removeButton = new StyledButton("곡 제거", StyledButton.ButtonStyle.WARNING);
         clearButton = new StyledButton("전체 삭제", StyledButton.ButtonStyle.DANGER);
 
@@ -125,7 +127,7 @@ public class PlaylistView extends VBox {
         setupCustomCellFactories();
         
         // 상태 표시
-        statusLabel = new Label("곡을 추가하여 재생목록을 만드세요");
+        statusLabel = new Label("파일 추가나 폴더 추가 버튼으로 음악을 추가하세요");
         statusLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 11px;");
         
         musicCountLabel = new Label("곡: 0개");
@@ -136,7 +138,8 @@ public class PlaylistView extends VBox {
     }
 
     private void setupButtonTooltips() {
-        addButton.setTooltip(new Tooltip("음악 파일 추가"));
+        addButton.setTooltip(new Tooltip("음악 파일 선택해서 추가"));
+        addFolderButton.setTooltip(new Tooltip("폴더에서 음악 파일들을 모두 추가"));  // 새로 추가
         removeButton.setTooltip(new Tooltip("선택한 곡 제거"));
         clearButton.setTooltip(new Tooltip("재생목록 비우기"));
     }
@@ -158,12 +161,14 @@ public class PlaylistView extends VBox {
                         // 툴팁에 자세한 정보 표시
                         MusicInfo music = item.getMusicInfo();
                         Tooltip tooltip = new Tooltip();
+                        String lrcStatus = music.getLrcPath() != null ? "가사 파일 있음" : "가사 파일 없음";
                         tooltip.setText(String.format(
-                            "제목: %s\n아티스트: %s\n앨범: %s\n파일: %s",
+                            "제목: %s\n아티스트: %s\n앨범: %s\n파일: %s\n%s",
                             music.getTitle(),
                             music.getArtist(),
                             music.getAlbum(),
-                            new File(music.getFilePath()).getName()
+                            new File(music.getFilePath()).getName(),
+                            lrcStatus
                         ));
                         setTooltip(tooltip);
                         
@@ -177,6 +182,9 @@ public class PlaylistView extends VBox {
                                 setStyle("-fx-text-fill: #e74c3c; -fx-font-style: italic;");
                                 setText("❌ " + item.getDisplayText() + " (파일 없음)");
                             } else {
+                                // 가사 파일 여부에 따른 아이콘 추가
+                                String prefix = music.getLrcPath() != null ? "🎵 " : "";
+                                setText(prefix + item.getDisplayText());
                                 setStyle("-fx-text-fill: #2c3e50;");
                             }
                         }
@@ -198,7 +206,7 @@ public class PlaylistView extends VBox {
     private void layoutComponents() {
         setSpacing(15);
         setPadding(new Insets(15));
-        setPrefWidth(350);
+        setPrefWidth(380);  // 폴더 버튼 추가로 너비 조금 증가
         setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-width: 0 1 0 0;");
 
         // 제목과 통계
@@ -224,14 +232,15 @@ public class PlaylistView extends VBox {
     private VBox createMusicSection() {
         VBox section = new VBox(10);
         
-        // 곡 관리 버튼들
+        // 첫 번째 줄: 파일 추가, 폴더 추가 버튼
         HBox musicControls1 = new HBox(5);
         musicControls1.setAlignment(Pos.CENTER_LEFT);
-        musicControls1.getChildren().addAll(addButton, removeButton);
+        musicControls1.getChildren().addAll(addButton, addFolderButton);
         
+        // 두 번째 줄: 곡 제거, 전체 삭제 버튼
         HBox musicControls2 = new HBox(5);
         musicControls2.setAlignment(Pos.CENTER_LEFT);
-        musicControls2.getChildren().add(clearButton);
+        musicControls2.getChildren().addAll(removeButton, clearButton);
 
         section.getChildren().addAll(musicControls1, musicControls2, musicListView);
         return section;
@@ -259,6 +268,7 @@ public class PlaylistView extends VBox {
         ContextMenu musicContextMenu = new ContextMenu();
         MenuItem playItem = new MenuItem("재생");
         MenuItem removeItem = new MenuItem("목록에서 제거");
+        MenuItem showFileItem = new MenuItem("파일 위치 열기");  // 새로 추가
         
         playItem.setOnAction(e -> {
             MusicInfoItem selected = musicListView.getSelectionModel().getSelectedItem();
@@ -269,14 +279,46 @@ public class PlaylistView extends VBox {
         
         removeItem.setOnAction(e -> removeButton.fire());
         
-        musicContextMenu.getItems().addAll(playItem, removeItem);
+        showFileItem.setOnAction(e -> {
+            MusicInfoItem selected = musicListView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                showFileLocation(selected.getMusicInfo());
+            }
+        });
+        
+        musicContextMenu.getItems().addAll(playItem, new SeparatorMenuItem(), removeItem, showFileItem);
         musicListView.setContextMenu(musicContextMenu);
+    }
+
+    private void showFileLocation(MusicInfo music) {
+        try {
+            File musicFile = new File(music.getFilePath());
+            if (musicFile.exists()) {
+                // Windows
+                if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                    Runtime.getRuntime().exec("explorer.exe /select," + musicFile.getAbsolutePath());
+                }
+                // macOS
+                else if (System.getProperty("os.name").toLowerCase().contains("mac")) {
+                    Runtime.getRuntime().exec("open -R " + musicFile.getAbsolutePath());
+                }
+                // Linux
+                else {
+                    Runtime.getRuntime().exec("xdg-open " + musicFile.getParent());
+                }
+            } else {
+                showAlert("오류", "파일이 존재하지 않습니다: " + musicFile.getAbsolutePath(), Alert.AlertType.WARNING);
+            }
+        } catch (Exception e) {
+            log.error("파일 위치 열기 실패", e);
+            showAlert("오류", "파일 위치를 열 수 없습니다: " + e.getMessage(), Alert.AlertType.ERROR);
+        }
     }
 
     private void initializePlaylist() {
         Platform.runLater(() -> {
             updateCounts();
-            updateStatusLabel("곡을 추가하여 재생목록을 만드세요", false);
+            updateStatusLabel("파일 추가나 폴더 추가 버튼으로 음악을 추가하세요", false);
         });
     }
 
@@ -291,7 +333,12 @@ public class PlaylistView extends VBox {
     
     private void updateCounts() {
         Platform.runLater(() -> {
-            musicCountLabel.setText("곡: " + playlistItems.size() + "개");
+            int totalSongs = playlistItems.size();
+            long songsWithLyrics = playlistItems.stream()
+                .mapToLong(item -> item.getMusicInfo().getLrcPath() != null ? 1 : 0)
+                .sum();
+            
+            musicCountLabel.setText(String.format("곡: %d개 (가사: %d개)", totalSongs, songsWithLyrics));
         });
     }
 
@@ -475,7 +522,7 @@ public class PlaylistView extends VBox {
                     
                     // 플레이리스트가 비었을 때 안내 메시지
                     if (playlistItems.isEmpty()) {
-                        updateStatusLabel("재생목록이 비어있습니다. '곡 추가' 버튼으로 음악을 추가하세요.", false);
+                        updateStatusLabel("재생목록이 비어있습니다. 파일 추가나 폴더 추가 버튼으로 음악을 추가하세요.", false);
                     }
                 }
             });
@@ -503,12 +550,13 @@ public class PlaylistView extends VBox {
             currentPlayingMusic = null;
             updateCounts();
             updateButtonStates();
-            updateStatusLabel("재생목록이 비워졌습니다. '곡 추가' 버튼으로 음악을 추가하세요.", false);
+            updateStatusLabel("재생목록이 비워졌습니다. 파일 추가나 폴더 추가 버튼으로 음악을 추가하세요.", false);
         });
     }
 
-    // Getter 메서드들 - 플레이리스트 관련 제거
+    // Getter 메서드들 - 폴더 추가 버튼 포함
     public StyledButton getAddButton() { return addButton; }
+    public StyledButton getAddFolderButton() { return addFolderButton; }  // 새로 추가
     public StyledButton getRemoveButton() { return removeButton; }
     public StyledButton getClearButton() { return clearButton; }
     

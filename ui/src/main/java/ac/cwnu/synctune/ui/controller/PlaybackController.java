@@ -23,22 +23,23 @@ public class PlaybackController {
     private boolean isUserSeeking = false;
     private boolean isUserChangingVolume = false;
     
-    // 볼륨 변경 throttling을 위한 필드들
-    private Timeline volumeThrottle;
+    // 볼륨 변경 throttling을 위한 필드들 (이벤트 발행만 throttling)
+    private Timeline volumeEventThrottle;
     private double pendingVolumeValue = -1;
 
     public PlaybackController(PlayerControlsView view, EventPublisher publisher) {
         this.view = view;
         this.publisher = publisher;
-        initializeVolumeThrottle();
+        initializeVolumeEventThrottle();
         attachEventHandlers();
         log.debug("PlaybackController 초기화 완료");
     }
 
-    private void initializeVolumeThrottle() {
-        // 100ms마다 한 번씩만 볼륨 이벤트 발행 (throttling)
-        volumeThrottle = new Timeline(new javafx.animation.KeyFrame(
-            Duration.millis(100),
+    private void initializeVolumeEventThrottle() {
+        // 200ms마다 한 번씩만 볼륨 이벤트 발행 (throttling)
+        // UI 반응은 즉시, 이벤트 발행만 throttling
+        volumeEventThrottle = new Timeline(new javafx.animation.KeyFrame(
+            Duration.millis(200),
             e -> {
                 if (pendingVolumeValue >= 0) {
                     float volume = (float) (pendingVolumeValue / 100.0);
@@ -48,7 +49,7 @@ public class PlaybackController {
                 }
             }
         ));
-        volumeThrottle.setCycleCount(Timeline.INDEFINITE);
+        volumeEventThrottle.setCycleCount(Timeline.INDEFINITE);
     }
 
     private void attachEventHandlers() {
@@ -94,26 +95,28 @@ public class PlaybackController {
             }
         });
 
-        // ========== 개선된 볼륨 제어 ==========
+        // ========== 개선된 실시간 볼륨 제어 ==========
         
-        // 볼륨 슬라이더 - 실시간 반응 (throttling 적용)
+        // 볼륨 슬라이더 - 실시간 반응과 이벤트 발행 분리
         view.getVolumeSlider().valueProperty().addListener((obs, oldVal, newVal) -> {
             if (!isUserChangingVolume) {
                 // 프로그래매틱 변경인 경우는 무시
                 return;
             }
             
-            // throttling을 통한 실시간 볼륨 변경
-            pendingVolumeValue = newVal.doubleValue();
+            // 실시간 UI 피드백 (즉시)
+            updateVolumeDisplay(newVal.doubleValue());
             
-            if (!volumeThrottle.getStatus().equals(Timeline.Status.RUNNING)) {
-                volumeThrottle.play();
+            // 이벤트 발행은 throttling 적용
+            pendingVolumeValue = newVal.doubleValue();
+            if (!volumeEventThrottle.getStatus().equals(Timeline.Status.RUNNING)) {
+                volumeEventThrottle.play();
             }
             
             log.trace("볼륨 슬라이더 실시간 변경: {}%", newVal.intValue());
         });
         
-        // 볼륨 슬라이더 드래그 상태 추적 개선
+        // 볼륨 슬라이더 드래그 상태 추적
         view.getVolumeSlider().setOnMousePressed(e -> {
             isUserChangingVolume = true;
             log.trace("볼륨 슬라이더 드래그 시작");
@@ -121,7 +124,7 @@ public class PlaybackController {
         
         view.getVolumeSlider().setOnMouseReleased(e -> {
             isUserChangingVolume = false;
-            volumeThrottle.stop();
+            volumeEventThrottle.stop();
             
             // 최종 볼륨 값을 즉시 발행
             if (pendingVolumeValue >= 0) {
@@ -132,6 +135,20 @@ public class PlaybackController {
             }
             
             log.trace("볼륨 슬라이더 드래그 종료");
+        });
+        
+        // 마우스 휠로 볼륨 조절 (추가 기능)
+        view.getVolumeSlider().setOnScroll(e -> {
+            if (!isUserChangingVolume) {
+                double delta = e.getDeltaY() > 0 ? 5 : -5; // 5% 단위로 조절
+                double newValue = Math.max(0, Math.min(100, view.getVolumeSlider().getValue() + delta));
+                view.getVolumeSlider().setValue(newValue);
+                
+                // 즉시 이벤트 발행
+                float volume = (float) (newValue / 100.0);
+                publisher.publish(new VolumeControlEvent.RequestVolumeChangeEvent(volume));
+                log.debug("마우스 휠 볼륨 조절: {}%", newValue);
+            }
         });
         
         // 키보드로 볼륨 조절 시에도 즉시 반응
@@ -149,8 +166,37 @@ public class PlaybackController {
         view.getMuteButton().setOnAction(e -> {
             boolean muted = view.getMuteButton().isSelected();
             log.debug("음소거 버튼 클릭: {}", muted);
+            
+            // 즉시 UI 피드백
+            updateMuteDisplay(muted);
+            
+            // 이벤트 발행
             publisher.publish(new VolumeControlEvent.RequestMuteEvent(muted));
         });
+    }
+    
+    /**
+     * 실시간 볼륨 표시 업데이트 (UI 피드백용)
+     */
+    private void updateVolumeDisplay(double volumePercent) {
+        // 여기서 추가적인 UI 피드백을 구현할 수 있습니다
+        // 예: 볼륨 레벨 표시, 색상 변경 등
+        
+        // 음소거 버튼과 연동
+        if (volumePercent > 0 && view.getMuteButton().isSelected()) {
+            view.getMuteButton().setSelected(false);
+            updateMuteDisplay(false);
+        }
+    }
+    
+    /**
+     * 음소거 상태 표시 업데이트
+     */
+    private void updateMuteDisplay(boolean muted) {
+        view.getMuteButton().setText(muted ? "🔇" : "🔊");
+        
+        // 음소거 시 볼륨 슬라이더 비활성화 효과 (선택사항)
+        view.getVolumeSlider().setOpacity(muted ? 0.5 : 1.0);
     }
 
     // 재생 상태 이벤트 리스너들
@@ -226,6 +272,7 @@ public class PlaybackController {
             // 음소거 버튼 상태는 항상 업데이트
             if (view.getMuteButton().isSelected() != event.isMuted()) {
                 view.getMuteButton().setSelected(event.isMuted());
+                updateMuteDisplay(event.isMuted());
             }
         });
     }
@@ -249,6 +296,7 @@ public class PlaybackController {
                 view.getVolumeSlider().setValue(80);
             }
             view.getMuteButton().setSelected(false);
+            updateMuteDisplay(false);
             
             log.debug("PlaybackController 초기 상태로 리셋됨");
         });

@@ -15,13 +15,13 @@ import org.slf4j.LoggerFactory;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 
 /**
- * 음악 파일의 메타데이터를 추출하고 MusicInfo 객체를 생성하는 헬퍼 클래스
+ * 음악 파일의 메타데이터를 추출하고 MusicInfo 객체를 생성하는 헬퍼 클래스 (개선된 버전)
  */
 public class MusicInfoHelper {
     private static final Logger log = LoggerFactory.getLogger(MusicInfoHelper.class);
     
     /**
-     * 파일에서 MusicInfo 객체 생성 (실제 재생 시간 계산 포함)
+     * 파일에서 MusicInfo 객체 생성 (개선된 LRC 파일 찾기 포함)
      */
     public static MusicInfo createFromFile(File file) {
         if (file == null || !file.exists() || !file.isFile()) {
@@ -44,12 +44,201 @@ public class MusicInfoHelper {
         // 실제 재생 시간 계산
         long duration = calculateActualDuration(file);
         
-        // LRC 파일 찾기
-        String lrcPath = findLrcFile(file);
+        // LRC 파일 찾기 (개선된 버전)
+        String lrcPath = findBestMatchingLrcFile(file);
         
-        log.debug("MusicInfo 생성: {} - {} ({}ms)", artist, title, duration);
+        log.debug("MusicInfo 생성: {} - {} ({}ms) [LRC: {}]", 
+            artist, title, duration, lrcPath != null ? "있음" : "없음");
         
         return new MusicInfo(title, artist, album, file.getAbsolutePath(), duration, lrcPath);
+    }
+    
+    /**
+     * 개선된 LRC 파일 찾기 메서드
+     */
+    private static String findBestMatchingLrcFile(File musicFile) {
+        try {
+            String baseName = getFileNameWithoutExtension(musicFile.getName());
+            String parentDir = musicFile.getParent();
+            
+            // 1. 정확한 이름 매칭 우선
+            String[] exactMatchPaths = {
+                parentDir + File.separator + baseName + ".lrc",
+                parentDir + File.separator + baseName + ".LRC",
+                parentDir + File.separator + baseName + ".Lrc",
+                parentDir + File.separator + "lyrics" + File.separator + baseName + ".lrc",
+                "lyrics" + File.separator + baseName + ".lrc"
+            };
+            
+            for (String path : exactMatchPaths) {
+                File lrcFile = new File(path);
+                if (lrcFile.exists() && lrcFile.isFile()) {
+                    log.debug("정확한 LRC 매칭: {} -> {}", musicFile.getName(), lrcFile.getName());
+                    return lrcFile.getAbsolutePath();
+                }
+            }
+            
+            // 2. 디렉토리 내 모든 LRC 파일 중에서 가장 유사한 것 찾기
+            File parentDirectory = new File(parentDir);
+            File[] lrcFiles = parentDirectory.listFiles((dir, name) -> 
+                name.toLowerCase().endsWith(".lrc"));
+            
+            if (lrcFiles != null && lrcFiles.length > 0) {
+                File bestMatch = findBestSimilarLrcFile(musicFile, lrcFiles);
+                if (bestMatch != null) {
+                    log.debug("유사한 LRC 매칭: {} -> {}", musicFile.getName(), bestMatch.getName());
+                    return bestMatch.getAbsolutePath();
+                }
+            }
+            
+            // 3. lyrics 서브폴더에서도 검색
+            File lyricsSubDir = new File(parentDir, "lyrics");
+            if (lyricsSubDir.exists() && lyricsSubDir.isDirectory()) {
+                File[] lyricsSubFiles = lyricsSubDir.listFiles((dir, name) -> 
+                    name.toLowerCase().endsWith(".lrc"));
+                
+                if (lyricsSubFiles != null && lyricsSubFiles.length > 0) {
+                    File bestMatch = findBestSimilarLrcFile(musicFile, lyricsSubFiles);
+                    if (bestMatch != null) {
+                        log.debug("lyrics 폴더에서 유사한 LRC 매칭: {} -> {}", 
+                            musicFile.getName(), bestMatch.getName());
+                        return bestMatch.getAbsolutePath();
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.debug("LRC 파일 찾기 중 오류: {}", musicFile.getName(), e);
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 가장 유사한 LRC 파일 찾기
+     */
+    private static File findBestSimilarLrcFile(File musicFile, File[] lrcFiles) {
+        String musicBaseName = getFileNameWithoutExtension(musicFile.getName()).toLowerCase();
+        
+        // 특수 문자 제거하고 정규화
+        String normalizedMusicName = normalizeFileName(musicBaseName);
+        
+        File bestMatch = null;
+        double bestSimilarity = 0.0;
+        
+        for (File lrcFile : lrcFiles) {
+            String lrcBaseName = getFileNameWithoutExtension(lrcFile.getName()).toLowerCase();
+            String normalizedLrcName = normalizeFileName(lrcBaseName);
+            
+            // 1. 완전 일치 확인
+            if (normalizedMusicName.equals(normalizedLrcName)) {
+                return lrcFile;
+            }
+            
+            // 2. 유사도 계산
+            double similarity = calculateAdvancedSimilarity(normalizedMusicName, normalizedLrcName);
+            
+            // 3. 70% 이상 유사하면 후보로 고려
+            if (similarity > 0.7 && similarity > bestSimilarity) {
+                bestSimilarity = similarity;
+                bestMatch = lrcFile;
+            }
+        }
+        
+        // 최소 75% 이상 유사해야 매칭으로 인정
+        return bestSimilarity > 0.75 ? bestMatch : null;
+    }
+    
+    /**
+     * 파일명 정규화 (특수문자 제거, 공백 처리 등)
+     */
+    private static String normalizeFileName(String fileName) {
+        return fileName
+            .replaceAll("[\\[\\](){}]", "")  // 괄호 제거
+            .replaceAll("[_\\-]", " ")       // 언더스코어, 하이픈을 공백으로
+            .replaceAll("\\s+", " ")         // 연속 공백을 하나로
+            .replaceAll("^\\d+\\.?\\s*", "") // 앞의 숫자 제거 (트랙 번호)
+            .trim();
+    }
+    
+    /**
+     * 개선된 유사도 계산 (토큰 기반 + Levenshtein)
+     */
+    private static double calculateAdvancedSimilarity(String s1, String s2) {
+        if (s1.equals(s2)) return 1.0;
+        
+        // 1. 토큰 기반 유사도 (단어별 매칭)
+        String[] tokens1 = s1.split("\\s+");
+        String[] tokens2 = s2.split("\\s+");
+        
+        double tokenSimilarity = calculateTokenSimilarity(tokens1, tokens2);
+        
+        // 2. Levenshtein 기반 유사도
+        double editSimilarity = calculateEditSimilarity(s1, s2);
+        
+        // 3. 포함 관계 확인
+        double containmentSimilarity = calculateContainmentSimilarity(s1, s2);
+        
+        // 가중 평균으로 최종 유사도 계산
+        return (tokenSimilarity * 0.5) + (editSimilarity * 0.3) + (containmentSimilarity * 0.2);
+    }
+    
+    private static double calculateTokenSimilarity(String[] tokens1, String[] tokens2) {
+        if (tokens1.length == 0 && tokens2.length == 0) return 1.0;
+        if (tokens1.length == 0 || tokens2.length == 0) return 0.0;
+        
+        int matchCount = 0;
+        int totalTokens = Math.max(tokens1.length, tokens2.length);
+        
+        for (String token1 : tokens1) {
+            for (String token2 : tokens2) {
+                if (token1.length() > 2 && token2.length() > 2 && 
+                    (token1.contains(token2) || token2.contains(token1))) {
+                    matchCount++;
+                    break;
+                }
+            }
+        }
+        
+        return (double) matchCount / totalTokens;
+    }
+    
+    private static double calculateEditSimilarity(String s1, String s2) {
+        int maxLen = Math.max(s1.length(), s2.length());
+        if (maxLen == 0) return 1.0;
+        
+        int distance = levenshteinDistance(s1, s2);
+        return 1.0 - (double) distance / maxLen;
+    }
+    
+    private static double calculateContainmentSimilarity(String s1, String s2) {
+        if (s1.length() < 3 || s2.length() < 3) return 0.0;
+        
+        String longer = s1.length() > s2.length() ? s1 : s2;
+        String shorter = s1.length() > s2.length() ? s2 : s1;
+        
+        return longer.contains(shorter) ? 0.8 : 0.0;
+    }
+    
+    private static int levenshteinDistance(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+        
+        for (int i = 0; i <= s1.length(); i++) {
+            for (int j = 0; j <= s2.length(); j++) {
+                if (i == 0) {
+                    dp[i][j] = j;
+                } else if (j == 0) {
+                    dp[i][j] = i;
+                } else {
+                    dp[i][j] = Math.min(
+                        Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1),
+                        dp[i-1][j-1] + (s1.charAt(i-1) == s2.charAt(j-1) ? 0 : 1)
+                    );
+                }
+            }
+        }
+        
+        return dp[s1.length()][s2.length()];
     }
     
     /**
@@ -158,44 +347,6 @@ public class MusicInfoHelper {
         }
         
         return new String[]{artist, title};
-    }
-    
-    /**
-     * LRC 파일 찾기
-     */
-    private static String findLrcFile(File musicFile) {
-        try {
-            String baseName = getFileNameWithoutExtension(musicFile.getName());
-            
-            // 1. 같은 디렉토리에서 찾기
-            File lrcFile = new File(musicFile.getParent(), baseName + ".lrc");
-            if (lrcFile.exists()) {
-                return lrcFile.getAbsolutePath();
-            }
-            
-            // 2. lyrics 폴더에서 찾기
-            File lyricsDir = new File(musicFile.getParent(), "lyrics");
-            if (lyricsDir.exists()) {
-                File lrcInLyricsDir = new File(lyricsDir, baseName + ".lrc");
-                if (lrcInLyricsDir.exists()) {
-                    return lrcInLyricsDir.getAbsolutePath();
-                }
-            }
-            
-            // 3. 루트 lyrics 폴더에서 찾기
-            File rootLyricsDir = new File("lyrics");
-            if (rootLyricsDir.exists()) {
-                File lrcInRootLyrics = new File(rootLyricsDir, baseName + ".lrc");
-                if (lrcInRootLyrics.exists()) {
-                    return lrcInRootLyrics.getAbsolutePath();
-                }
-            }
-            
-        } catch (Exception e) {
-            log.debug("LRC 파일 찾기 중 오류: {}", musicFile.getName(), e);
-        }
-        
-        return null;
     }
     
     /**

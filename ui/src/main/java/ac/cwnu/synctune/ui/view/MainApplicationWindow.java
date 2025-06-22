@@ -16,6 +16,7 @@ import ac.cwnu.synctune.ui.controller.PlaylistActionHandler;
 import ac.cwnu.synctune.ui.controller.WindowStateManager;
 import ac.cwnu.synctune.ui.util.MusicInfoHelper;
 import ac.cwnu.synctune.ui.util.UIUtils;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -27,6 +28,7 @@ import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
@@ -52,9 +54,9 @@ public class MainApplicationWindow extends Stage {
     public MainApplicationWindow(EventPublisher publisher) {
         this.eventPublisher = publisher;
         setTitle("SyncTune Player");
-        setWidth(1200); // 너비 증가: 1000 -> 1200
+        setWidth(1200);
         setHeight(700);
-        setMinWidth(1000); // 최소 너비 증가: 800 -> 1000
+        setMinWidth(1000);
         setMinHeight(600);
         
         initUI();
@@ -89,6 +91,9 @@ public class MainApplicationWindow extends Stage {
         
         Scene scene = new Scene(root);
         setScene(scene);
+        
+        // 드래그 앤 드롭 설정 (Scene이 생성된 후)
+        Platform.runLater(this::setupDragAndDrop);
     }
 
     private MenuBar createMenuBar() {
@@ -209,7 +214,57 @@ public class MainApplicationWindow extends Stage {
         });
     }
 
-    // 메뉴 액션 구현들
+    // ========== 드래그 앤 드롭 지원 ==========
+    
+    private void setupDragAndDrop() {
+        getScene().setOnDragOver(event -> {
+            if (event.getDragboard().hasFiles()) {
+                event.acceptTransferModes(TransferMode.COPY);
+            }
+            event.consume();
+        });
+        
+        getScene().setOnDragDropped(event -> {
+            var dragboard = event.getDragboard();
+            boolean success = false;
+            
+            if (dragboard.hasFiles()) {
+                List<File> files = dragboard.getFiles();
+                
+                // 폴더와 파일 분리
+                List<File> musicFiles = new java.util.ArrayList<>();
+                List<File> directories = new java.util.ArrayList<>();
+                
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        directories.add(file);
+                    } else if (MusicInfoHelper.isSupportedAudioFile(file)) {
+                        musicFiles.add(file);
+                    }
+                }
+                
+                // 폴더가 있으면 폴더 내 음악 파일 검색
+                for (File dir : directories) {
+                    musicFiles.addAll(findMusicFilesInDirectory(dir));
+                }
+                
+                if (!musicFiles.isEmpty()) {
+                    processSelectedMusicFiles(musicFiles);
+                    success = true;
+                } else {
+                    UIUtils.showError("오류", "지원되는 음악 파일이 없습니다.");
+                }
+            }
+            
+            event.setDropCompleted(success);
+            event.consume();
+        });
+        
+        log.info("드래그 앤 드롭 기능이 활성화되었습니다.");
+    }
+
+    // ========== 메뉴 액션 구현들 - 개선된 버전 ==========
+    
     private void openMusicFiles() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("음악 파일 열기");
@@ -245,18 +300,81 @@ public class MainApplicationWindow extends Stage {
                 UIUtils.showInfo("알림", String.format("%d개의 지원되지 않는 파일이 제외되었습니다.", unsupportedCount));
             }
             
-            // 첫 번째 파일 재생
-            File firstFile = validMusicFiles.get(0);
-            playMusicFile(firstFile);
+            // 상태 표시
+            playlistView.updateStatusLabel("파일을 처리하는 중...", false);
             
-            // 나머지 파일들을 재생목록에 추가
-            for (int i = 1; i < validMusicFiles.size(); i++) {
-                addFileToCurrentPlaylist(validMusicFiles.get(i));
-            }
+            // 백그라운드에서 파일 처리
+            Thread processThread = new Thread(() -> {
+                try {
+                    // 모든 파일을 MusicInfo로 변환
+                    List<MusicInfo> musicInfoList = new java.util.ArrayList<>();
+                    
+                    for (int i = 0; i < validMusicFiles.size(); i++) {
+                        File file = validMusicFiles.get(i);
+                        final int currentIndex = i + 1;
+                        final int totalFiles = validMusicFiles.size();
+                        
+                        try {
+                            MusicInfo musicInfo = MusicInfoHelper.createFromFile(file);
+                            musicInfoList.add(musicInfo);
+                            log.debug("파일 처리 완료: {} - {}", musicInfo.getArtist(), musicInfo.getTitle());
+                            
+                            // 진행 상황 업데이트
+                            Platform.runLater(() -> {
+                                String status = String.format("처리 중... (%d/%d) %s", 
+                                    currentIndex, totalFiles, file.getName());
+                                playlistView.updateStatusLabel(status, false);
+                            });
+                            
+                        } catch (Exception e) {
+                            log.error("파일 처리 실패: {}", file.getName(), e);
+                            Platform.runLater(() -> {
+                                UIUtils.showError("경고", "파일 처리 실패: " + file.getName() + "\n" + e.getMessage());
+                            });
+                        }
+                    }
+                    
+                    if (musicInfoList.isEmpty()) {
+                        Platform.runLater(() -> {
+                            UIUtils.showError("오류", "처리할 수 있는 음악 파일이 없습니다.");
+                            playlistView.updateStatusLabel("파일 처리 실패", true);
+                        });
+                        return;
+                    }
+                    
+                    Platform.runLater(() -> {
+                        // 1. 모든 파일을 재생목록에 추가
+                        log.info("재생목록에 {}개 파일 추가 시작", musicInfoList.size());
+                        for (MusicInfo musicInfo : musicInfoList) {
+                            playlistActionHandler.addMusicToCurrentPlaylist(musicInfo);
+                        }
+                        
+                        // 2. 첫 번째 파일 재생
+                        MusicInfo firstMusic = musicInfoList.get(0);
+                        log.info("첫 번째 파일 재생 요청: {} - {}", firstMusic.getArtist(), firstMusic.getTitle());
+                        eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(firstMusic));
+                        
+                        // 3. 완료 메시지
+                        String message = musicInfoList.size() == 1 ? 
+                            "음악 파일이 재생목록에 추가되고 재생이 시작되었습니다." :
+                            String.format("%d개의 음악 파일이 재생목록에 추가되었습니다.", musicInfoList.size());
+                        
+                        playlistView.updateStatusLabel("파일 추가 완료", false);
+                        UIUtils.showInfo("완료", message);
+                    });
+                    
+                } catch (Exception e) {
+                    log.error("파일 처리 중 전체 오류", e);
+                    Platform.runLater(() -> {
+                        UIUtils.showError("오류", "파일 처리 중 오류가 발생했습니다: " + e.getMessage());
+                        playlistView.updateStatusLabel("파일 처리 오류", true);
+                    });
+                }
+            });
             
-            if (validMusicFiles.size() > 1) {
-                UIUtils.showInfo("완료", String.format("총 %d개의 음악 파일이 처리되었습니다.", validMusicFiles.size()));
-            }
+            processThread.setName("MusicFileProcessor");
+            processThread.setDaemon(true);
+            processThread.start();
             
         } catch (Exception e) {
             log.error("음악 파일 처리 중 오류", e);
@@ -276,33 +394,48 @@ public class MainApplicationWindow extends Stage {
     
     private void processMusicFolder(File directory) {
         try {
-            // 폴더 내 음악 파일 검색
-            List<File> musicFiles = findMusicFilesInDirectory(directory);
+            // 상태 표시
+            playlistView.updateStatusLabel("폴더를 스캔하는 중...", false);
             
-            if (musicFiles.isEmpty()) {
-                UIUtils.showInfo("알림", "선택한 폴더에서 지원되는 음악 파일을 찾을 수 없습니다.");
-                return;
-            }
-            
-            // 확인 다이얼로그
-            Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-            confirmAlert.setTitle("폴더 로드");
-            confirmAlert.setHeaderText("음악 파일 로드");
-            confirmAlert.setContentText(String.format("%d개의 음악 파일을 발견했습니다.\n모두 재생목록에 추가하시겠습니까?", musicFiles.size()));
-            
-            Optional<ButtonType> result = confirmAlert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
-                // 첫 번째 파일 재생하고 나머지는 재생목록에 추가
-                if (!musicFiles.isEmpty()) {
-                    playMusicFile(musicFiles.get(0));
+            // 백그라운드에서 폴더 스캔
+            Thread scanThread = new Thread(() -> {
+                try {
+                    // 폴더 내 음악 파일 검색
+                    List<File> musicFiles = findMusicFilesInDirectory(directory);
                     
-                    for (int i = 1; i < musicFiles.size(); i++) {
-                        addFileToCurrentPlaylist(musicFiles.get(i));
-                    }
+                    Platform.runLater(() -> {
+                        if (musicFiles.isEmpty()) {
+                            UIUtils.showInfo("알림", "선택한 폴더에서 지원되는 음악 파일을 찾을 수 없습니다.");
+                            playlistView.updateStatusLabel("음악 파일 없음", true);
+                            return;
+                        }
+                        
+                        // 확인 다이얼로그
+                        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                        confirmAlert.setTitle("폴더 로드");
+                        confirmAlert.setHeaderText("음악 파일 로드");
+                        confirmAlert.setContentText(String.format("%d개의 음악 파일을 발견했습니다.\n모두 재생목록에 추가하시겠습니까?", musicFiles.size()));
+                        
+                        Optional<ButtonType> result = confirmAlert.showAndWait();
+                        if (result.isPresent() && result.get() == ButtonType.OK) {
+                            processSelectedMusicFiles(musicFiles);
+                        } else {
+                            playlistView.updateStatusLabel("폴더 로드 취소됨", false);
+                        }
+                    });
+                    
+                } catch (Exception e) {
+                    log.error("폴더 스캔 중 오류", e);
+                    Platform.runLater(() -> {
+                        UIUtils.showError("오류", "폴더 스캔 중 오류가 발생했습니다: " + e.getMessage());
+                        playlistView.updateStatusLabel("폴더 스캔 오류", true);
+                    });
                 }
-                
-                UIUtils.showInfo("완료", String.format("%d개의 음악 파일이 로드되었습니다.", musicFiles.size()));
-            }
+            });
+            
+            scanThread.setName("FolderScanner");
+            scanThread.setDaemon(true);
+            scanThread.start();
             
         } catch (Exception e) {
             log.error("폴더 처리 중 오류", e);
@@ -329,7 +462,8 @@ public class MainApplicationWindow extends Stage {
         for (File file : files) {
             if (file.isFile() && MusicInfoHelper.isSupportedAudioFile(file)) {
                 musicFiles.add(file);
-            } else if (file.isDirectory() && recursive) {
+            } else if (file.isDirectory() && recursive && !file.getName().startsWith(".")) {
+                // 숨김 폴더는 스캔하지 않음
                 musicFiles.addAll(findMusicFilesRecursive(file, true));
             }
         }
@@ -339,6 +473,8 @@ public class MainApplicationWindow extends Stage {
         
         return musicFiles;
     }
+    
+    // ========== 기타 메뉴 액션들 ==========
     
     private void requestClose() {
         if (windowStateManager != null) {
@@ -390,6 +526,10 @@ public class MainApplicationWindow extends Stage {
             기타:
             F1 - 이 도움말
             Ctrl+Enter - 선택한 곡 재생
+            
+            팁:
+            • 음악 파일이나 폴더를 창에 드래그해서 추가할 수 있습니다
+            • 볼륨 슬라이더에서 마우스 휠로 볼륨 조절이 가능합니다
             """;
         
         dialog.setContentText(shortcuts);
@@ -411,6 +551,8 @@ public class MainApplicationWindow extends Stage {
             • 실제 재생 시간 자동 계산
             • LRC 가사 파일 지원 및 실시간 동기화
             • 간편한 재생목록 관리
+            • 드래그 앤 드롭 지원
+            • 실시간 볼륨 조절
             • 모듈형 아키텍처
             • 이벤트 기반 모듈 간 통신
             
@@ -420,35 +562,6 @@ public class MainApplicationWindow extends Stage {
         
         dialog.setContentText(about);
         dialog.showAndWait();
-    }
-    
-    // 헬퍼 메서드들
-    private void playMusicFile(File musicFile) {
-        try {
-            log.info("음악 파일 재생 시도: {}", musicFile.getName());
-            
-            // MusicInfoHelper를 사용하여 정확한 메타데이터와 재생시간 계산
-            MusicInfo musicInfo = MusicInfoHelper.createFromFile(musicFile);
-            
-            log.info("음악 파일 재생 요청: {} - {} ({}ms)", 
-                musicInfo.getArtist(), musicInfo.getTitle(), musicInfo.getDurationMillis());
-            
-            eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(musicInfo));
-            
-        } catch (Exception e) {
-            UIUtils.showError("오류", "음악 파일을 재생할 수 없습니다: " + e.getMessage());
-            log.error("음악 파일 재생 실패: {}", musicFile.getAbsolutePath(), e);
-        }
-    }
-    
-    private void addFileToCurrentPlaylist(File musicFile) {
-        try {
-            MusicInfo musicInfo = MusicInfoHelper.createFromFile(musicFile);
-            playlistActionHandler.addMusicToCurrentPlaylist(musicInfo);
-            log.debug("재생목록에 파일 추가: {}", musicInfo.getTitle());
-        } catch (Exception e) {
-            log.error("재생목록에 파일 추가 실패: {}", musicFile.getAbsolutePath(), e);
-        }
     }
     
     private void playSelectedMusic() {
@@ -461,7 +574,8 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
-    // UI 업데이트 메서드들
+    // ========== UI 업데이트 메서드들 ==========
+    
     public void updateCurrentMusic(MusicInfo music) {
         if (music != null) {
             controlsView.updateMusicInfo(music);
@@ -488,9 +602,6 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
-    /**
-     * UIModule.stop()에서 호출되는 강제 종료 메서드
-     */
     public void forceClose() {
         try {
             setOnCloseRequest(null);
@@ -542,7 +653,6 @@ public class MainApplicationWindow extends Stage {
         return -1;
     }
 
-    // timestamp로 넘기는 updateLyrics
     public void updateLyrics(String lyric, long timestamp) {
         if (lyricsView != null) {
             if (lyric == null || lyric.trim().isEmpty() || lyric.equals("가사를 찾을 수 없습니다")) {
@@ -569,19 +679,23 @@ public class MainApplicationWindow extends Stage {
         }
     }
     
-    // Controller getters
+    // Getter 메서드들
     public PlaybackController getPlaybackController() {
         return playbackController;
     }
+    
     public PlayerControlsView getControlsView() {
         return controlsView;
     }
+    
     public PlaylistView getPlaylistView() {
         return playlistView;
     }
+    
     public LyricsView getLyricsView() {
-    return lyricsView;
+        return lyricsView;
     }
+    
     public PlaylistActionHandler getPlaylistActionHandler() {
         return playlistActionHandler;
     }
