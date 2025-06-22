@@ -6,6 +6,7 @@ import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
+import ac.cwnu.synctune.sdk.event.VolumeControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.ui.view.PlayerControlsView;
 import javafx.application.Platform;
@@ -18,6 +19,7 @@ public class PlaybackController {
     private boolean isPlaybackActive = false;
     private boolean isPaused = false;
     private boolean isUserSeeking = false;
+    private boolean isUserChangingVolume = false; // 사용자가 볼륨을 조절 중인지 추적
 
     public PlaybackController(PlayerControlsView view, EventPublisher publisher) {
         this.view = view;
@@ -71,12 +73,30 @@ public class PlaybackController {
             }
         });
 
-        // 볼륨 슬라이더
+        // ========== 볼륨 제어 이벤트 핸들러들 ==========
+        
+        // 볼륨 슬라이더 - 값 변경 시 즉시 반영
         view.getVolumeSlider().valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (!view.getVolumeSlider().isValueChanging()) {
-                // TODO: 볼륨 변경 이벤트 추가 시 구현
-                log.debug("볼륨 변경: {}%", newVal.intValue());
+            if (!isUserChangingVolume) {
+                // 프로그래매틱하게 변경된 경우는 무시 (무한 루프 방지)
+                return;
             }
+            
+            float volume = newVal.floatValue() / 100.0f; // 0-100을 0.0-1.0으로 변환
+            log.debug("볼륨 슬라이더 변경: {}% -> {}", newVal.intValue(), volume);
+            publisher.publish(new VolumeControlEvent.RequestVolumeChangeEvent(volume));
+        });
+        
+        // 볼륨 슬라이더 드래그 상태 추적
+        view.getVolumeSlider().valueChangingProperty().addListener((obs, wasChanging, isChanging) -> {
+            isUserChangingVolume = isChanging;
+        });
+        
+        // 음소거 버튼
+        view.getMuteButton().setOnAction(e -> {
+            boolean muted = view.getMuteButton().isSelected();
+            log.debug("음소거 버튼 클릭: {}", muted);
+            publisher.publish(new VolumeControlEvent.RequestMuteEvent(muted));
         });
     }
 
@@ -113,7 +133,7 @@ public class PlaybackController {
         
             // 정지 시 진행바도 초기화
             if (!isUserSeeking()) {
-            view.getProgressSlider().setValue(0);
+                view.getProgressSlider().setValue(0);
             }
         
             log.debug("정지 상태로 버튼 업데이트됨");
@@ -129,6 +149,28 @@ public class PlaybackController {
             isPaused = false;
             updateButtonStates();
             log.debug("음악 변경으로 재생 상태로 버튼 업데이트됨");
+        });
+    }
+    
+    // ========== 볼륨 상태 이벤트 리스너 ==========
+    
+    @EventListener
+    public void onVolumeChanged(VolumeControlEvent.VolumeChangedEvent event) {
+        log.debug("PlaybackController: VolumeChangedEvent 수신 - 볼륨: {}%, 음소거: {}", 
+            event.getVolume() * 100, event.isMuted());
+        
+        Platform.runLater(() -> {
+            // 사용자가 조절 중이 아닐 때만 UI 업데이트 (무한 루프 방지)
+            if (!isUserChangingVolume) {
+                // 볼륨 슬라이더 업데이트 (0.0-1.0을 0-100으로 변환)
+                view.getVolumeSlider().setValue(event.getVolume() * 100);
+            }
+            
+            // 음소거 버튼 상태 업데이트
+            view.getMuteButton().setSelected(event.isMuted());
+            
+            log.debug("볼륨 UI 업데이트 완료: {}%, 음소거: {}", 
+                event.getVolume() * 100, event.isMuted());
         });
     }
 
@@ -159,6 +201,13 @@ public class PlaybackController {
             isPaused = false;
             updateButtonStates();
             view.getProgressSlider().setValue(0);
+            
+            // 볼륨도 기본값으로 리셋
+            if (!isUserChangingVolume) {
+                view.getVolumeSlider().setValue(80); // 80% 기본값
+            }
+            view.getMuteButton().setSelected(false);
+            
             log.debug("PlaybackController 초기 상태로 리셋됨");
         });
     }

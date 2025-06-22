@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
@@ -25,6 +26,7 @@ import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistQueryEvent;
+import ac.cwnu.synctune.sdk.event.VolumeControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
@@ -46,6 +48,10 @@ public class PlayerModule extends SyncTuneModule {
     private final AtomicLong currentPosition = new AtomicLong(0);
     private final AtomicLong totalDuration = new AtomicLong(0);
     private final AtomicLong pausePosition = new AtomicLong(0);
+    
+    // 볼륨 관리
+    private final AtomicReference<Float> currentVolume = new AtomicReference<>(0.8f); // 기본 80%
+    private final AtomicBoolean isMuted = new AtomicBoolean(false);
     
     // 자동 재생 관련
     private final AtomicBoolean autoPlayNextEnabled = new AtomicBoolean(true);
@@ -135,6 +141,20 @@ public class PlayerModule extends SyncTuneModule {
         requestPreviousMusic();
     }
 
+    // ========== 볼륨 제어 이벤트 리스너들 ==========
+    
+    @EventListener
+    public void onVolumeChangeRequest(VolumeControlEvent.RequestVolumeChangeEvent event) {
+        log.debug("[{}] 볼륨 변경 요청: {}%", getModuleName(), event.getVolume() * 100);
+        setVolume(event.getVolume());
+    }
+    
+    @EventListener
+    public void onMuteRequest(VolumeControlEvent.RequestMuteEvent event) {
+        log.debug("[{}] 음소거 요청: {}", getModuleName(), event.isMuted());
+        setMuted(event.isMuted());
+    }
+
     @EventListener
     public void onNextMusicFound(PlaylistQueryEvent.NextMusicFoundEvent event) {
         log.info("[{}] 다음 곡 찾음: {}", getModuleName(), 
@@ -166,12 +186,23 @@ public class PlayerModule extends SyncTuneModule {
         log.info("[{}] 현재 재생 중인 곡이 플레이리스트에서 제거됨: {}", 
             getModuleName(), event.getRemovedMusic().getTitle());
         
-        // 현재 재생 중인 곡이 제거된 곡과 같은지 확인
-        if (currentMusic != null && currentMusic.equals(event.getRemovedMusic())) {
+        // 현재 재생 중인 곡이 제거된 곡과 같은지 확인 (더 안전한 비교)
+        if (currentMusic != null && isSameMusic(currentMusic, event.getRemovedMusic())) {
             log.info("[{}] 재생 중인 곡이 제거되어 재생을 정지합니다.", getModuleName());
             stopPlayback();
             currentMusic = null;
         }
+    }
+    
+    /**
+     * 두 MusicInfo가 같은 곡인지 안전하게 비교
+     */
+    private boolean isSameMusic(MusicInfo music1, MusicInfo music2) {
+        if (music1 == music2) return true;
+        if (music1 == null || music2 == null) return false;
+        
+        // 파일 경로로 비교 (MusicInfo.equals와 동일)
+        return music1.getFilePath().equals(music2.getFilePath());
     }
 
     /**
@@ -248,6 +279,9 @@ public class PlayerModule extends SyncTuneModule {
                         
                         // 실제 재생 시간 계산
                         calculateActualDuration();
+                        
+                        // 볼륨 적용
+                        applyVolumeSettings();
                         
                         log.info("실제 오디오 재생 시작: {} ({}ms)", music.getTitle(), totalDuration.get());
                     } else {
@@ -516,6 +550,73 @@ public class PlayerModule extends SyncTuneModule {
         log.debug("탐색 완료: {}ms", validPosition);
     }
 
+    // ========== 볼륨 제어 메서드들 ==========
+    
+    /**
+     * 볼륨 설정 (0.0 ~ 1.0)
+     */
+    private void setVolume(float volume) {
+        float validVolume = Math.max(0.0f, Math.min(1.0f, volume));
+        currentVolume.set(validVolume);
+        
+        // 볼륨이 0보다 크면 음소거 해제
+        if (validVolume > 0.0f && isMuted.get()) {
+            isMuted.set(false);
+        }
+        
+        applyVolumeSettings();
+        publishVolumeChangedEvent();
+        
+        log.debug("[{}] 볼륨 설정: {}%", getModuleName(), validVolume * 100);
+    }
+    
+    /**
+     * 음소거 설정
+     */
+    private void setMuted(boolean muted) {
+        isMuted.set(muted);
+        applyVolumeSettings();
+        publishVolumeChangedEvent();
+        
+        log.debug("[{}] 음소거 설정: {}", getModuleName(), muted);
+    }
+    
+    /**
+     * 실제 오디오 클립에 볼륨 적용
+     */
+    private void applyVolumeSettings() {
+        if (volumeControl == null) {
+            return; // 볼륨 컨트롤이 없으면 아무것도 하지 않음
+        }
+        
+        try {
+            float effectiveVolume = isMuted.get() ? 0.0f : currentVolume.get();
+            
+            // 볼륨을 데시벨로 변환 (0.0 ~ 1.0 -> dB)
+            float gainDB;
+            if (effectiveVolume <= 0.0f) {
+                gainDB = volumeControl.getMinimum(); // 최소 볼륨 (음소거)
+            } else {
+                // 로그 스케일 변환: 0.0~1.0을 MIN~MAX dB로 변환
+                float range = volumeControl.getMaximum() - volumeControl.getMinimum();
+                gainDB = volumeControl.getMinimum() + (range * effectiveVolume);
+            }
+            
+            volumeControl.setValue(gainDB);
+            log.trace("[{}] 오디오 클립 볼륨 적용: {}% -> {}dB", getModuleName(), effectiveVolume * 100, gainDB);
+            
+        } catch (Exception e) {
+            log.error("볼륨 적용 중 오류", e);
+        }
+    }
+    
+    /**
+     * 볼륨 변경 이벤트 발행
+     */
+    private void publishVolumeChangedEvent() {
+        publish(new VolumeControlEvent.VolumeChangedEvent(currentVolume.get(), isMuted.get()));
+    }
+
     /**
      * 진행 상황 업데이트 시작
      */
@@ -660,5 +761,13 @@ public class PlayerModule extends SyncTuneModule {
     public void setAutoPlayNextEnabled(boolean enabled) {
         autoPlayNextEnabled.set(enabled);
         log.info("[{}] 자동 다음 곡 재생: {}", getModuleName(), enabled ? "활성화" : "비활성화");
+    }
+    
+    public float getCurrentVolume() {
+        return currentVolume.get();
+    }
+    
+    public boolean isMuted() {
+        return isMuted.get();
     }
 }

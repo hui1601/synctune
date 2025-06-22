@@ -9,6 +9,7 @@ import ac.cwnu.synctune.sdk.event.LyricsEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistQueryEvent;
 import ac.cwnu.synctune.sdk.event.SystemEvent;
+import ac.cwnu.synctune.sdk.event.VolumeControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
@@ -207,6 +208,11 @@ public class UIModule extends SyncTuneModule {
                     mainWindow.getPlaylistView().setCurrentPlayingMusic(event.getCurrentMusic());
                 }
                 
+                // PlaylistActionHandler에도 현재 재생 중인 곡 전달 (추가된 부분)
+                if (mainWindow.getPlaylistActionHandler() != null) {
+                    mainWindow.getPlaylistActionHandler().setCurrentPlayingMusic(event.getCurrentMusic());
+                }
+                
                 // 버튼 상태 업데이트
                 if (mainWindow.getControlsView() != null) {
                     mainWindow.getControlsView().setPlaybackState(true, false);
@@ -239,6 +245,12 @@ public class UIModule extends SyncTuneModule {
                 if (mainWindow.getControlsView() != null) {
                     mainWindow.getControlsView().setPlaybackState(false, false);
                 }
+                
+                // PlaylistActionHandler에도 정지 상태 전달 (추가된 부분)
+                if (mainWindow.getPlaylistActionHandler() != null) {
+                    mainWindow.getPlaylistActionHandler().setCurrentPlayingMusic(null);
+                }
+                
                 // 정지 시 가사도 초기화
                 if (mainWindow.getLyricsView() != null) {
                     mainWindow.getLyricsView().updateLyricsByTimestamp(0);
@@ -318,6 +330,17 @@ public class UIModule extends SyncTuneModule {
                 }
             });
         }
+    }
+    
+    // ========== 볼륨 제어 이벤트 리스너 ==========
+    
+    @EventListener
+    public void onVolumeChanged(VolumeControlEvent.VolumeChangedEvent event) {
+        log.debug("볼륨 상태 변경 이벤트 수신: {}%, 음소거: {}", 
+            event.getVolume() * 100, event.isMuted());
+        
+        // PlaybackController가 이 이벤트를 처리하므로 UIModule에서는 별도 처리 불필요
+        // 필요하다면 상태바 업데이트 등을 여기서 할 수 있음
     }
 
     @EventListener

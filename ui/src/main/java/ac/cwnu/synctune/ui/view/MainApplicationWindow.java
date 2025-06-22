@@ -582,4 +582,7 @@ public class MainApplicationWindow extends Stage {
     public LyricsView getLyricsView() {
     return lyricsView;
     }
+    public PlaylistActionHandler getPlaylistActionHandler() {
+        return playlistActionHandler;
+    }
 }

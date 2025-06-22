@@ -232,6 +232,26 @@ public class StubModule extends SyncTuneModule implements ModuleLifecycleListene
                 getModuleName(), event.getPlaylists().size());
     }
 
+    // ========== VolumeControlEvents ==========
+    
+    @EventListener
+    public void onRequestVolumeChange(VolumeControlEvent.RequestVolumeChangeEvent event) {
+        log.info("[{}] Received VolumeControlEvent.RequestVolumeChangeEvent: Volume={}%", 
+            getModuleName(), event.getVolume() * 100);
+    }
+    
+    @EventListener
+    public void onRequestMute(VolumeControlEvent.RequestMuteEvent event) {
+        log.info("[{}] Received VolumeControlEvent.RequestMuteEvent: Muted={}", 
+            getModuleName(), event.isMuted());
+    }
+    
+    @EventListener
+    public void onVolumeChanged(VolumeControlEvent.VolumeChangedEvent event) {
+        log.info("[{}] Received VolumeControlEvent.VolumeChangedEvent: Volume={}%, Muted={}", 
+            getModuleName(), event.getVolume() * 100, event.isMuted());
+    }
+
     // SystemEvents
     @EventListener
     public void onApplicationReady(SystemEvent.ApplicationReadyEvent event) {
