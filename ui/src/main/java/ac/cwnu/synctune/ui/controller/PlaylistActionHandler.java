@@ -303,6 +303,8 @@ public class PlaylistActionHandler {
         scanThread.start();
     }
     
+    
+
     private List<File> findMusicFilesInDirectory(File directory, boolean recursive) {
         List<File> musicFiles = new ArrayList<>();
         

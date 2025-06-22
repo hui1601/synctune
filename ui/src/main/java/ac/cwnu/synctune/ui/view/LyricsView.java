@@ -145,8 +145,8 @@ public class LyricsView extends VBox {
             String text = lines.get(i).getText();
             Label lineLabel = new Label(text); // 줄 번호 제거
             lineLabel.setWrapText(true);
-            lineLabel.setStyle("-fx-text-fill: #2c3e50; -fx-padding: 8; -fx-font-size: 13px;"); // 패딩과 폰트 크기 증가
-            lineLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+            lineLabel.setStyle("-fx-text-fill: #2c3e50; -fx-padding: 8; -fx-font-size: 15px;"); // 13px → 15px
+            lineLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
             lineLabel.setPrefWidth(480); // ScrollPane에 맞는 더 큰 너비
             lineLabel.setMinHeight(30); // 최소 높이 설정으로 클릭하기 쉽게
             lyricsContainer.getChildren().add(lineLabel);

@@ -370,6 +370,32 @@ public class PlaylistView extends VBox {
         });
     }
 
+    private int currentPlayingIndex = -1;
+
+public MusicInfo getNextMusic() {
+    if (playlistItems.isEmpty()) return null;
+    
+    int nextIndex = (currentPlayingIndex + 1) % playlistItems.size();
+    return playlistItems.get(nextIndex).getMusicInfo();
+}
+
+    public MusicInfo getPreviousMusic() {
+        if (playlistItems.isEmpty()) return null;
+    
+        int prevIndex = currentPlayingIndex - 1;
+        if (prevIndex < 0) prevIndex = playlistItems.size() - 1;
+        return playlistItems.get(prevIndex).getMusicInfo();
+    }
+
+    public void setCurrentPlayingMusic(MusicInfo music) {
+        for (int i = 0; i < playlistItems.size(); i++) {
+            if (playlistItems.get(i).getMusicInfo().equals(music)) {
+                currentPlayingIndex = i;
+                break;
+            }
+        }
+    }
+
     // Getter 메서드들 - 플레이리스트 관련 제거
     public StyledButton getAddButton() { return addButton; }
     public StyledButton getRemoveButton() { return removeButton; }
