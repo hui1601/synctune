@@ -24,7 +24,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
@@ -53,9 +52,9 @@ public class MainApplicationWindow extends Stage {
     public MainApplicationWindow(EventPublisher publisher) {
         this.eventPublisher = publisher;
         setTitle("SyncTune Player");
-        setWidth(1000);
+        setWidth(1200); // 너비 증가: 1000 -> 1200
         setHeight(700);
-        setMinWidth(800);
+        setMinWidth(1000); // 최소 너비 증가: 800 -> 1000
         setMinHeight(600);
         
         initUI();
@@ -120,10 +119,6 @@ public class MainApplicationWindow extends Stage {
             KeyCombination.CONTROL_DOWN, KeyCombination.SHIFT_DOWN));
         openFolderMenuItem.setOnAction(e -> openMusicFolder());
         
-        MenuItem newPlaylistMenuItem = new MenuItem("새 플레이리스트...");
-        newPlaylistMenuItem.setAccelerator(new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN));
-        newPlaylistMenuItem.setOnAction(e -> createNewPlaylist());
-        
         SeparatorMenuItem separator = new SeparatorMenuItem();
         
         MenuItem exitMenuItem = new MenuItem("종료");
@@ -132,7 +127,6 @@ public class MainApplicationWindow extends Stage {
         
         fileMenu.getItems().addAll(
             openFileMenuItem, openFolderMenuItem, separator,
-            newPlaylistMenuItem, separator,
             exitMenuItem
         );
         
@@ -255,7 +249,7 @@ public class MainApplicationWindow extends Stage {
             File firstFile = validMusicFiles.get(0);
             playMusicFile(firstFile);
             
-            // 나머지 파일들을 현재 플레이리스트에 추가
+            // 나머지 파일들을 재생목록에 추가
             for (int i = 1; i < validMusicFiles.size(); i++) {
                 addFileToCurrentPlaylist(validMusicFiles.get(i));
             }
@@ -294,11 +288,11 @@ public class MainApplicationWindow extends Stage {
             Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
             confirmAlert.setTitle("폴더 로드");
             confirmAlert.setHeaderText("음악 파일 로드");
-            confirmAlert.setContentText(String.format("%d개의 음악 파일을 발견했습니다.\n모두 플레이리스트에 추가하시겠습니까?", musicFiles.size()));
+            confirmAlert.setContentText(String.format("%d개의 음악 파일을 발견했습니다.\n모두 재생목록에 추가하시겠습니까?", musicFiles.size()));
             
             Optional<ButtonType> result = confirmAlert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
-                // 첫 번째 파일 재생하고 나머지는 플레이리스트에 추가
+                // 첫 번째 파일 재생하고 나머지는 재생목록에 추가
                 if (!musicFiles.isEmpty()) {
                     playMusicFile(musicFiles.get(0));
                     
@@ -346,20 +340,6 @@ public class MainApplicationWindow extends Stage {
         return musicFiles;
     }
     
-    private void createNewPlaylist() {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("새 플레이리스트");
-        dialog.setHeaderText("새 플레이리스트를 만듭니다");
-        dialog.setContentText("플레이리스트 이름:");
-        
-        Optional<String> result = dialog.showAndWait();
-        result.ifPresent(name -> {
-            if (!name.trim().isEmpty()) {
-                playlistView.addPlaylist(name.trim());
-            }
-        });
-    }
-    
     private void requestClose() {
         if (windowStateManager != null) {
             windowStateManager.handleCloseRequest(null);
@@ -405,7 +385,6 @@ public class MainApplicationWindow extends Stage {
             파일:
             Ctrl+O - 파일 열기
             Ctrl+Shift+O - 폴더 열기
-            Ctrl+N - 새 플레이리스트
             Ctrl+Q - 종료
             
             기타:
@@ -431,7 +410,7 @@ public class MainApplicationWindow extends Stage {
             • 다양한 음악 형식 지원 (MP3, WAV, FLAC, M4A, AAC, OGG)
             • 실제 재생 시간 자동 계산
             • LRC 가사 파일 지원 및 실시간 동기화
-            • 플레이리스트 관리
+            • 간편한 재생목록 관리
             • 모듈형 아키텍처
             • 이벤트 기반 모듈 간 통신
             
@@ -466,9 +445,9 @@ public class MainApplicationWindow extends Stage {
         try {
             MusicInfo musicInfo = MusicInfoHelper.createFromFile(musicFile);
             playlistActionHandler.addMusicToCurrentPlaylist(musicInfo);
-            log.debug("플레이리스트에 파일 추가: {}", musicInfo.getTitle());
+            log.debug("재생목록에 파일 추가: {}", musicInfo.getTitle());
         } catch (Exception e) {
-            log.error("플레이리스트에 파일 추가 실패: {}", musicFile.getAbsolutePath(), e);
+            log.error("재생목록에 파일 추가 실패: {}", musicFile.getAbsolutePath(), e);
         }
     }
     
@@ -491,23 +470,9 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
-    /**
-     * 재생 진행 상황 업데이트 (가사 동기화 포함)
-     * 너무 자주 호출되지 않도록 최적화
-     */
-    private long lastLyricsUpdateTime = 0;
-    private static final long LYRICS_UPDATE_INTERVAL_MS = 100; // 100ms마다 가사 업데이트
-    
     public void updateProgress(long currentMs, long totalMs) {
         if (controlsView != null) {
             controlsView.updateProgress(currentMs, totalMs);
-        }
-        
-        // 가사 업데이트는 100ms 간격으로 제한하여 성능 최적화
-        if (lyricsView != null && 
-            (currentMs - lastLyricsUpdateTime) >= LYRICS_UPDATE_INTERVAL_MS) {
-            lyricsView.updateLyricsByTimestamp(currentMs);
-            lastLyricsUpdateTime = currentMs;
         }
     }
     
@@ -536,29 +501,57 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
-    /**
-     * @deprecated 타임스탬프 기반 업데이트를 사용하므로 더 이상 필요하지 않음
-     */
-    @Deprecated
     public int findCurrentLyricIndex(String lyric, long timestamp) {
-        // 타임스탬프 기반 업데이트로 이 메서드는 더 이상 사용되지 않음
+        List<LrcLine> allLyricsLines = lyricsView.getFullLyricsLines();
+        if (allLyricsLines == null) return -1;
+
+        String target = lyric.trim().toLowerCase();
+
+        // 탐색 범위: lastIndex ~ lastIndex+5
+        int start = lastIndex >= 0 ? lastIndex : 0;
+        int end = Math.min(allLyricsLines.size(), start + 5);
+
+        // 1. 근처 탐색
+        for (int i = start; i < end; i++) {
+            LrcLine line = allLyricsLines.get(i);
+            String lineText = line.getText().trim().toLowerCase();
+
+            if (lineText.equals(target) && Math.abs(line.getTimeMillis() - timestamp) <= 1000) {
+                if (i >= lastIndex) { // 인덱스가 뒤로 가는 경우만 허용
+                    lastIndex = i;
+                    return i;
+                }
+            }
+        }
+
+        // 2. 전체 탐색 (이전 탐색 범위 제외)
+        for (int i = 0; i < allLyricsLines.size(); i++) {
+            if (i >= start && i < end) continue;
+
+            LrcLine line = allLyricsLines.get(i);
+            String lineText = line.getText().trim().toLowerCase();
+
+            if (lineText.equals(target) && Math.abs(line.getTimeMillis() - timestamp) <= 1000) {
+                if (i >= lastIndex) {
+                    lastIndex = i;
+                    return i;
+                }
+            }
+        }
+
         return -1;
     }
 
-    /**
-     * @deprecated updateProgress()에서 자동으로 처리됨
-     */
-    @Deprecated
+    // timestamp로 넘기는 updateLyrics
     public void updateLyrics(String lyric, long timestamp) {
-        // updateProgress()에서 자동으로 타임스탬프 기반 업데이트가 처리됨
-    }
-
-    /**
-     * @deprecated updateProgress()에서 자동으로 처리됨
-     */
-    @Deprecated
-    public void updateLyrics(String lyric, int index) {
-        // updateProgress()에서 자동으로 타임스탬프 기반 업데이트가 처리됨
+        if (lyricsView != null) {
+            if (lyric == null || lyric.trim().isEmpty() || lyric.equals("가사를 찾을 수 없습니다")) {
+                lyricsView.showLyricsNotFound();
+            } else {
+                int idx = findCurrentLyricIndex(lyric, timestamp);
+                lyricsView.updateLyrics(lyric, idx);
+            }
+        }
     }
 
     public void setFullLyrics(List<LrcLine> lines) {
@@ -576,20 +569,17 @@ public class MainApplicationWindow extends Stage {
         }
     }
     
-    // Getter 메서드들
+    // Controller getters
     public PlaybackController getPlaybackController() {
         return playbackController;
     }
-    
     public PlayerControlsView getControlsView() {
         return controlsView;
     }
-    
     public PlaylistView getPlaylistView() {
         return playlistView;
     }
-    
     public LyricsView getLyricsView() {
-        return lyricsView;
+    return lyricsView;
     }
 }

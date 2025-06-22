@@ -12,10 +12,8 @@ import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
-import ac.cwnu.synctune.sdk.model.Playlist;
-import ac.cwnu.synctune.ui.view.PlaylistView;
 import ac.cwnu.synctune.ui.util.MusicInfoHelper;
-import ac.cwnu.synctune.ui.util.UIUtils;
+import ac.cwnu.synctune.ui.view.PlaylistView;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -26,91 +24,27 @@ public class PlaylistActionHandler {
     
     private final PlaylistView view;
     private final EventPublisher publisher;
+    private static final String PLAYLIST_NAME = "재생목록"; // 단일 플레이리스트 이름
 
     public PlaylistActionHandler(PlaylistView view, EventPublisher publisher) {
         this.view = view;
         this.publisher = publisher;
         attachEventHandlers();
-        log.debug("PlaylistActionHandler 초기화 완료");
+        log.debug("PlaylistActionHandler 초기화 완료 (단일 플레이리스트 모드)");
     }
 
     private void attachEventHandlers() {
-        // 플레이리스트 생성
-        view.getCreateButton().setOnAction(e -> createNewPlaylist());
-
-        // 플레이리스트 삭제
-        view.getDeleteButton().setOnAction(e -> deleteSelectedPlaylist());
-
         // 곡 추가 - 파일 선택
         view.getAddButton().setOnAction(e -> addMusicFiles());
 
         // 곡 제거
         view.getRemoveButton().setOnAction(e -> removeSelectedMusic());
         
-        // 플레이리스트 전체 삭제
+        // 재생목록 전체 삭제
         view.getClearButton().setOnAction(e -> clearCurrentPlaylist());
     }
 
-    private void createNewPlaylist() {
-        String name = view.getPlaylistNameInput();
-        if (name == null || name.trim().isEmpty()) {
-            showAlert("오류", "플레이리스트 이름을 입력해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 중복 이름 확인
-        if (view.getPlaylists().contains(name)) {
-            showAlert("오류", "이미 존재하는 플레이리스트 이름입니다.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        log.debug("새 플레이리스트 생성 요청: {}", name);
-        Playlist playlist = new Playlist(name);
-        publisher.publish(new PlaylistEvent.PlaylistCreatedEvent(playlist));
-        
-        // UI 업데이트
-        Platform.runLater(() -> {
-            view.addPlaylist(name);
-            view.clearPlaylistNameInput();
-        });
-    }
-
-    private void deleteSelectedPlaylist() {
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "삭제할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 기본 플레이리스트는 삭제 불가
-        if (view.isDefaultPlaylist(selectedPlaylist)) {
-            showAlert("오류", "기본 플레이리스트는 삭제할 수 없습니다.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        // 삭제 확인 다이얼로그
-        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("플레이리스트 삭제");
-        confirmAlert.setHeaderText("플레이리스트를 삭제하시겠습니까?");
-        confirmAlert.setContentText("플레이리스트 '" + selectedPlaylist + "'를 삭제하시겠습니까?");
-        
-        Optional<ButtonType> result = confirmAlert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            log.debug("플레이리스트 삭제 요청: {}", selectedPlaylist);
-            publisher.publish(new PlaylistEvent.PlaylistDeletedEvent(selectedPlaylist));
-            
-            // UI에서 즉시 제거
-            Platform.runLater(() -> view.removePlaylist(selectedPlaylist));
-        }
-    }
-
     private void addMusicFiles() {
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
         // 파일 선택 다이얼로그
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("음악 파일 선택");
@@ -131,11 +65,11 @@ public class PlaylistActionHandler {
         List<File> selectedFiles = fileChooser.showOpenMultipleDialog(view.getScene().getWindow());
         
         if (selectedFiles != null && !selectedFiles.isEmpty()) {
-            addFilesToPlaylist(selectedFiles, selectedPlaylist);
+            addFilesToPlaylist(selectedFiles);
         }
     }
     
-    private void addFilesToPlaylist(List<File> files, String playlistName) {
+    private void addFilesToPlaylist(List<File> files) {
         if (files.isEmpty()) return;
         
         view.updateStatusLabel("음악 파일을 추가하는 중...", false);
@@ -156,7 +90,7 @@ public class PlaylistActionHandler {
                         
                         Platform.runLater(() -> {
                             view.addMusicToCurrentPlaylist(musicInfo);
-                            publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(playlistName, musicInfo));
+                            publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(PLAYLIST_NAME, musicInfo));
                         });
                         
                         addedCount++;
@@ -213,18 +147,17 @@ public class PlaylistActionHandler {
     }
     
     private void removeSelectedMusic() {
-        String selectedPlaylist = view.getSelectedPlaylist();
         List<MusicInfo> selectedMusic = view.getSelectedMusicList();
         
-        if (selectedPlaylist == null || selectedMusic.isEmpty()) {
+        if (selectedMusic.isEmpty()) {
             showAlert("오류", "제거할 곡을 선택해주세요.", Alert.AlertType.WARNING);
             return;
         }
         
         // 확인 다이얼로그
         String message = selectedMusic.size() == 1 ? 
-            "선택한 곡을 플레이리스트에서 제거하시겠습니까?" :
-            String.format("선택한 %d개의 곡을 플레이리스트에서 제거하시겠습니까?", selectedMusic.size());
+            "선택한 곡을 재생목록에서 제거하시겠습니까?" :
+            String.format("선택한 %d개의 곡을 재생목록에서 제거하시겠습니까?", selectedMusic.size());
             
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("곡 제거");
@@ -234,8 +167,8 @@ public class PlaylistActionHandler {
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             selectedMusic.forEach(music -> {
-                log.debug("곡 제거 요청 - 플레이리스트: {}, 곡: {}", selectedPlaylist, music.getTitle());
-                publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(selectedPlaylist, music));
+                log.debug("곡 제거 요청 - 재생목록: {}, 곡: {}", PLAYLIST_NAME, music.getTitle());
+                publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(PLAYLIST_NAME, music));
                 
                 // UI에서 즉시 제거
                 Platform.runLater(() -> view.removeMusicFromCurrentPlaylist(music));
@@ -244,35 +177,28 @@ public class PlaylistActionHandler {
     }
     
     private void clearCurrentPlaylist() {
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "비울 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
         List<MusicInfo> allMusic = view.getAllMusicInCurrentPlaylist();
         if (allMusic.isEmpty()) {
-            showAlert("정보", "플레이리스트가 이미 비어있습니다.", Alert.AlertType.INFORMATION);
+            showAlert("정보", "재생목록이 이미 비어있습니다.", Alert.AlertType.INFORMATION);
             return;
         }
         
         // 확인 다이얼로그
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("플레이리스트 비우기");
-        confirmAlert.setHeaderText("플레이리스트의 모든 곡을 제거하시겠습니까?");
-        confirmAlert.setContentText(String.format("플레이리스트 '%s'의 모든 곡(%d개)을 제거하시겠습니까?", 
-                                                 selectedPlaylist, allMusic.size()));
+        confirmAlert.setTitle("재생목록 비우기");
+        confirmAlert.setHeaderText("재생목록의 모든 곡을 제거하시겠습니까?");
+        confirmAlert.setContentText(String.format("재생목록의 모든 곡(%d개)을 제거하시겠습니까?", allMusic.size()));
         
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             allMusic.forEach(music -> {
-                publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(selectedPlaylist, music));
+                publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(PLAYLIST_NAME, music));
             });
             
             // UI에서 즉시 제거
             Platform.runLater(() -> {
                 view.clearCurrentPlaylistItems();
-                view.updateStatusLabel("플레이리스트가 비워졌습니다.", false);
+                view.updateStatusLabel("재생목록이 비워졌습니다.", false);
             });
         }
     }
@@ -300,12 +226,11 @@ public class PlaylistActionHandler {
 
     // 외부에서 호출 가능한 메서드들
     public void addMusicToCurrentPlaylist(MusicInfo music) {
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist != null && music != null) {
+        if (music != null) {
             Platform.runLater(() -> {
                 view.addMusicToCurrentPlaylist(music);
             });
-            publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(selectedPlaylist, music));
+            publisher.publish(new PlaylistEvent.MusicAddedToPlaylistEvent(PLAYLIST_NAME, music));
         }
     }
 
@@ -319,14 +244,8 @@ public class PlaylistActionHandler {
      * 여러 파일을 한 번에 추가 (외부에서 호출)
      */
     public void addMusicFiles(List<File> files) {
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
         if (files != null && !files.isEmpty()) {
-            addFilesToPlaylist(files, selectedPlaylist);
+            addFilesToPlaylist(files);
         }
     }
     
@@ -345,12 +264,6 @@ public class PlaylistActionHandler {
     public void addMusicFromDirectory(File directory, boolean recursive) {
         if (directory == null || !directory.isDirectory()) {
             showAlert("오류", "유효한 폴더를 선택해주세요.", Alert.AlertType.WARNING);
-            return;
-        }
-        
-        String selectedPlaylist = view.getSelectedPlaylist();
-        if (selectedPlaylist == null) {
-            showAlert("오류", "곡을 추가할 플레이리스트를 선택해주세요.", Alert.AlertType.WARNING);
             return;
         }
         
@@ -373,8 +286,8 @@ public class PlaylistActionHandler {
                     view.updateStatusLabel(String.format("폴더에서 %d개의 음악 파일을 발견했습니다.", musicFiles.size()), false);
                 });
                 
-                // 파일들을 플레이리스트에 추가
-                addFilesToPlaylist(musicFiles, selectedPlaylist);
+                // 파일들을 재생목록에 추가
+                addFilesToPlaylist(musicFiles);
                 
             } catch (Exception e) {
                 log.error("폴더 스캔 중 오류", e);

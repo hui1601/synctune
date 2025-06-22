@@ -13,7 +13,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
@@ -27,29 +26,17 @@ import org.slf4j.LoggerFactory;
 public class PlaylistView extends VBox {
     private static final Logger log = LoggerFactory.getLogger(PlaylistView.class);
     
-    // UI 컴포넌트들
-    private TextField playlistNameInput;
-    private StyledButton createButton;
-    private StyledButton deleteButton;
+    // UI 컴포넌트들 - 플레이리스트 관리 버튼들 제거
     private StyledButton addButton;
     private StyledButton removeButton;
     private StyledButton clearButton;
     
-    private ListView<String> playlistListView;
     private ListView<MusicInfoItem> musicListView;
     private Label statusLabel;
-    private Label playlistCountLabel;
     private Label musicCountLabel;
     
-    // 데이터
-    private final ObservableList<String> playlists;
-    private final ObservableList<MusicInfoItem> currentPlaylistItems;
-    
-    // 현재 선택된 플레이리스트
-    private String selectedPlaylistName;
-    
-    // 기본 플레이리스트 목록
-    private static final List<String> DEFAULT_PLAYLISTS = List.of("즐겨찾기", "최근 재생");
+    // 데이터 - 단일 플레이리스트만 사용
+    private final ObservableList<MusicInfoItem> playlistItems;
     
     private EventPublisher eventPublisher;
     
@@ -104,48 +91,33 @@ public class PlaylistView extends VBox {
 
     public PlaylistView(EventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
-        playlists = FXCollections.observableArrayList();
-        currentPlaylistItems = FXCollections.observableArrayList();
+        playlistItems = FXCollections.observableArrayList();
         initializeComponents();
         layoutComponents();
         setupEventHandlers();
         setupContextMenus();
-        loadDefaultPlaylists();
+        initializePlaylist();
     }
 
     private void initializeComponents() {
-        // 텍스트 필드
-        playlistNameInput = new TextField();
-        playlistNameInput.setPromptText("새 플레이리스트 이름 입력...");
-        playlistNameInput.setPrefWidth(200);
-
-        // 버튼들
-        createButton = new StyledButton("생성", StyledButton.ButtonStyle.PRIMARY);
-        deleteButton = new StyledButton("삭제", StyledButton.ButtonStyle.DANGER);
+        // 버튼들 - 플레이리스트 생성/삭제 버튼 제거
         addButton = new StyledButton("곡 추가", StyledButton.ButtonStyle.SUCCESS);
         removeButton = new StyledButton("곡 제거", StyledButton.ButtonStyle.WARNING);
         clearButton = new StyledButton("전체 삭제", StyledButton.ButtonStyle.DANGER);
 
         setupButtonTooltips();
 
-        // 리스트 뷰들
-        playlistListView = new ListView<>(playlists);
-        playlistListView.setPrefHeight(150);
-        playlistListView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-        
-        musicListView = new ListView<>(currentPlaylistItems);
-        musicListView.setPrefHeight(300);
+        // 리스트 뷰 - 단일 음악 리스트만 사용
+        musicListView = new ListView<>(playlistItems);
+        musicListView.setPrefHeight(400); // 높이 증가
         musicListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         
         // 커스텀 셀 팩토리 설정
         setupCustomCellFactories();
         
         // 상태 표시
-        statusLabel = new Label("플레이리스트를 선택하거나 생성하세요");
+        statusLabel = new Label("곡을 추가하여 재생목록을 만드세요");
         statusLabel.setStyle("-fx-text-fill: #7f8c8d; -fx-font-size: 11px;");
-        
-        playlistCountLabel = new Label("플레이리스트: 0개");
-        playlistCountLabel.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 10px;");
         
         musicCountLabel = new Label("곡: 0개");
         musicCountLabel.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 10px;");
@@ -155,38 +127,12 @@ public class PlaylistView extends VBox {
     }
 
     private void setupButtonTooltips() {
-        createButton.setTooltip(new Tooltip("새 플레이리스트 생성"));
-        deleteButton.setTooltip(new Tooltip("선택한 플레이리스트 삭제"));
         addButton.setTooltip(new Tooltip("음악 파일 추가"));
         removeButton.setTooltip(new Tooltip("선택한 곡 제거"));
-        clearButton.setTooltip(new Tooltip("플레이리스트 비우기"));
+        clearButton.setTooltip(new Tooltip("재생목록 비우기"));
     }
 
     private void setupCustomCellFactories() {
-        // 플레이리스트 리스트뷰 셀 팩토리
-        playlistListView.setCellFactory(lv -> {
-            ListCell<String> cell = new ListCell<String>() {
-                @Override
-                public void updateItem(String item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                    } else {
-                        // 기본 플레이리스트는 다른 스타일
-                        if (isDefaultPlaylist(item)) {
-                            setStyle("-fx-font-weight: bold; -fx-text-fill: #2980b9;");
-                            setText("⭐ " + item);
-                        } else {
-                            setStyle("-fx-font-weight: normal; -fx-text-fill: #2c3e50;");
-                            setText("🎵 " + item);
-                        }
-                    }
-                }
-            };
-            return cell;
-        });
-        
         // 음악 리스트뷰 셀 팩토리
         musicListView.setCellFactory(lv -> {
             ListCell<MusicInfoItem> cell = new ListCell<MusicInfoItem>() {
@@ -242,21 +188,14 @@ public class PlaylistView extends VBox {
         setStyle("-fx-background-color: #f8f9fa; -fx-border-color: #dee2e6; -fx-border-width: 0 1 0 0;");
 
         // 제목과 통계
-        Label titleLabel = new Label("플레이리스트");
+        Label titleLabel = new Label("재생목록");
         titleLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
         titleLabel.setStyle("-fx-text-fill: #2c3e50;");
 
         // 통계 정보
-        HBox statsBox = new HBox(15);
+        HBox statsBox = new HBox();
         statsBox.setAlignment(Pos.CENTER_LEFT);
-        statsBox.getChildren().addAll(playlistCountLabel, musicCountLabel);
-
-        // 플레이리스트 관리 영역
-        VBox playlistSection = createPlaylistSection();
-        
-        // 구분선
-        Separator separator = new Separator();
-        separator.setStyle("-fx-background-color: #dee2e6;");
+        statsBox.getChildren().add(musicCountLabel);
 
         // 재생 목록 관리 영역
         VBox musicSection = createMusicSection();
@@ -265,35 +204,11 @@ public class PlaylistView extends VBox {
         VBox statusSection = new VBox(5);
         statusSection.getChildren().add(statusLabel);
 
-        getChildren().addAll(titleLabel, statsBox, playlistSection, separator, musicSection, statusSection);
-    }
-
-    private VBox createPlaylistSection() {
-        VBox section = new VBox(10);
-        
-        Label sectionTitle = new Label("플레이리스트 관리");
-        sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 12));
-        
-        // 생성 영역
-        HBox createBox = new HBox(5);
-        createBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(playlistNameInput, Priority.ALWAYS);
-        createBox.getChildren().addAll(playlistNameInput, createButton);
-        
-        // 관리 버튼
-        HBox manageBox = new HBox(5);
-        manageBox.setAlignment(Pos.CENTER_LEFT);
-        manageBox.getChildren().add(deleteButton);
-        
-        section.getChildren().addAll(sectionTitle, createBox, playlistListView, manageBox);
-        return section;
+        getChildren().addAll(titleLabel, statsBox, musicSection, statusSection);
     }
 
     private VBox createMusicSection() {
         VBox section = new VBox(10);
-        
-        Label sectionTitle = new Label("재생 목록");
-        sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 12));
         
         // 곡 관리 버튼들
         HBox musicControls1 = new HBox(5);
@@ -304,28 +219,23 @@ public class PlaylistView extends VBox {
         musicControls2.setAlignment(Pos.CENTER_LEFT);
         musicControls2.getChildren().add(clearButton);
 
-        section.getChildren().addAll(sectionTitle, musicControls1, musicControls2, musicListView);
+        section.getChildren().addAll(musicControls1, musicControls2, musicListView);
         return section;
     }
 
     private void setupEventHandlers() {
-        // 플레이리스트 선택 변경
-        playlistListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            selectedPlaylistName = newVal;
-            loadPlaylistSongs(newVal);
-            updateButtonStates();
-            updateCounts();
-        });
-
         // 음악 리스트 선택 변경
         musicListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             updateButtonStates();
         });
 
-        // Enter 키로 플레이리스트 생성
-        playlistNameInput.setOnKeyPressed(event -> {
+        // Enter 키로 선택된 곡 재생
+        musicListView.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ENTER) {
-                createButton.fire();
+                MusicInfoItem selected = musicListView.getSelectionModel().getSelectedItem();
+                if (selected != null) {
+                    playSelectedMusic(selected.getMusicInfo());
+                }
             }
         });
     }
@@ -349,57 +259,26 @@ public class PlaylistView extends VBox {
         musicListView.setContextMenu(musicContextMenu);
     }
 
-    private void loadDefaultPlaylists() {
+    private void initializePlaylist() {
         Platform.runLater(() -> {
-            playlists.addAll(DEFAULT_PLAYLISTS);
             updateCounts();
-            // 기본 플레이리스트는 빈 상태로 시작
-            updateStatusLabel("플레이리스트를 선택하거나 새로 생성하여 곡을 추가하세요", false);
+            updateStatusLabel("곡을 추가하여 재생목록을 만드세요", false);
         });
     }
 
-    private void loadPlaylistSongs(String playlistName) {
-        if (playlistName == null) {
-            currentPlaylistItems.clear();
-            updateStatusLabel("플레이리스트를 선택하세요", false);
-            return;
-        }
-        
-        // 모든 플레이리스트는 빈 상태로 시작
-        currentPlaylistItems.clear();
-        
-        // 상태 메시지 업데이트
-        if (currentPlaylistItems.isEmpty()) {
-            updateStatusLabel(String.format("'%s' 플레이리스트가 선택되었습니다. '곡 추가' 버튼으로 음악을 추가하세요.", playlistName), false);
-        } else {
-            updateStatusLabel(String.format("%s (%d곡)", playlistName, currentPlaylistItems.size()), false);
-        }
-    }
-
     private void updateButtonStates() {
-        boolean hasSelectedPlaylist = selectedPlaylistName != null;
         boolean hasSelectedMusic = !musicListView.getSelectionModel().getSelectedItems().isEmpty();
-        boolean isDefaultPlaylist = hasSelectedPlaylist && isDefaultPlaylist(selectedPlaylistName);
-        boolean hasMusic = !currentPlaylistItems.isEmpty();
-        
-        // 플레이리스트 관련 버튼
-        deleteButton.setDisable(!hasSelectedPlaylist || isDefaultPlaylist);
+        boolean hasMusic = !playlistItems.isEmpty();
         
         // 곡 관련 버튼
-        addButton.setDisable(!hasSelectedPlaylist);
         removeButton.setDisable(!hasSelectedMusic);
-        clearButton.setDisable(!hasSelectedPlaylist || !hasMusic);
+        clearButton.setDisable(!hasMusic);
     }
     
     private void updateCounts() {
         Platform.runLater(() -> {
-            playlistCountLabel.setText("플레이리스트: " + playlists.size() + "개");
-            musicCountLabel.setText("곡: " + currentPlaylistItems.size() + "개");
+            musicCountLabel.setText("곡: " + playlistItems.size() + "개");
         });
-    }
-
-    public boolean isDefaultPlaylist(String name) {
-        return DEFAULT_PLAYLISTS.contains(name);
     }
 
     public void updateStatusLabel(String message, boolean isError) {
@@ -413,7 +292,7 @@ public class PlaylistView extends VBox {
 
     private void playSelectedMusic(MusicInfo music) {
         if (music != null && eventPublisher != null) {
-            log.debug("플레이리스트에서 곡 재생 요청: {}", music.getTitle());
+            log.debug("재생목록에서 곡 재생 요청: {}", music.getTitle());
             eventPublisher.publish(new MediaControlEvent.RequestPlayEvent(music));
             updateStatusLabel("재생 요청: " + music.getTitle(), false);
         }
@@ -430,43 +309,17 @@ public class PlaylistView extends VBox {
     }
 
     // 외부에서 플레이리스트 업데이트를 위한 메서드들
-    public void addPlaylist(String name) {
-        if (name != null && !name.trim().isEmpty() && !playlists.contains(name)) {
-            Platform.runLater(() -> {
-                playlists.add(name);
-                playlistListView.getSelectionModel().select(name);
-                updateStatusLabel("새 플레이리스트가 생성되었습니다: " + name, false);
-                updateCounts();
-            });
-        }
-    }
-
-    public void removePlaylist(String name) {
-        if (name != null && playlists.contains(name)) {
-            Platform.runLater(() -> {
-                playlists.remove(name);
-                if (name.equals(selectedPlaylistName)) {
-                    selectedPlaylistName = null;
-                    currentPlaylistItems.clear();
-                }
-                updateButtonStates();
-                updateStatusLabel("플레이리스트가 삭제되었습니다: " + name, false);
-                updateCounts();
-            });
-        }
-    }
-
     public void addMusicToCurrentPlaylist(MusicInfo music) {
-        if (music != null && selectedPlaylistName != null) {
+        if (music != null) {
             Platform.runLater(() -> {
                 MusicInfoItem item = new MusicInfoItem(music);
-                if (!currentPlaylistItems.contains(item)) {
-                    currentPlaylistItems.add(item);
-                    updateStatusLabel(String.format("'%s'에 추가됨: %s", selectedPlaylistName, music.getTitle()), false);
+                if (!playlistItems.contains(item)) {
+                    playlistItems.add(item);
+                    updateStatusLabel("추가됨: " + music.getTitle(), false);
                     updateButtonStates();
                     updateCounts();
                 } else {
-                    updateStatusLabel("이미 플레이리스트에 있는 곡입니다: " + music.getTitle(), true);
+                    updateStatusLabel("이미 재생목록에 있는 곡입니다: " + music.getTitle(), true);
                 }
             });
         }
@@ -476,21 +329,21 @@ public class PlaylistView extends VBox {
         if (music != null) {
             Platform.runLater(() -> {
                 MusicInfoItem toRemove = null;
-                for (MusicInfoItem item : currentPlaylistItems) {
+                for (MusicInfoItem item : playlistItems) {
                     if (item.getMusicInfo().equals(music)) {
                         toRemove = item;
                         break;
                     }
                 }
                 if (toRemove != null) {
-                    currentPlaylistItems.remove(toRemove);
+                    playlistItems.remove(toRemove);
                     updateStatusLabel("곡이 제거되었습니다: " + music.getTitle(), false);
                     updateButtonStates();
                     updateCounts();
                     
                     // 플레이리스트가 비었을 때 안내 메시지
-                    if (currentPlaylistItems.isEmpty() && selectedPlaylistName != null) {
-                        updateStatusLabel(String.format("'%s' 플레이리스트가 비어있습니다. '곡 추가' 버튼으로 음악을 추가하세요.", selectedPlaylistName), false);
+                    if (playlistItems.isEmpty()) {
+                        updateStatusLabel("재생목록이 비어있습니다. '곡 추가' 버튼으로 음악을 추가하세요.", false);
                     }
                 }
             });
@@ -499,12 +352,10 @@ public class PlaylistView extends VBox {
 
     public void updatePlaylistItems(List<MusicInfo> musicList) {
         Platform.runLater(() -> {
-            currentPlaylistItems.clear();
-            musicList.forEach(music -> currentPlaylistItems.add(new MusicInfoItem(music)));
+            playlistItems.clear();
+            musicList.forEach(music -> playlistItems.add(new MusicInfoItem(music)));
             
-            updateStatusLabel(String.format("%s (%d곡)", 
-                selectedPlaylistName != null ? selectedPlaylistName : "플레이리스트", 
-                currentPlaylistItems.size()), false);
+            updateStatusLabel(String.format("재생목록 (%d곡)", playlistItems.size()), false);
             updateButtonStates();
             updateCounts();
         });
@@ -512,33 +363,17 @@ public class PlaylistView extends VBox {
     
     public void clearCurrentPlaylistItems() {
         Platform.runLater(() -> {
-            currentPlaylistItems.clear();
+            playlistItems.clear();
             updateCounts();
             updateButtonStates();
-            
-            // 플레이리스트가 비었을 때 안내 메시지
-            if (selectedPlaylistName != null) {
-                updateStatusLabel(String.format("'%s' 플레이리스트가 비워졌습니다. '곡 추가' 버튼으로 음악을 추가하세요.", selectedPlaylistName), false);
-            }
+            updateStatusLabel("재생목록이 비워졌습니다. '곡 추가' 버튼으로 음악을 추가하세요.", false);
         });
     }
 
-    // Getter 메서드들
-    public StyledButton getCreateButton() { return createButton; }
-    public StyledButton getDeleteButton() { return deleteButton; }
+    // Getter 메서드들 - 플레이리스트 관련 제거
     public StyledButton getAddButton() { return addButton; }
     public StyledButton getRemoveButton() { return removeButton; }
     public StyledButton getClearButton() { return clearButton; }
-    
-    public ObservableList<String> getPlaylists() { return playlists; }
-    
-    public String getPlaylistNameInput() { 
-        return playlistNameInput.getText().trim(); 
-    }
-    
-    public String getSelectedPlaylist() { 
-        return playlistListView.getSelectionModel().getSelectedItem(); 
-    }
     
     public MusicInfo getSelectedMusic() {
         MusicInfoItem selected = musicListView.getSelectionModel().getSelectedItem();
@@ -552,20 +387,45 @@ public class PlaylistView extends VBox {
     }
     
     public List<MusicInfo> getAllMusicInCurrentPlaylist() {
-        return currentPlaylistItems.stream()
+        return playlistItems.stream()
             .map(MusicInfoItem::getMusicInfo)
             .collect(Collectors.toList());
     }
+
+    // 기존 메서드들을 호환성을 위해 유지 (단일 플레이리스트 기준으로 동작)
+    public ObservableList<String> getPlaylists() { 
+        return FXCollections.observableArrayList("재생목록"); 
+    }
+    
+    public String getPlaylistNameInput() { 
+        return ""; // 플레이리스트 이름 입력 기능 제거
+    }
+    
+    public String getSelectedPlaylist() { 
+        return "재생목록"; // 항상 단일 플레이리스트 반환
+    }
+    
+    public boolean isDefaultPlaylist(String name) {
+        return true; // 단일 플레이리스트는 항상 기본으로 취급
+    }
+    
+    public void addPlaylist(String name) {
+        // 단일 플레이리스트에서는 사용하지 않음
+    }
+    
+    public void removePlaylist(String name) {
+        // 단일 플레이리스트에서는 사용하지 않음
+    }
     
     public void clearPlaylistNameInput() {
-        Platform.runLater(() -> playlistNameInput.clear());
+        // 단일 플레이리스트에서는 사용하지 않음
     }
     
     public void selectPlaylist(String name) {
-        Platform.runLater(() -> {
-            if (playlists.contains(name)) {
-                playlistListView.getSelectionModel().select(name);
-            }
-        });
+        // 단일 플레이리스트에서는 사용하지 않음
     }
+
+    // 추가 getter들
+    public StyledButton getCreateButton() { return null; } // 더 이상 사용하지 않음
+    public StyledButton getDeleteButton() { return null; } // 더 이상 사용하지 않음
 }
