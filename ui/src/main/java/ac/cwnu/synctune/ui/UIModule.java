@@ -28,13 +28,13 @@ public class UIModule extends SyncTuneModule {
         instance = this;
         log.info("UIModule이 시작되었습니다.");
 
-        // 🔧 핵심: JavaFX 초기화를 메인 스레드에서 실행하고 대기
+        // JavaFX 초기화를 메인 스레드에서 실행하고 대기
         initializeJavaFXSync();
     }
 
     @EventListener
     public void onLyricsFullText(LyricsEvent.LyricsFullTextEvent event) {
-        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().length);
+        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().size());
         if (mainWindow != null) {
             Platform.runLater(() -> mainWindow.setFullLyrics(event.getFullLyricsLines()));
         }
@@ -51,13 +51,13 @@ public class UIModule extends SyncTuneModule {
 
             log.info("JavaFX 초기화를 시작합니다...");
             
-            // 🔧 중요: Non-daemon 스레드로 JavaFX 실행
+            // Non-daemon 스레드로 JavaFX 실행
             Thread javafxThread = new Thread(() -> {
                 System.setProperty("javafx.application.Thread.currentThread.setName", "JavaFX-Application-Thread");
                 Application.launch(SimpleJavaFXApp.class);
             });
             javafxThread.setName("JavaFX-Launcher");
-            javafxThread.setDaemon(false); // 🔧 Non-daemon으로 설정
+            javafxThread.setDaemon(false); // Non-daemon으로 설정
             javafxThread.start();
 
             // JavaFX 초기화 완료까지 대기
@@ -104,7 +104,7 @@ public class UIModule extends SyncTuneModule {
     private void createMainWindow() {
         Platform.runLater(() -> {
             try {
-                // 🔧 매우 중요: ImplicitExit를 false로 설정
+                // ImplicitExit를 false로 설정
                 Platform.setImplicitExit(false);
                 
                 mainWindow = new MainApplicationWindow(eventPublisher);
@@ -112,7 +112,6 @@ public class UIModule extends SyncTuneModule {
                 javaFXReady = true;
                 
                 log.info("메인 윈도우가 성공적으로 표시되었습니다.");
-                
                 
             } catch (Exception e) {
                 log.error("UI 초기화 중 오류 발생", e);
@@ -132,7 +131,7 @@ public class UIModule extends SyncTuneModule {
         }
     }
 
-    // 🔧 이벤트 리스너들을 UIModule에서 직접 처리
+    // 이벤트 리스너들
     @EventListener
     public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
         log.info("재생 시작: {}", event.getCurrentMusic().getTitle());
@@ -167,24 +166,83 @@ public class UIModule extends SyncTuneModule {
                 if (mainWindow.getControlsView() != null) {
                     mainWindow.getControlsView().setPlaybackState(false, false);
                 }
+                // 정지 시 가사도 초기화
+                if (mainWindow.getLyricsView() != null) {
+                    mainWindow.getLyricsView().updateLyricsByTimestamp(0);
+                }
             });
         }
     }
 
+    /**
+     * 재생 진행 상황 업데이트 - 가사 동기화의 핵심
+     * 이 이벤트에서 타임스탬프 기반으로 가사를 실시간 업데이트
+     */
     @EventListener
     public void onPlaybackProgressUpdate(PlaybackStatusEvent.PlaybackProgressUpdateEvent event) {
         if (mainWindow != null) {
-            Platform.runLater(() -> mainWindow.updateProgress(event.getCurrentTimeMillis(), event.getTotalTimeMillis()));
+            Platform.runLater(() -> {
+                // 진행 바와 시간 업데이트
+                mainWindow.updateProgress(event.getCurrentTimeMillis(), event.getTotalTimeMillis());
+                
+                // 가사는 updateProgress 내부에서 자동으로 타임스탬프 기반 업데이트됨
+                // 별도의 가사 업데이트 호출 불필요
+                
+                if (log.isTraceEnabled()) {
+                    log.trace("재생 진행 상황 및 가사 업데이트: {}ms / {}ms", 
+                        event.getCurrentTimeMillis(), event.getTotalTimeMillis());
+                }
+            });
+        }
+    }
+
+    /**
+     * 개별 가사 라인 이벤트 처리 - 상단 라벨과 전체 목록 동기화
+     */
+    @EventListener
+    public void onNextLyrics(LyricsEvent.NextLyricsEvent event) {
+        log.debug("가사 라인 이벤트 수신: {} ({}ms)", event.getLyricLine(), event.getStartTimeMillis());
+        
+        if (mainWindow != null && mainWindow.getLyricsView() != null) {
+            String lyricText = event.getLyricLine();
+            long timestamp = event.getStartTimeMillis();
+            
+            if (lyricText != null && !lyricText.trim().isEmpty() && 
+                !lyricText.equals("가사를 찾을 수 없습니다")) {
+                
+                Platform.runLater(() -> {
+                    // 타임스탬프 기반 업데이트로 상단 라벨과 하이라이트를 동시에 처리
+                    // 이렇게 하면 상단 라벨과 전체 목록이 항상 일치함
+                    mainWindow.getLyricsView().updateLyricsByTimestamp(timestamp);
+                });
+            }
         }
     }
 
     @EventListener
-    public void onNextLyrics(LyricsEvent.NextLyricsEvent event) {
-        log.info("가사 업데이트: {}", event.getLyricLine());
+    public void onLyricsNotFound(LyricsEvent.LyricsNotFoundEvent event) {
+        log.info("가사 파일을 찾을 수 없음: {}", event.getMusicFilePath());
         if (mainWindow != null) {
+            Platform.runLater(() -> mainWindow.showLyricsNotFound());
+        }
+    }
+
+    @EventListener
+    public void onLyricsFound(LyricsEvent.LyricsFoundEvent event) {
+        log.info("가사 파일 발견: {} -> {}", event.getMusicFilePath(), event.getLrcFilePath());
+        if (mainWindow != null) {
+            Platform.runLater(() -> mainWindow.showLyricsFound(event.getLrcFilePath()));
+        }
+    }
+
+    @EventListener
+    public void onLyricsParseComplete(LyricsEvent.LyricsParseCompleteEvent event) {
+        log.info("가사 파싱 완료: {} (성공: {})", event.getMusicFilePath(), event.isSuccess());
+        if (!event.isSuccess() && mainWindow != null) {
             Platform.runLater(() -> {
-                int currentIndex = mainWindow.findCurrentLyricIndex(event.getLyricLine(), event.getStartTimeMillis());
-                mainWindow.updateLyrics(event.getLyricLine(), currentIndex);
+                if (mainWindow.getLyricsView() != null) {
+                    mainWindow.getLyricsView().showLyricsError("가사 파일 파싱에 실패했습니다.");
+                }
             });
         }
     }
@@ -199,7 +257,7 @@ public class UIModule extends SyncTuneModule {
     }
 
     /**
-     * 🔧 수정된 JavaFX Application 클래스
+     * 수정된 JavaFX Application 클래스
      */
     public static class SimpleJavaFXApp extends Application {
         
@@ -213,7 +271,7 @@ public class UIModule extends SyncTuneModule {
         public void start(Stage primaryStage) throws Exception {
             log.info("JavaFX Application.start() 호출됨");
             
-            // 🔧 매우 중요: ImplicitExit를 여기서도 설정
+            // ImplicitExit를 여기서도 설정
             Platform.setImplicitExit(false);
             
             if (instance != null) {

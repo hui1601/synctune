@@ -65,45 +65,47 @@ public class LyricsModule extends SyncTuneModule {
      * 현재 음악에 대한 가사 파일 로드 (간소화)
      */
     private void loadLyricsForCurrentMusic() {
-        if (currentMusic == null) {
-            log.warn("현재 음악 정보가 없습니다.");
-            return;
-        }
-
-        log.info("가사 로딩 시작: {}", currentMusic.getTitle());
-        
-        File lrcFile = findLrcFile(currentMusic);
-        
-        if (lrcFile != null && lrcFile.exists()) {
-            try {
-                currentLyrics = LrcParser.parse(lrcFile);
-                log.info("가사 파일 로드 성공: {} ({}줄)", lrcFile.getName(), currentLyrics.size());
-                
-                publish(new LyricsEvent.LyricsFoundEvent(currentMusic.getFilePath(), lrcFile.getAbsolutePath()));
-                publish(new LyricsEvent.LyricsParseCompleteEvent(currentMusic.getFilePath(), true));
-                
-                // 첫 번째 가사 라인 즉시 발행
-                if (!currentLyrics.isEmpty()) {
-                    publish(new LyricsEvent.LyricsFullTextEvent(
-                    currentMusic.getFilePath(),
-                    currentLyrics.stream().map(LrcLine::getText).toArray(String[]::new)
-                    ));
-                    log.info("LyricsFullTextEvent 발행 ({}줄)", currentLyrics.size());
-                    LrcLine firstLine = currentLyrics.get(0);
-                    publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
-                    lastPublishedLine = firstLine;
-                    log.info("첫 번째 가사 라인 발행: {}", firstLine.getText());
-                }
-                
-            } catch (IOException e) {
-                log.error("가사 파일 파싱 실패: {}", e.getMessage());
-                handleNoLyrics();
-            }
-        } else {
-            log.info("가사 파일을 찾을 수 없습니다. 샘플 가사 사용");
-            loadSampleLyrics();
-        }
+    if (currentMusic == null) {
+        log.warn("현재 음악 정보가 없습니다.");
+        return;
     }
+
+    log.info("가사 로딩 시작: {}", currentMusic.getTitle());
+    
+    File lrcFile = findLrcFile(currentMusic);
+    
+    if (lrcFile != null && lrcFile.exists()) {
+        try {
+            currentLyrics = LrcParser.parse(lrcFile);
+            log.info("가사 파일 로드 성공: {} ({}줄)", lrcFile.getName(), currentLyrics.size());
+            
+            publish(new LyricsEvent.LyricsFoundEvent(currentMusic.getFilePath(), lrcFile.getAbsolutePath()));
+            publish(new LyricsEvent.LyricsParseCompleteEvent(currentMusic.getFilePath(), true));
+            
+            // 첫 번째 가사 라인 즉시 발행
+            if (!currentLyrics.isEmpty()) {
+                // ✅ 이제 List<LrcLine>을 직접 전달 - 정확한 타임스탬프 포함
+                publish(new LyricsEvent.LyricsFullTextEvent(
+                    currentMusic.getFilePath(),
+                    currentLyrics  // List<LrcLine> 타입
+                ));
+                log.info("LyricsFullTextEvent 발행 ({}줄)", currentLyrics.size());
+                
+                LrcLine firstLine = currentLyrics.get(0);
+                publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
+                lastPublishedLine = firstLine;
+                log.info("첫 번째 가사 라인 발행: {}", firstLine.getText());
+            }
+            
+        } catch (IOException e) {
+            log.error("가사 파일 파싱 실패: {}", e.getMessage());
+            handleNoLyrics();
+        }
+    } else {
+        log.info("가사 파일을 찾을 수 없습니다. 샘플 가사 사용");
+        loadSampleLyrics();
+    }
+}
 
     /**
      * 샘플 가사 로드

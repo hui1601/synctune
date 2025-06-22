@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
+import ac.cwnu.synctune.sdk.model.LrcLine;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.controller.PlaybackController;
 import ac.cwnu.synctune.ui.controller.PlaylistActionHandler;
@@ -488,20 +489,23 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
+    /**
+     * 재생 진행 상황 업데이트 (가사 동기화 포함)
+     * 너무 자주 호출되지 않도록 최적화
+     */
+    private long lastLyricsUpdateTime = 0;
+    private static final long LYRICS_UPDATE_INTERVAL_MS = 100; // 100ms마다 가사 업데이트
+    
     public void updateProgress(long currentMs, long totalMs) {
         if (controlsView != null) {
             controlsView.updateProgress(currentMs, totalMs);
         }
-    }
-
-    public void updateLyrics(String lyrics, long timestamp) {
-        if (lyricsView != null) {
-            if (lyrics == null || lyrics.trim().isEmpty() || lyrics.equals("가사를 찾을 수 없습니다")) {
-                lyricsView.showLyricsNotFound();
-            } else {
-                int idx = findCurrentLyricIndex(lyrics, timestamp);
-                lyricsView.updateLyrics(lyrics, idx);
-            }
+        
+        // 가사 업데이트는 100ms 간격으로 제한하여 성능 최적화
+        if (lyricsView != null && 
+            (currentMs - lastLyricsUpdateTime) >= LYRICS_UPDATE_INTERVAL_MS) {
+            lyricsView.updateLyricsByTimestamp(currentMs);
+            lastLyricsUpdateTime = currentMs;
         }
     }
     
@@ -530,29 +534,32 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
+    /**
+     * @deprecated 타임스탬프 기반 업데이트를 사용하므로 더 이상 필요하지 않음
+     */
+    @Deprecated
     public int findCurrentLyricIndex(String lyric, long timestamp) {
-        // lyricsView.getFullLyricsLines() 같은 전체 가사 배열을 가지고 있어야 함
-        String[] allLines = lyricsView.getFullLyricsLines(); // 만약 없으면 setFullLyrics에서 배열을 저장해둬야 함
-        if (allLines == null) return -1;
-
-        // 완벽하게 일치하는 첫 번째 라인 인덱스 반환 (동일 가사 여러줄이면 가장 빠른 거)
-        for (int i = 0; i < allLines.length; i++) {
-            if (allLines[i].equals(lyric)) {
-                return i;
-            }
-        }
+        // 타임스탬프 기반 업데이트로 이 메서드는 더 이상 사용되지 않음
         return -1;
     }
 
-    // index로 넘기는 updateLyrics
-    public void updateLyrics(String lyric, int index) {
-        if (lyricsView != null) {
-            lyricsView.updateLyrics(lyric, index);
-        }
+    /**
+     * @deprecated updateProgress()에서 자동으로 처리됨
+     */
+    @Deprecated
+    public void updateLyrics(String lyric, long timestamp) {
+        // updateProgress()에서 자동으로 타임스탬프 기반 업데이트가 처리됨
     }
 
+    /**
+     * @deprecated updateProgress()에서 자동으로 처리됨
+     */
+    @Deprecated
+    public void updateLyrics(String lyric, int index) {
+        // updateProgress()에서 자동으로 타임스탬프 기반 업데이트가 처리됨
+    }
 
-    public void setFullLyrics(String[] lines) {
+    public void setFullLyrics(List<LrcLine> lines) {
         if (lyricsView != null) {
             lyricsView.setFullLyrics(lines);
         }
@@ -567,14 +574,20 @@ public class MainApplicationWindow extends Stage {
         }
     }
     
-    // PlaybackController getter
+    // Getter 메서드들
     public PlaybackController getPlaybackController() {
         return playbackController;
     }
+    
     public PlayerControlsView getControlsView() {
         return controlsView;
     }
+    
     public PlaylistView getPlaylistView() {
         return playlistView;
+    }
+    
+    public LyricsView getLyricsView() {
+        return lyricsView;
     }
 }
