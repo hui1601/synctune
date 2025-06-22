@@ -49,6 +49,7 @@ public class PlayerModule extends SyncTuneModule {
     private final AtomicLong totalDuration = new AtomicLong(0);
     private final AtomicLong pausePosition = new AtomicLong(0);
     
+    
     // 볼륨 관리
     private final AtomicReference<Float> currentVolume = new AtomicReference<>(0.8f); // 기본 80%
     private final AtomicBoolean isMuted = new AtomicBoolean(false);
@@ -61,6 +62,8 @@ public class PlayerModule extends SyncTuneModule {
     private ScheduledExecutorService scheduler;
     private boolean isSimulationMode = false;
 
+
+    // PlayerModule 생성자 또는 start 메서드에서 초기 볼륨 설정
     @Override
     public void start(EventPublisher publisher) {
         super.eventPublisher = publisher;
@@ -75,6 +78,11 @@ public class PlayerModule extends SyncTuneModule {
         
         // 지원 가능한 오디오 포맷 로깅
         logSupportedFormats();
+        
+        // 초기 볼륨 상태 발행 (UI와 동기화)
+        log.debug("[{}] 초기 볼륨 상태 발행: {}%, 음소거: {}", 
+            getModuleName(), currentVolume.get() * 100, isMuted.get());
+        publishVolumeChangedEvent();
         
         log.info("[{}] 모듈 초기화 완료.", getModuleName());
     }
@@ -553,32 +561,35 @@ public class PlayerModule extends SyncTuneModule {
     // ========== 볼륨 제어 메서드들 ==========
     
     /**
-     * 볼륨 설정 (0.0 ~ 1.0)
-     */
+ * 볼륨 설정 (0.0 ~ 1.0)
+    */
     private void setVolume(float volume) {
         float validVolume = Math.max(0.0f, Math.min(1.0f, volume));
-        currentVolume.set(validVolume);
-        
+        float oldVolume = currentVolume.getAndSet(validVolume);
+    
+        log.debug("[{}] 볼륨 변경 요청: {}% -> {}%", getModuleName(), oldVolume * 100, validVolume * 100);
+    
         // 볼륨이 0보다 크면 음소거 해제
         if (validVolume > 0.0f && isMuted.get()) {
+            log.debug("[{}] 볼륨 설정으로 인한 음소거 해제", getModuleName());
             isMuted.set(false);
         }
-        
+    
         applyVolumeSettings();
         publishVolumeChangedEvent();
-        
-        log.debug("[{}] 볼륨 설정: {}%", getModuleName(), validVolume * 100);
     }
+
     
     /**
      * 음소거 설정
      */
     private void setMuted(boolean muted) {
-        isMuted.set(muted);
-        applyVolumeSettings();
-        publishVolumeChangedEvent();
-        
-        log.debug("[{}] 음소거 설정: {}", getModuleName(), muted);
+        boolean oldMuted = isMuted.getAndSet(muted);
+        if (oldMuted != muted) {
+            log.debug("[{}] 음소거 상태 변경: {} -> {}", getModuleName(), oldMuted, muted);
+            applyVolumeSettings();
+            publishVolumeChangedEvent();
+        }
     }
     
     /**
@@ -586,27 +597,43 @@ public class PlayerModule extends SyncTuneModule {
      */
     private void applyVolumeSettings() {
         if (volumeControl == null) {
-            return; // 볼륨 컨트롤이 없으면 아무것도 하지 않음
+            log.trace("[{}] 볼륨 컨트롤이 없어 볼륨 적용 생략", getModuleName());
+            return;
         }
         
         try {
             float effectiveVolume = isMuted.get() ? 0.0f : currentVolume.get();
             
-            // 볼륨을 데시벨로 변환 (0.0 ~ 1.0 -> dB)
+            // 볼륨을 데시벨로 변환 (올바른 로그 스케일 변환)
             float gainDB;
             if (effectiveVolume <= 0.0f) {
-                gainDB = volumeControl.getMinimum(); // 최소 볼륨 (음소거)
+                gainDB = volumeControl.getMinimum(); // 완전 음소거
+                log.trace("[{}] 음소거 상태: 최소 데시벨 사용 ({}dB)", getModuleName(), gainDB);
             } else {
-                // 로그 스케일 변환: 0.0~1.0을 MIN~MAX dB로 변환
-                float range = volumeControl.getMaximum() - volumeControl.getMinimum();
-                gainDB = volumeControl.getMinimum() + (range * effectiveVolume);
+                // 올바른 데시벨 변환: 20 * log10(volume)
+                // 1.0 (100%) = 0 dB (기본 볼륨)
+                // 0.5 (50%) = -6 dB
+                // 0.1 (10%) = -20 dB
+                gainDB = 20.0f * (float) Math.log10(effectiveVolume);
+                
+                // 볼륨 컨트롤의 범위 내로 제한
+                float originalGainDB = gainDB;
+                gainDB = Math.max(volumeControl.getMinimum(), 
+                         Math.min(volumeControl.getMaximum(), gainDB));
+                
+                if (Math.abs(originalGainDB - gainDB) > 0.1f) {
+                    log.debug("[{}] 데시벨 값이 볼륨 컨트롤 범위로 제한됨: {}dB -> {}dB", 
+                        getModuleName(), originalGainDB, gainDB);
+                }
             }
             
             volumeControl.setValue(gainDB);
-            log.trace("[{}] 오디오 클립 볼륨 적용: {}% -> {}dB", getModuleName(), effectiveVolume * 100, gainDB);
+            log.debug("[{}] 오디오 클립 볼륨 적용 성공: {}% -> {}dB (범위: {}~{}dB)", 
+                getModuleName(), effectiveVolume * 100, gainDB, 
+                volumeControl.getMinimum(), volumeControl.getMaximum());
             
         } catch (Exception e) {
-            log.error("볼륨 적용 중 오류", e);
+            log.error("[{}] 볼륨 적용 중 오류", getModuleName(), e);
         }
     }
     
@@ -614,7 +641,11 @@ public class PlayerModule extends SyncTuneModule {
      * 볼륨 변경 이벤트 발행
      */
     private void publishVolumeChangedEvent() {
-        publish(new VolumeControlEvent.VolumeChangedEvent(currentVolume.get(), isMuted.get()));
+        float currentVol = currentVolume.get();
+        boolean muted = isMuted.get();
+        
+        log.trace("[{}] 볼륨 변경 이벤트 발행: {}%, 음소거: {}", getModuleName(), currentVol * 100, muted);
+        publish(new VolumeControlEvent.VolumeChangedEvent(currentVol, muted));
     }
 
     /**
@@ -683,6 +714,25 @@ public class PlayerModule extends SyncTuneModule {
             requestNextMusic();
         } else {
             log.info("[{}] 재생 완료 (자동 재생 비활성화 또는 이미 요청 중)", getModuleName());
+        }
+    }
+    private void setupVolumeControl() {
+        try {
+            if (audioClip != null && audioClip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
+                volumeControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
+                
+                log.debug("[{}] 볼륨 컨트롤 설정 완료 - 범위: {}dB ~ {}dB", 
+                    getModuleName(), volumeControl.getMinimum(), volumeControl.getMaximum());
+                
+                // 현재 볼륨 설정 적용
+                applyVolumeSettings();
+            } else {
+                log.warn("[{}] MASTER_GAIN 볼륨 컨트롤이 지원되지 않습니다.", getModuleName());
+                volumeControl = null;
+            }
+        } catch (Exception e) {
+            log.error("[{}] 볼륨 컨트롤 설정 중 오류", getModuleName(), e);
+            volumeControl = null;
         }
     }
     

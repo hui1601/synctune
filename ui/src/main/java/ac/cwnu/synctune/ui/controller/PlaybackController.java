@@ -10,6 +10,9 @@ import ac.cwnu.synctune.sdk.event.VolumeControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.ui.view.PlayerControlsView;
 import javafx.application.Platform;
+import javafx.scene.control.Slider;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
 public class PlaybackController {
     private static final Logger log = LogManager.getLogger(PlaybackController.class);
@@ -20,6 +23,8 @@ public class PlaybackController {
     private boolean isPaused = false;
     private boolean isUserSeeking = false;
     private boolean isUserChangingVolume = false; // 사용자가 볼륨을 조절 중인지 추적
+    private final Slider progressSlider = new Slider(0, 100, 0);
+    private final Slider volumeSlider = new Slider(0, 100, 80);
 
     public PlaybackController(PlayerControlsView view, EventPublisher publisher) {
         this.view = view;
@@ -202,7 +207,7 @@ public class PlaybackController {
             updateButtonStates();
             view.getProgressSlider().setValue(0);
             
-            // 볼륨도 기본값으로 리셋
+            // 볼륨을 PlayerModule과 동일한 기본값으로 리셋
             if (!isUserChangingVolume) {
                 view.getVolumeSlider().setValue(80); // 80% 기본값
             }
@@ -210,6 +215,32 @@ public class PlaybackController {
             
             log.debug("PlaybackController 초기 상태로 리셋됨");
         });
+    }
+
+    private void initializeComponents() {
+        // 슬라이더 설정
+        progressSlider.setPrefWidth(400);
+        progressSlider.setShowTickLabels(false);
+        progressSlider.setShowTickMarks(false);
+        
+        volumeSlider.setPrefWidth(100);
+        volumeSlider.setShowTickLabels(false);
+        volumeSlider.setShowTickMarks(false);
+        volumeSlider.setValue(80); // 명시적으로 80% 설정
+        
+        // 제목 라벨 스타일
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 16));
+        titleLabel.setStyle("-fx-text-fill: #2c3e50;");
+        
+        // 아티스트 라벨 스타일
+        artistLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
+        artistLabel.setStyle("-fx-text-fill: #7f8c8d;");
+        
+        // 음소거 버튼 스타일
+        setupMuteButtonStyle();
+        
+        // 초기 상태 설정
+        pauseButton.setDisable(true);
     }
 
     public boolean isUserSeeking() {

@@ -7,10 +7,12 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 
+import ac.cwnu.synctune.sdk.annotation.EventListener;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistQueryEvent;
+import ac.cwnu.synctune.sdk.event.VolumeControlEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.util.MusicInfoHelper;
@@ -37,15 +39,119 @@ public class PlaylistActionHandler {
         log.debug("PlaylistActionHandler 초기화 완료 (단일 플레이리스트 모드)");
     }
 
-    private void attachEventHandlers() {
-        // 곡 추가 - 파일 선택
-        view.getAddButton().setOnAction(e -> addMusicFiles());
+    
+private void attachEventHandlers() {
+        // 재생 버튼
+        view.getPlayButton().setOnAction(e -> {
+            log.debug("재생 버튼 클릭됨");
+            publisher.publish(new MediaControlEvent.RequestPlayEvent());
+        });
 
-        // 곡 제거
-        view.getRemoveButton().setOnAction(e -> removeSelectedMusic());
+        // 일시정지 버튼
+        view.getPauseButton().setOnAction(e -> {
+            log.debug("일시정지 버튼 클릭됨");
+            publisher.publish(new MediaControlEvent.RequestPauseEvent());
+        });
+
+        // 정지 버튼
+        view.getStopButton().setOnAction(e -> {
+            log.debug("정지 버튼 클릭됨");
+            publisher.publish(new MediaControlEvent.RequestStopEvent());
+        });
+
+        // 이전 곡 버튼
+        view.getPrevButton().setOnAction(e -> {
+            log.debug("이전 곡 버튼 클릭됨");
+            publisher.publish(new MediaControlEvent.RequestPreviousMusicEvent());
+        });
+
+        // 다음 곡 버튼
+        view.getNextButton().setOnAction(e -> {
+            log.debug("다음 곡 버튼 클릭됨");
+            publisher.publish(new MediaControlEvent.RequestNextMusicEvent());
+        });
+
+        // 진행 바 드래그 시작/종료 감지
+        view.getProgressSlider().valueChangingProperty().addListener((obs, wasChanging, isChanging) -> {
+            if (wasChanging && !isChanging) {
+                // 드래그 종료 시 탐색 이벤트 발행
+                long seekPosition = (long) view.getProgressSlider().getValue();
+                log.debug("진행 바 탐색: {}ms", seekPosition);
+                publisher.publish(new MediaControlEvent.RequestSeekEvent(seekPosition));
+                isUserSeeking = false;
+            } else if (!wasChanging && isChanging) {
+                // 드래그 시작
+                isUserSeeking = true;
+            }
+        });
+
+        // ========== 개선된 볼륨 제어 이벤트 핸들러들 ==========
         
-        // 재생목록 전체 삭제
-        view.getClearButton().setOnAction(e -> clearCurrentPlaylist());
+        // 볼륨 슬라이더 드래그 상태 추적 - 더 정확한 추적
+        view.getVolumeSlider().valueChangingProperty().addListener((obs, wasChanging, isChanging) -> {
+            isUserChangingVolume = isChanging;
+            log.trace("볼륨 슬라이더 드래그 상태 변경: wasChanging={}, isChanging={}", wasChanging, isChanging);
+            
+            // 드래그 종료 시 볼륨 변경 이벤트 발행
+            if (wasChanging && !isChanging) {
+                float volume = (float) view.getVolumeSlider().getValue() / 100.0f;
+                log.debug("볼륨 슬라이더 드래그 종료: {}% -> {}", view.getVolumeSlider().getValue(), volume);
+                publisher.publish(new VolumeControlEvent.RequestVolumeChangeEvent(volume));
+            }
+        });
+        
+        // 볼륨 슬라이더 값 변경 - 드래그가 아닌 경우만 즉시 반영
+        view.getVolumeSlider().valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (isUserChangingVolume) {
+                // 드래그 중일 때는 실시간 볼륨 변경하지 않음 (성능상 이유)
+                return;
+            }
+            
+            // 프로그래매틱 변경이거나 클릭으로 인한 변경인 경우 즉시 반영
+            float volume = newVal.floatValue() / 100.0f;
+            log.debug("볼륨 슬라이더 값 변경 (즉시 반영): {}% -> {}", newVal.intValue(), volume);
+            publisher.publish(new VolumeControlEvent.RequestVolumeChangeEvent(volume));
+        });
+        
+        // 음소거 버튼
+        view.getMuteButton().setOnAction(e -> {
+            boolean muted = view.getMuteButton().isSelected();
+            log.debug("음소거 버튼 클릭: {}", muted);
+            publisher.publish(new VolumeControlEvent.RequestMuteEvent(muted));
+        });
+    }
+
+    @EventListener
+    public void onVolumeChanged(VolumeControlEvent.VolumeChangedEvent event) {
+        log.debug("PlaybackController: VolumeChangedEvent 수신 - 볼륨: {}%, 음소거: {}", 
+            event.getVolume() * 100, event.isMuted());
+        
+        Platform.runLater(() -> {
+            // 무한 루프 방지를 위해 더 엄격한 조건 적용
+            boolean shouldUpdateSlider = !isUserChangingVolume && !view.getVolumeSlider().isValueChanging();
+            
+            if (shouldUpdateSlider) {
+                // 볼륨 슬라이더 업데이트 (0.0-1.0을 0-100으로 변환)
+                double newSliderValue = event.getVolume() * 100;
+                
+                // 현재 값과 다를 때만 업데이트
+                if (Math.abs(view.getVolumeSlider().getValue() - newSliderValue) > 0.1) {
+                    log.trace("볼륨 슬라이더 UI 업데이트: {} -> {}", 
+                        view.getVolumeSlider().getValue(), newSliderValue);
+                    view.getVolumeSlider().setValue(newSliderValue);
+                }
+            } else {
+                log.trace("볼륨 슬라이더 UI 업데이트 스킵 (사용자 조작 중)");
+            }
+            
+            // 음소거 버튼 상태는 항상 업데이트
+            if (view.getMuteButton().isSelected() != event.isMuted()) {
+                view.getMuteButton().setSelected(event.isMuted());
+            }
+            
+            log.debug("볼륨 UI 업데이트 완료: {}%, 음소거: {}", 
+                event.getVolume() * 100, event.isMuted());
+        });
     }
 
     private void addMusicFiles() {

@@ -252,7 +252,9 @@ public class PlayerControlsView extends VBox {
     }
 
     private void updateTimeLabel(Label label, long timeMs) {
-        label.setText(UIUtils.formatTime(timeMs));
+        if (label != null) {
+            label.setText(UIUtils.formatTime(timeMs));
+        }
     }
 
     public void setPlaybackState(boolean isPlaying, boolean isPaused) {
