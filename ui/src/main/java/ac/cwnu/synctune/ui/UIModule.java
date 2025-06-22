@@ -32,6 +32,14 @@ public class UIModule extends SyncTuneModule {
         initializeJavaFXSync();
     }
 
+    @EventListener
+    public void onLyricsFullText(LyricsEvent.LyricsFullTextEvent event) {
+        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().length);
+        if (mainWindow != null) {
+            Platform.runLater(() -> mainWindow.setFullLyrics(event.getFullLyricsLines()));
+        }
+    }
+
     private void initializeJavaFXSync() {
         try {
             // JavaFX 툴킷이 이미 초기화되었는지 확인
@@ -174,7 +182,10 @@ public class UIModule extends SyncTuneModule {
     public void onNextLyrics(LyricsEvent.NextLyricsEvent event) {
         log.info("가사 업데이트: {}", event.getLyricLine());
         if (mainWindow != null) {
-            Platform.runLater(() -> mainWindow.updateLyrics(event.getLyricLine()));
+            Platform.runLater(() -> {
+                int currentIndex = mainWindow.findCurrentLyricIndex(event.getLyricLine(), event.getStartTimeMillis());
+                mainWindow.updateLyrics(event.getLyricLine(), currentIndex);
+            });
         }
     }
 

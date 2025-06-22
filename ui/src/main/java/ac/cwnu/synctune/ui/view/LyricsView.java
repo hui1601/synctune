@@ -15,6 +15,7 @@ public class LyricsView extends VBox {
     private final VBox lyricsContainer = new VBox(5);
     private final ScrollPane lyricsScrollPane;
     private final Label statusLabel = new Label("가사 상태: 대기 중");
+    private String[] allLyricsLines = null;
 
     public LyricsView() {
         // ScrollPane은 lyricsContainer가 필요하므로 생성자에서 초기화
@@ -85,7 +86,25 @@ public class LyricsView extends VBox {
         highlightCurrentLine(lyrics);
     }
 
+    public void updateLyrics(String lyric, int index) {
+        currentLyricsLabel.setText(lyric);
+
+        // 전체 가사 중 index번째만 형광펜 스타일
+        for (int i = 0; i < lyricsContainer.getChildren().size(); i++) {
+            if (lyricsContainer.getChildren().get(i) instanceof Label label) {
+                if (i == index) {
+                    label.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-background-color: #ffeaa7; -fx-padding: 8; -fx-background-radius: 3;");
+                    scrollToLabel(label);
+                } else {
+                    label.setStyle("-fx-text-fill: #2c3e50; -fx-font-weight: normal; -fx-padding: 5;");
+                }
+            }
+        }
+    }
+
+
     public void setFullLyrics(String[] lyricsLines) {
+        this.allLyricsLines = lyricsLines;
         lyricsContainer.getChildren().clear();
         
         if (lyricsLines == null || lyricsLines.length == 0) {
@@ -107,6 +126,8 @@ public class LyricsView extends VBox {
         
         statusLabel.setText("가사 상태: " + lyricsLines.length + "줄 로드됨");
     }
+
+    public String[] getFullLyricsLines() { return allLyricsLines; }
 
     private void updateDefaultMessage() {
         lyricsContainer.getChildren().clear();

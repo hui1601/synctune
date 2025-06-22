@@ -90,6 +90,11 @@ public class LyricsModule extends SyncTuneModule {
                 
                 // 첫 번째 가사 라인 즉시 발행
                 if (!currentLyrics.isEmpty()) {
+                    publish(new LyricsEvent.LyricsFullTextEvent(
+                    currentMusic.getFilePath(),
+                    currentLyrics.stream().map(LrcLine::getText).toArray(String[]::new)
+                    ));
+                    log.info("LyricsFullTextEvent 발행 ({}줄)", currentLyrics.size());
                     LrcLine firstLine = currentLyrics.get(0);
                     publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
                     lastPublishedLine = firstLine;
@@ -120,6 +125,10 @@ public class LyricsModule extends SyncTuneModule {
                 publish(new LyricsEvent.LyricsParseCompleteEvent(currentMusic.getFilePath(), true));
                 
                 if (!currentLyrics.isEmpty()) {
+                    publish(new LyricsEvent.LyricsFullTextEvent(
+                    currentMusic.getFilePath(),
+                    currentLyrics.stream().map(LrcLine::getText).toArray(String[]::new)
+                    ));
                     LrcLine firstLine = currentLyrics.get(0);
                     publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));
                     lastPublishedLine = firstLine;
