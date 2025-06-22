@@ -100,6 +100,64 @@ public class UIModule extends SyncTuneModule {
         }
     }
 
+    // ========== 곡 제거 시 기본 화면 복원 ==========
+    
+    @EventListener
+    public void onCurrentMusicRemovedFromPlaylist(PlaylistQueryEvent.CurrentMusicRemovedFromPlaylistEvent event) {
+        log.info("현재 재생 중인 곡이 플레이리스트에서 제거됨: {}", 
+            event.getRemovedMusic() != null ? event.getRemovedMusic().getTitle() : "알 수 없음");
+        
+        // 현재 재생 곡 초기화
+        currentPlayingMusic = null;
+        
+        if (mainWindow != null) {
+            Platform.runLater(() -> {
+                // 기본 화면으로 복원
+                restoreToDefaultState();
+                
+                log.info("곡 제거로 인한 기본 화면 복원 완료");
+            });
+        }
+    }
+    
+    /**
+     * UI를 기본 상태로 복원하는 메서드
+     */
+    private void restoreToDefaultState() {
+        try {
+            // 1. 윈도우 제목 초기화
+            mainWindow.setTitle("SyncTune Player");
+            
+            // 2. 재생 컨트롤 초기화
+            if (mainWindow.getControlsView() != null) {
+                mainWindow.getControlsView().updateMusicInfo(null);
+                mainWindow.getControlsView().setPlaybackState(false, false);
+                mainWindow.getControlsView().updateProgress(0, 0);
+            }
+            
+            // 3. 가사 화면 초기화
+            if (mainWindow.getLyricsView() != null) {
+                mainWindow.getLyricsView().setFullLyrics(null);
+                mainWindow.getLyricsView().updateLyrics("재생 중인 곡이 없습니다");
+            }
+            
+            // 4. 플레이리스트에서 현재 재생 곡 해제
+            if (mainWindow.getPlaylistView() != null) {
+                mainWindow.getPlaylistView().setCurrentPlayingMusic(null);
+            }
+            
+            // 5. PlaylistActionHandler에도 상태 초기화
+            if (mainWindow.getPlaylistActionHandler() != null) {
+                mainWindow.getPlaylistActionHandler().setCurrentPlayingMusic(null);
+            }
+            
+            log.debug("UI 기본 상태 복원 완료");
+            
+        } catch (Exception e) {
+            log.error("UI 기본 상태 복원 중 오류", e);
+        }
+    }
+
     private void initializeJavaFXSync() {
         try {
             // JavaFX 툴킷이 이미 초기화되었는지 확인
@@ -208,7 +266,7 @@ public class UIModule extends SyncTuneModule {
                     mainWindow.getPlaylistView().setCurrentPlayingMusic(event.getCurrentMusic());
                 }
                 
-                // PlaylistActionHandler에도 현재 재생 중인 곡 전달 (추가된 부분)
+                // PlaylistActionHandler에도 현재 재생 중인 곡 전달
                 if (mainWindow.getPlaylistActionHandler() != null) {
                     mainWindow.getPlaylistActionHandler().setCurrentPlayingMusic(event.getCurrentMusic());
                 }
@@ -246,7 +304,7 @@ public class UIModule extends SyncTuneModule {
                     mainWindow.getControlsView().setPlaybackState(false, false);
                 }
                 
-                // PlaylistActionHandler에도 정지 상태 전달 (추가된 부분)
+                // PlaylistActionHandler에도 정지 상태 전달
                 if (mainWindow.getPlaylistActionHandler() != null) {
                     mainWindow.getPlaylistActionHandler().setCurrentPlayingMusic(null);
                 }
@@ -261,7 +319,6 @@ public class UIModule extends SyncTuneModule {
 
     /**
      * 재생 진행 상황 업데이트 - 가사 동기화의 핵심
-     * 이 이벤트에서 타임스탬프 기반으로 가사를 실시간 업데이트
      */
     @EventListener
     public void onPlaybackProgressUpdate(PlaybackStatusEvent.PlaybackProgressUpdateEvent event) {
@@ -269,9 +326,6 @@ public class UIModule extends SyncTuneModule {
             Platform.runLater(() -> {
                 // 진행 바와 시간 업데이트
                 mainWindow.updateProgress(event.getCurrentTimeMillis(), event.getTotalTimeMillis());
-                
-                // 가사는 updateProgress 내부에서 자동으로 타임스탬프 기반 업데이트됨
-                // 별도의 가사 업데이트 호출 불필요
                 
                 if (log.isTraceEnabled()) {
                     log.trace("재생 진행 상황 및 가사 업데이트: {}ms / {}ms", 
@@ -297,7 +351,6 @@ public class UIModule extends SyncTuneModule {
                 
                 Platform.runLater(() -> {
                     // 타임스탬프 기반 업데이트로 상단 라벨과 하이라이트를 동시에 처리
-                    // 이렇게 하면 상단 라벨과 전체 목록이 항상 일치함
                     mainWindow.getLyricsView().updateLyricsByTimestamp(timestamp);
                 });
             }
@@ -340,7 +393,6 @@ public class UIModule extends SyncTuneModule {
             event.getVolume() * 100, event.isMuted());
         
         // PlaybackController가 이 이벤트를 처리하므로 UIModule에서는 별도 처리 불필요
-        // 필요하다면 상태바 업데이트 등을 여기서 할 수 있음
     }
 
     @EventListener
