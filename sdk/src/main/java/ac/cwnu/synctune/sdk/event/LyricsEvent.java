@@ -93,4 +93,27 @@ public class LyricsEvent {
             return super.toString() + " {musicFile=" + musicFilePath + ", success=" + success + "}";
         }
     }
+    public static class LyricsFullTextEvent extends BaseEvent {
+        private final String musicFilePath;
+        private final String[] fullLyricsLines;
+
+        public LyricsFullTextEvent(String musicFilePath, String[] fullLyricsLines) {
+        this.musicFilePath = musicFilePath;
+        this.fullLyricsLines = fullLyricsLines;
+        }
+
+        public String getMusicFilePath() {
+            return musicFilePath;
+        }
+
+        public String[] getFullLyricsLines() {
+            return fullLyricsLines;
+        }
+
+        @Override
+        public String toString() {
+            return super.toString() + " {musicFile=" + musicFilePath + ", lines=" + fullLyricsLines.length + "}";
+        }
+    }
+
 }

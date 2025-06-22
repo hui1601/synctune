@@ -494,26 +494,19 @@ public class MainApplicationWindow extends Stage {
         }
     }
 
-    public void updateLyrics(String lyrics) {
+    public void updateLyrics(String lyrics, long timestamp) {
         if (lyricsView != null) {
             if (lyrics == null || lyrics.trim().isEmpty() || lyrics.equals("가사를 찾을 수 없습니다")) {
                 lyricsView.showLyricsNotFound();
             } else {
-                // 현재 가사 라인만 하이라이트 (전체 가사는 이미 설정되어 있음)
-                lyricsView.updateLyrics(lyrics);
+                int idx = findCurrentLyricIndex(lyrics, timestamp);
+                lyricsView.updateLyrics(lyrics, idx);
             }
         }
     }
     
-    public void showLyricsLoading() {
-        if (lyricsView != null) {
-            lyricsView.showLyricsLoading();
-        }
-    }
-
     public void showLyricsFound(String lrcPath) {
         if (lyricsView != null) {
-            // 가사 파일이 발견되었지만 아직 파싱이 완료되지 않은 상태
             lyricsView.showLyricsLoading();
         }
     }
@@ -521,12 +514,6 @@ public class MainApplicationWindow extends Stage {
     public void showLyricsNotFound() {
         if (lyricsView != null) {
             lyricsView.showLyricsNotFound();
-        }
-    }
-
-    public void showLyricsError(String errorMessage) {
-        if (lyricsView != null) {
-            lyricsView.showLyricsError(errorMessage);
         }
     }
 
@@ -540,6 +527,34 @@ public class MainApplicationWindow extends Stage {
             super.close();
         } catch (Exception e) {
             System.err.println("윈도우 강제 종료 중 오류: " + e.getMessage());
+        }
+    }
+
+    public int findCurrentLyricIndex(String lyric, long timestamp) {
+        // lyricsView.getFullLyricsLines() 같은 전체 가사 배열을 가지고 있어야 함
+        String[] allLines = lyricsView.getFullLyricsLines(); // 만약 없으면 setFullLyrics에서 배열을 저장해둬야 함
+        if (allLines == null) return -1;
+
+        // 완벽하게 일치하는 첫 번째 라인 인덱스 반환 (동일 가사 여러줄이면 가장 빠른 거)
+        for (int i = 0; i < allLines.length; i++) {
+            if (allLines[i].equals(lyric)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // index로 넘기는 updateLyrics
+    public void updateLyrics(String lyric, int index) {
+        if (lyricsView != null) {
+            lyricsView.updateLyrics(lyric, index);
+        }
+    }
+
+
+    public void setFullLyrics(String[] lines) {
+        if (lyricsView != null) {
+            lyricsView.setFullLyrics(lines);
         }
     }
 
@@ -561,8 +576,5 @@ public class MainApplicationWindow extends Stage {
     }
     public PlaylistView getPlaylistView() {
         return playlistView;
-    }
-    public LyricsView getLyricsView() {
-        return lyricsView;
     }
 }
