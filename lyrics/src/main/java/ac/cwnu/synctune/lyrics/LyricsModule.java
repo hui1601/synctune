@@ -1,10 +1,7 @@
 package ac.cwnu.synctune.lyrics;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -34,9 +31,6 @@ public class LyricsModule extends SyncTuneModule {
     public void start(EventPublisher publisher) {
         super.eventPublisher = publisher;
         log.info("LyricsModule이 시작되었습니다.");
-
-        // 샘플 LRC 파일 생성
-        createSampleLrcFile();
 
         log.info("LyricsModule 초기화 완료.");
     }
@@ -203,70 +197,5 @@ public class LyricsModule extends SyncTuneModule {
     /**
      * 샘플 LRC 파일 생성 (한글 인코딩 문제 해결)
      */
-    private void createSampleLrcFile() {
-        File sampleDir = new File("sample");
-        if (!sampleDir.exists()) {
-            sampleDir.mkdirs();
-        }
-
-        File sampleLrc = new File(sampleDir, "sample.lrc");
-        if (!sampleLrc.exists()) {
-            try {
-                // UTF-8 BOM과 함께 저장하여 인코딩 문제 방지
-                try (OutputStreamWriter writer = new OutputStreamWriter(
-                        new FileOutputStream(sampleLrc), StandardCharsets.UTF_8)) {
-                    
-                    // UTF-8 BOM 쓰기
-                    writer.write('\uFEFF');
-                    
-                    // 샘플 가사 내용
-                    String sampleLyrics = 
-                        "[00:00.00]SyncTune 테스트 가사\n" +
-                        "[00:03.00]이것은 샘플 가사입니다\n" +
-                        "[00:06.00]LyricsModule이 정상 작동 중\n" +
-                        "[00:09.00]가사가 시간에 맞춰 표시됩니다\n" +
-                        "[00:12.00]멋진 음악을 들어보세요\n" +
-                        "[00:15.00]SyncTune으로 즐거운 시간 되세요\n" +
-                        "[00:18.00]가사 동기화 완료\n" +
-                        "[00:21.00]🎵 음악과 함께 즐기세요 🎵\n" +
-                        "[00:24.00]감사합니다!\n" +
-                        "[00:27.00]테스트 가사가 잘 표시되고 있나요?\n" +
-                        "[00:30.00]LyricsModule 테스트 완료!\n";
-                    
-                    writer.write(sampleLyrics);
-                    writer.flush();
-                }
-                
-                log.info("샘플 LRC 파일 생성 완료 (UTF-8 BOM): {}", sampleLrc.getAbsolutePath());
-                
-                // 생성한 파일을 즉시 테스트해서 한글이 제대로 읽히는지 확인
-                testSampleLrcFile(sampleLrc);
-                
-            } catch (IOException e) {
-                log.error("샘플 LRC 파일 생성 실패", e);
-            }
-        }
-    }
-
-    /**
-     * 생성한 샘플 LRC 파일이 제대로 읽히는지 테스트
-     */
-    private void testSampleLrcFile(File sampleLrc) {
-        try {
-            List<LrcLine> testLines = LrcParser.parse(sampleLrc);
-            if (!testLines.isEmpty()) {
-                String firstLine = testLines.get(0).getText();
-                log.info("샘플 LRC 파일 테스트 성공 - 첫 번째 라인: {}", firstLine);
-                
-                // 한글이 제대로 읽혔는지 확인
-                if (firstLine.contains("테스트")) {
-                    log.info("한글 인코딩 정상 확인됨");
-                } else {
-                    log.warn("한글 인코딩에 문제가 있을 수 있습니다: {}", firstLine);
-                }
-            }
-        } catch (Exception e) {
-            log.error("샘플 LRC 파일 테스트 실패", e);
-        }
-    }
+    
 }
