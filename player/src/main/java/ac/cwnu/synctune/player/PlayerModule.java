@@ -117,6 +117,19 @@ public class PlayerModule extends SyncTuneModule {
         log.info("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
         seekTo(event.getPositionMillis());
     }
+    @EventListener
+    public void onNextMusicRequest(MediaControlEvent.RequestNextMusicEvent event) {
+        log.info("[{}] 다음 곡 요청 수신", getModuleName());
+        // 다음 곡 재생 로직 구현 필요
+        // 예: playNextTrack();
+    }
+
+    @EventListener  
+    public void onPreviousMusicRequest(MediaControlEvent.RequestPreviousMusicEvent event) {
+        log.info("[{}] 이전 곡 요청 수신", getModuleName());
+        // 이전 곡 재생 로직 구현 필요
+        // 예: playPreviousTrack();
+        }
 
     /**
      * 지원 가능한 오디오 포맷 로깅
