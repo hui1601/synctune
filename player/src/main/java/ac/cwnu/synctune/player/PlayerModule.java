@@ -24,6 +24,7 @@ import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
+import ac.cwnu.synctune.sdk.event.PlaylistQueryEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
@@ -45,6 +46,10 @@ public class PlayerModule extends SyncTuneModule {
     private final AtomicLong currentPosition = new AtomicLong(0);
     private final AtomicLong totalDuration = new AtomicLong(0);
     private final AtomicLong pausePosition = new AtomicLong(0);
+    
+    // 자동 재생 관련
+    private final AtomicBoolean autoPlayNextEnabled = new AtomicBoolean(true);
+    private final AtomicBoolean isWaitingForNextMusic = new AtomicBoolean(false);
     
     // 진행 상황 업데이트용 스케줄러
     private ScheduledExecutorService scheduler;
@@ -117,20 +122,57 @@ public class PlayerModule extends SyncTuneModule {
         log.info("[{}] 탐색 요청 수신: {}ms", getModuleName(), event.getPositionMillis());
         seekTo(event.getPositionMillis());
     }
+
     @EventListener
     public void onNextMusicRequest(MediaControlEvent.RequestNextMusicEvent event) {
         log.info("[{}] 다음 곡 요청 수신", getModuleName());
-        // 다음 곡 재생 로직 구현 필요
-        // 예: playNextTrack();
+        requestNextMusic();
     }
 
     @EventListener  
     public void onPreviousMusicRequest(MediaControlEvent.RequestPreviousMusicEvent event) {
         log.info("[{}] 이전 곡 요청 수신", getModuleName());
-        // 이전 곡 재생 로직 구현 필요
-        // 예: playPreviousTrack();
+        requestPreviousMusic();
+    }
+
+    @EventListener
+    public void onNextMusicFound(PlaylistQueryEvent.NextMusicFoundEvent event) {
+        log.info("[{}] 다음 곡 찾음: {}", getModuleName(), 
+            event.getNextMusic() != null ? event.getNextMusic().getTitle() : "없음");
+        
+        if (event.getNextMusic() != null) {
+            isWaitingForNextMusic.set(false);
+            playMusic(event.getNextMusic());
+        } else {
+            log.info("[{}] 더 이상 재생할 곡이 없습니다.", getModuleName());
+            isWaitingForNextMusic.set(false);
         }
-    
+    }
+
+    @EventListener
+    public void onPreviousMusicFound(PlaylistQueryEvent.PreviousMusicFoundEvent event) {
+        log.info("[{}] 이전 곡 찾음: {}", getModuleName(), 
+            event.getPreviousMusic() != null ? event.getPreviousMusic().getTitle() : "없음");
+        
+        if (event.getPreviousMusic() != null) {
+            playMusic(event.getPreviousMusic());
+        } else {
+            log.info("[{}] 이전 곡이 없습니다.", getModuleName());
+        }
+    }
+
+    @EventListener
+    public void onCurrentMusicRemovedFromPlaylist(PlaylistQueryEvent.CurrentMusicRemovedFromPlaylistEvent event) {
+        log.info("[{}] 현재 재생 중인 곡이 플레이리스트에서 제거됨: {}", 
+            getModuleName(), event.getRemovedMusic().getTitle());
+        
+        // 현재 재생 중인 곡이 제거된 곡과 같은지 확인
+        if (currentMusic != null && currentMusic.equals(event.getRemovedMusic())) {
+            log.info("[{}] 재생 중인 곡이 제거되어 재생을 정지합니다.", getModuleName());
+            stopPlayback();
+            currentMusic = null;
+        }
+    }
 
     /**
      * 지원 가능한 오디오 포맷 로깅
@@ -145,6 +187,34 @@ public class PlayerModule extends SyncTuneModule {
         } catch (Exception e) {
             log.debug("지원 형식 조회 실패: {}", e.getMessage());
         }
+    }
+
+    /**
+     * 다음 곡 요청
+     */
+    private void requestNextMusic() {
+        if (isWaitingForNextMusic.get()) {
+            log.debug("이미 다음 곡을 요청 중입니다.");
+            return;
+        }
+        
+        isWaitingForNextMusic.set(true);
+        publish(new PlaylistQueryEvent.RequestNextMusicInPlaylistEvent(currentMusic));
+        
+        // 타임아웃 설정 (5초 후에도 응답이 없으면 취소)
+        scheduler.schedule(() -> {
+            if (isWaitingForNextMusic.get()) {
+                log.warn("[{}] 다음 곡 요청 타임아웃", getModuleName());
+                isWaitingForNextMusic.set(false);
+            }
+        }, 5, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 이전 곡 요청
+     */
+    private void requestPreviousMusic() {
+        publish(new PlaylistQueryEvent.RequestPreviousMusicInPlaylistEvent(currentMusic));
     }
 
     /**
@@ -477,10 +547,10 @@ public class PlayerModule extends SyncTuneModule {
                     // 재생 완료 체크 - 더 관대한 조건으로 수정
                     if (current >= total - 1000) { // 1초 남았을 때부터 완료로 간주
                         log.info("[{}] 재생 완료됨 ({}ms / {}ms)", getModuleName(), current, total);
-                        stopPlayback();
+                        handlePlaybackCompleted();
                     } else if (!isSimulationMode && audioClip != null && !audioClip.isRunning() && !isPaused.get()) {
                         log.info("[{}] 오디오 클립이 정지됨", getModuleName());
-                        stopPlayback();
+                        handlePlaybackCompleted();
                     }
                 }
             } catch (Exception e) {
@@ -489,6 +559,30 @@ public class PlayerModule extends SyncTuneModule {
         }, 0, 500, TimeUnit.MILLISECONDS);
         
         log.debug("진행 상황 업데이트 시작됨 (500ms 간격)");
+    }
+
+    /**
+     * 재생 완료 처리 (자동 다음 곡 재생 포함)
+     */
+    private void handlePlaybackCompleted() {
+        log.info("[{}] 재생 완료 처리 시작", getModuleName());
+        
+        // 재생 상태 초기화
+        isPlaying.set(false);
+        isPaused.set(false);
+        currentPosition.set(0);
+        pausePosition.set(0);
+        
+        // 재생 완료 이벤트 발행
+        publish(new PlaybackStatusEvent.PlaybackStoppedEvent());
+        
+        // 자동 다음 곡 재생
+        if (autoPlayNextEnabled.get() && !isWaitingForNextMusic.get()) {
+            log.info("[{}] 자동 다음 곡 재생 시도", getModuleName());
+            requestNextMusic();
+        } else {
+            log.info("[{}] 재생 완료 (자동 재생 비활성화 또는 이미 요청 중)", getModuleName());
+        }
     }
     
     /**
@@ -557,5 +651,14 @@ public class PlayerModule extends SyncTuneModule {
     
     public boolean isSimulationMode() {
         return isSimulationMode;
+    }
+
+    public boolean isAutoPlayNextEnabled() {
+        return autoPlayNextEnabled.get();
+    }
+
+    public void setAutoPlayNextEnabled(boolean enabled) {
+        autoPlayNextEnabled.set(enabled);
+        log.info("[{}] 자동 다음 곡 재생: {}", getModuleName(), enabled ? "활성화" : "비활성화");
     }
 }

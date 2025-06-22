@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.MediaControlEvent;
 import ac.cwnu.synctune.sdk.event.PlaylistEvent;
+import ac.cwnu.synctune.sdk.event.PlaylistQueryEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
 import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.ui.util.MusicInfoHelper;
@@ -25,6 +26,9 @@ public class PlaylistActionHandler {
     private final PlaylistView view;
     private final EventPublisher publisher;
     private static final String PLAYLIST_NAME = "재생목록"; // 단일 플레이리스트 이름
+    
+    // 현재 재생 중인 곡 추적
+    private MusicInfo currentPlayingMusic;
 
     public PlaylistActionHandler(PlaylistView view, EventPublisher publisher) {
         this.view = view;
@@ -154,10 +158,31 @@ public class PlaylistActionHandler {
             return;
         }
         
+        // 현재 재생 중인 곡이 선택된 곡에 포함되어 있는지 확인
+        boolean containsCurrentPlaying = false;
+        if (currentPlayingMusic != null) {
+            for (MusicInfo music : selectedMusic) {
+                if (music.equals(currentPlayingMusic)) {
+                    containsCurrentPlaying = true;
+                    break;
+                }
+            }
+        }
+        
         // 확인 다이얼로그
-        String message = selectedMusic.size() == 1 ? 
-            "선택한 곡을 재생목록에서 제거하시겠습니까?" :
-            String.format("선택한 %d개의 곡을 재생목록에서 제거하시겠습니까?", selectedMusic.size());
+        String message;
+        if (containsCurrentPlaying) {
+            if (selectedMusic.size() == 1) {
+                message = "현재 재생 중인 곡을 재생목록에서 제거하시겠습니까?\n재생이 정지됩니다.";
+            } else {
+                message = String.format("선택한 %d개의 곡을 재생목록에서 제거하시겠습니까?\n현재 재생 중인 곡이 포함되어 있어 재생이 정지됩니다.", 
+                    selectedMusic.size());
+            }
+        } else {
+            message = selectedMusic.size() == 1 ? 
+                "선택한 곡을 재생목록에서 제거하시겠습니까?" :
+                String.format("선택한 %d개의 곡을 재생목록에서 제거하시겠습니까?", selectedMusic.size());
+        }
             
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("곡 제거");
@@ -166,6 +191,13 @@ public class PlaylistActionHandler {
         
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
+            // 현재 재생 중인 곡이 제거되는 경우 이벤트 발행
+            if (containsCurrentPlaying) {
+                log.info("현재 재생 중인 곡이 제거됩니다: {}", currentPlayingMusic.getTitle());
+                publisher.publish(new PlaylistQueryEvent.CurrentMusicRemovedFromPlaylistEvent(currentPlayingMusic));
+            }
+            
+            // 선택된 곡들 제거
             selectedMusic.forEach(music -> {
                 log.debug("곡 제거 요청 - 재생목록: {}, 곡: {}", PLAYLIST_NAME, music.getTitle());
                 publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(PLAYLIST_NAME, music));
@@ -183,14 +215,39 @@ public class PlaylistActionHandler {
             return;
         }
         
+        // 현재 재생 중인 곡이 포함되어 있는지 확인
+        boolean containsCurrentPlaying = false;
+        if (currentPlayingMusic != null) {
+            for (MusicInfo music : allMusic) {
+                if (music.equals(currentPlayingMusic)) {
+                    containsCurrentPlaying = true;
+                    break;
+                }
+            }
+        }
+        
         // 확인 다이얼로그
+        String message;
+        if (containsCurrentPlaying) {
+            message = String.format("재생목록의 모든 곡(%d개)을 제거하시겠습니까?\n현재 재생 중인 곡이 포함되어 있어 재생이 정지됩니다.", 
+                allMusic.size());
+        } else {
+            message = String.format("재생목록의 모든 곡(%d개)을 제거하시겠습니까?", allMusic.size());
+        }
+        
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("재생목록 비우기");
         confirmAlert.setHeaderText("재생목록의 모든 곡을 제거하시겠습니까?");
-        confirmAlert.setContentText(String.format("재생목록의 모든 곡(%d개)을 제거하시겠습니까?", allMusic.size()));
+        confirmAlert.setContentText(message);
         
         Optional<ButtonType> result = confirmAlert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
+            // 현재 재생 중인 곡이 포함된 경우 이벤트 발행
+            if (containsCurrentPlaying) {
+                log.info("재생목록 전체 삭제로 현재 재생 중인 곡도 제거됩니다: {}", currentPlayingMusic.getTitle());
+                publisher.publish(new PlaylistQueryEvent.CurrentMusicRemovedFromPlaylistEvent(currentPlayingMusic));
+            }
+            
             allMusic.forEach(music -> {
                 publisher.publish(new PlaylistEvent.MusicRemovedFromPlaylistEvent(PLAYLIST_NAME, music));
             });
@@ -222,6 +279,23 @@ public class PlaylistActionHandler {
             alert.setContentText(message);
             alert.showAndWait();
         });
+    }
+
+    // ========== 현재 재생 중인 곡 관리 ==========
+    
+    /**
+     * 현재 재생 중인 곡 설정 (UIModule에서 호출)
+     */
+    public void setCurrentPlayingMusic(MusicInfo music) {
+        this.currentPlayingMusic = music;
+        log.debug("현재 재생 중인 곡 설정: {}", music != null ? music.getTitle() : "없음");
+    }
+    
+    /**
+     * 현재 재생 중인 곡 반환
+     */
+    public MusicInfo getCurrentPlayingMusic() {
+        return currentPlayingMusic;
     }
 
     // 외부에서 호출 가능한 메서드들
@@ -303,8 +377,6 @@ public class PlaylistActionHandler {
         scanThread.start();
     }
     
-    
-
     private List<File> findMusicFilesInDirectory(File directory, boolean recursive) {
         List<File> musicFiles = new ArrayList<>();
         

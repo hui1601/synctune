@@ -40,10 +40,15 @@ public class PlaylistView extends VBox {
     
     private EventPublisher eventPublisher;
     
+    // 현재 재생 중인 곡 추적
+    private int currentPlayingIndex = -1;
+    private MusicInfo currentPlayingMusic = null;
+    
     // 음악 정보를 표시하기 위한 래퍼 클래스
     public static class MusicInfoItem {
         private final MusicInfo musicInfo;
         private final String displayText;
+        private boolean isCurrentlyPlaying = false;
         
         public MusicInfoItem(MusicInfo musicInfo) {
             this.musicInfo = musicInfo;
@@ -71,9 +76,13 @@ public class PlaylistView extends VBox {
         
         public MusicInfo getMusicInfo() { return musicInfo; }
         public String getDisplayText() { return displayText; }
+        public boolean isCurrentlyPlaying() { return isCurrentlyPlaying; }
+        public void setCurrentlyPlaying(boolean playing) { this.isCurrentlyPlaying = playing; }
         
         @Override
-        public String toString() { return displayText; }
+        public String toString() { 
+            return isCurrentlyPlaying ? "♪ " + displayText : displayText; 
+        }
         
         @Override
         public boolean equals(Object obj) {
@@ -144,7 +153,7 @@ public class PlaylistView extends VBox {
                         setTooltip(null);
                         setStyle("");
                     } else {
-                        setText(item.getDisplayText());
+                        setText(item.toString());
                         
                         // 툴팁에 자세한 정보 표시
                         MusicInfo music = item.getMusicInfo();
@@ -158,13 +167,18 @@ public class PlaylistView extends VBox {
                         ));
                         setTooltip(tooltip);
                         
-                        // 파일 존재 여부에 따른 스타일
-                        File musicFile = new File(music.getFilePath());
-                        if (!musicFile.exists()) {
-                            setStyle("-fx-text-fill: #e74c3c; -fx-font-style: italic;");
-                            setText("❌ " + item.getDisplayText() + " (파일 없음)");
+                        // 현재 재생 중인 곡 하이라이트
+                        if (item.isCurrentlyPlaying()) {
+                            setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold; -fx-background-color: #ffeaa7;");
                         } else {
-                            setStyle("-fx-text-fill: #2c3e50;");
+                            // 파일 존재 여부에 따른 스타일
+                            File musicFile = new File(music.getFilePath());
+                            if (!musicFile.exists()) {
+                                setStyle("-fx-text-fill: #e74c3c; -fx-font-style: italic;");
+                                setText("❌ " + item.getDisplayText() + " (파일 없음)");
+                            } else {
+                                setStyle("-fx-text-fill: #2c3e50;");
+                            }
                         }
                     }
                 }
@@ -298,6 +312,108 @@ public class PlaylistView extends VBox {
         }
     }
 
+    // ========== 현재 재생 중인 곡 추적 및 다음/이전 곡 관리 ==========
+    
+    /**
+     * 현재 재생 중인 곡 설정
+     */
+    public void setCurrentPlayingMusic(MusicInfo music) {
+        // 이전 재생 중인 곡의 하이라이트 제거
+        if (currentPlayingIndex >= 0 && currentPlayingIndex < playlistItems.size()) {
+            playlistItems.get(currentPlayingIndex).setCurrentlyPlaying(false);
+        }
+        
+        currentPlayingMusic = music;
+        currentPlayingIndex = -1;
+        
+        if (music != null) {
+            // 새로운 재생 중인 곡 찾기
+            for (int i = 0; i < playlistItems.size(); i++) {
+                if (playlistItems.get(i).getMusicInfo().equals(music)) {
+                    currentPlayingIndex = i;
+                    playlistItems.get(i).setCurrentlyPlaying(true);
+                    break;
+                }
+            }
+        }
+        
+        // UI 업데이트
+        Platform.runLater(() -> {
+            musicListView.refresh();
+            if (currentPlayingIndex >= 0) {
+                musicListView.scrollTo(currentPlayingIndex);
+                log.debug("현재 재생 중인 곡 설정: {} (인덱스: {})", music.getTitle(), currentPlayingIndex);
+            }
+        });
+    }
+    
+    /**
+     * 다음 곡 반환
+     */
+    public MusicInfo getNextMusic() {
+        if (playlistItems.isEmpty()) {
+            log.debug("재생목록이 비어있어 다음 곡이 없습니다.");
+            return null;
+        }
+        
+        int nextIndex;
+        
+        if (currentPlayingIndex < 0) {
+            // 현재 재생 중인 곡이 없으면 첫 번째 곡
+            nextIndex = 0;
+        } else {
+            // 다음 곡 계산
+            nextIndex = (currentPlayingIndex + 1) % playlistItems.size();
+            
+            // 마지막 곡이었다면 더 이상 재생할 곡이 없음 (반복 재생 안함)
+            if (nextIndex == 0 && currentPlayingIndex == playlistItems.size() - 1) {
+                log.debug("마지막 곡이므로 다음 곡이 없습니다.");
+                return null;
+            }
+        }
+        
+        MusicInfo nextMusic = playlistItems.get(nextIndex).getMusicInfo();
+        log.debug("다음 곡 찾음: {} (인덱스: {} -> {})", nextMusic.getTitle(), currentPlayingIndex, nextIndex);
+        return nextMusic;
+    }
+
+    /**
+     * 이전 곡 반환
+     */
+    public MusicInfo getPreviousMusic() {
+        if (playlistItems.isEmpty()) {
+            log.debug("재생목록이 비어있어 이전 곡이 없습니다.");
+            return null;
+        }
+        
+        if (currentPlayingIndex <= 0) {
+            log.debug("첫 번째 곡이거나 현재 곡이 없어 이전 곡이 없습니다.");
+            return null;
+        }
+        
+        int previousIndex = currentPlayingIndex - 1;
+        MusicInfo previousMusic = playlistItems.get(previousIndex).getMusicInfo();
+        log.debug("이전 곡 찾음: {} (인덱스: {} -> {})", previousMusic.getTitle(), currentPlayingIndex, previousIndex);
+        return previousMusic;
+    }
+    
+    /**
+     * 특정 인덱스의 곡 반환
+     */
+    public MusicInfo getMusicAt(int index) {
+        if (index >= 0 && index < playlistItems.size()) {
+            return playlistItems.get(index).getMusicInfo();
+        }
+        return null;
+    }
+    
+    /**
+     * 현재 재생 중인 곡의 인덱스 반환
+     */
+    public int getCurrentPlayingIndex() {
+        return currentPlayingIndex;
+    }
+
     private void showAlert(String title, String message, Alert.AlertType type) {
         Platform.runLater(() -> {
             Alert alert = new Alert(type);
@@ -329,14 +445,30 @@ public class PlaylistView extends VBox {
         if (music != null) {
             Platform.runLater(() -> {
                 MusicInfoItem toRemove = null;
-                for (MusicInfoItem item : playlistItems) {
+                int removeIndex = -1;
+                
+                for (int i = 0; i < playlistItems.size(); i++) {
+                    MusicInfoItem item = playlistItems.get(i);
                     if (item.getMusicInfo().equals(music)) {
                         toRemove = item;
+                        removeIndex = i;
                         break;
                     }
                 }
+                
                 if (toRemove != null) {
                     playlistItems.remove(toRemove);
+                    
+                    // 현재 재생 중인 곡의 인덱스 조정
+                    if (removeIndex == currentPlayingIndex) {
+                        // 현재 재생 중인 곡이 제거됨
+                        currentPlayingIndex = -1;
+                        currentPlayingMusic = null;
+                    } else if (removeIndex < currentPlayingIndex) {
+                        // 현재 재생 중인 곡보다 앞의 곡이 제거됨
+                        currentPlayingIndex--;
+                    }
+                    
                     updateStatusLabel("곡이 제거되었습니다: " + music.getTitle(), false);
                     updateButtonStates();
                     updateCounts();
@@ -353,6 +485,9 @@ public class PlaylistView extends VBox {
     public void updatePlaylistItems(List<MusicInfo> musicList) {
         Platform.runLater(() -> {
             playlistItems.clear();
+            currentPlayingIndex = -1;
+            currentPlayingMusic = null;
+            
             musicList.forEach(music -> playlistItems.add(new MusicInfoItem(music)));
             
             updateStatusLabel(String.format("재생목록 (%d곡)", playlistItems.size()), false);
@@ -364,36 +499,12 @@ public class PlaylistView extends VBox {
     public void clearCurrentPlaylistItems() {
         Platform.runLater(() -> {
             playlistItems.clear();
+            currentPlayingIndex = -1;
+            currentPlayingMusic = null;
             updateCounts();
             updateButtonStates();
             updateStatusLabel("재생목록이 비워졌습니다. '곡 추가' 버튼으로 음악을 추가하세요.", false);
         });
-    }
-
-    private int currentPlayingIndex = -1;
-
-public MusicInfo getNextMusic() {
-    if (playlistItems.isEmpty()) return null;
-    
-    int nextIndex = (currentPlayingIndex + 1) % playlistItems.size();
-    return playlistItems.get(nextIndex).getMusicInfo();
-}
-
-    public MusicInfo getPreviousMusic() {
-        if (playlistItems.isEmpty()) return null;
-    
-        int prevIndex = currentPlayingIndex - 1;
-        if (prevIndex < 0) prevIndex = playlistItems.size() - 1;
-        return playlistItems.get(prevIndex).getMusicInfo();
-    }
-
-    public void setCurrentPlayingMusic(MusicInfo music) {
-        for (int i = 0; i < playlistItems.size(); i++) {
-            if (playlistItems.get(i).getMusicInfo().equals(music)) {
-                currentPlayingIndex = i;
-                break;
-            }
-        }
     }
 
     // Getter 메서드들 - 플레이리스트 관련 제거
@@ -423,35 +534,11 @@ public MusicInfo getNextMusic() {
         return FXCollections.observableArrayList("재생목록"); 
     }
     
-    public String getPlaylistNameInput() { 
-        return ""; // 플레이리스트 이름 입력 기능 제거
-    }
-    
     public String getSelectedPlaylist() { 
-        return "재생목록"; // 항상 단일 플레이리스트 반환
+        return "재생목록";
     }
     
     public boolean isDefaultPlaylist(String name) {
-        return true; // 단일 플레이리스트는 항상 기본으로 취급
+        return true;
     }
-    
-    public void addPlaylist(String name) {
-        // 단일 플레이리스트에서는 사용하지 않음
-    }
-    
-    public void removePlaylist(String name) {
-        // 단일 플레이리스트에서는 사용하지 않음
-    }
-    
-    public void clearPlaylistNameInput() {
-        // 단일 플레이리스트에서는 사용하지 않음
-    }
-    
-    public void selectPlaylist(String name) {
-        // 단일 플레이리스트에서는 사용하지 않음
-    }
-
-    // 추가 getter들
-    public StyledButton getCreateButton() { return null; } // 더 이상 사용하지 않음
-    public StyledButton getDeleteButton() { return null; } // 더 이상 사용하지 않음
 }

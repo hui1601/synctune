@@ -7,8 +7,10 @@ import ac.cwnu.synctune.sdk.annotation.Module;
 import ac.cwnu.synctune.sdk.event.EventPublisher;
 import ac.cwnu.synctune.sdk.event.LyricsEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
+import ac.cwnu.synctune.sdk.event.PlaylistQueryEvent;
 import ac.cwnu.synctune.sdk.event.SystemEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
+import ac.cwnu.synctune.sdk.model.MusicInfo;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import ac.cwnu.synctune.ui.view.MainApplicationWindow;
 import javafx.application.Application;
@@ -21,6 +23,9 @@ public class UIModule extends SyncTuneModule {
     private static UIModule instance;
     private MainApplicationWindow mainWindow;
     private volatile boolean javaFXReady = false;
+    
+    // 현재 재생 중인 곡 추적
+    private MusicInfo currentPlayingMusic;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -35,9 +40,62 @@ public class UIModule extends SyncTuneModule {
     @EventListener
     public void onLyricsFullText(LyricsEvent.LyricsFullTextEvent event) {
         log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().size());
-        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().size());
         if (mainWindow != null) {
             Platform.runLater(() -> mainWindow.setFullLyrics(event.getFullLyricsLines()));
+        }
+    }
+
+    // ========== 플레이리스트 관련 이벤트 처리 ==========
+    
+    @EventListener
+    public void onRequestNextMusicInPlaylist(PlaylistQueryEvent.RequestNextMusicInPlaylistEvent event) {
+        log.debug("다음 곡 요청 이벤트 수신: 현재 곡 = {}", 
+            event.getCurrentMusic() != null ? event.getCurrentMusic().getTitle() : "없음");
+        
+        if (mainWindow != null && mainWindow.getPlaylistView() != null) {
+            Platform.runLater(() -> {
+                // 현재 재생 중인 곡 설정
+                if (event.getCurrentMusic() != null) {
+                    mainWindow.getPlaylistView().setCurrentPlayingMusic(event.getCurrentMusic());
+                }
+                
+                // 다음 곡 찾기
+                MusicInfo nextMusic = mainWindow.getPlaylistView().getNextMusic();
+                
+                // 응답 이벤트 발행
+                publish(new PlaylistQueryEvent.NextMusicFoundEvent(nextMusic));
+                
+                log.debug("다음 곡 응답: {}", nextMusic != null ? nextMusic.getTitle() : "없음");
+            });
+        } else {
+            // 플레이리스트가 없으면 null 응답
+            publish(new PlaylistQueryEvent.NextMusicFoundEvent(null));
+        }
+    }
+    
+    @EventListener
+    public void onRequestPreviousMusicInPlaylist(PlaylistQueryEvent.RequestPreviousMusicInPlaylistEvent event) {
+        log.debug("이전 곡 요청 이벤트 수신: 현재 곡 = {}", 
+            event.getCurrentMusic() != null ? event.getCurrentMusic().getTitle() : "없음");
+        
+        if (mainWindow != null && mainWindow.getPlaylistView() != null) {
+            Platform.runLater(() -> {
+                // 현재 재생 중인 곡 설정
+                if (event.getCurrentMusic() != null) {
+                    mainWindow.getPlaylistView().setCurrentPlayingMusic(event.getCurrentMusic());
+                }
+                
+                // 이전 곡 찾기
+                MusicInfo previousMusic = mainWindow.getPlaylistView().getPreviousMusic();
+                
+                // 응답 이벤트 발행
+                publish(new PlaylistQueryEvent.PreviousMusicFoundEvent(previousMusic));
+                
+                log.debug("이전 곡 응답: {}", previousMusic != null ? previousMusic.getTitle() : "없음");
+            });
+        } else {
+            // 플레이리스트가 없으면 null 응답
+            publish(new PlaylistQueryEvent.PreviousMusicFoundEvent(null));
         }
     }
 
@@ -136,9 +194,19 @@ public class UIModule extends SyncTuneModule {
     @EventListener
     public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
         log.info("재생 시작: {}", event.getCurrentMusic().getTitle());
+        
+        // 현재 재생 중인 곡 추적
+        currentPlayingMusic = event.getCurrentMusic();
+        
         if (mainWindow != null) {
             Platform.runLater(() -> {
                 mainWindow.updateCurrentMusic(event.getCurrentMusic());
+                
+                // 플레이리스트에서 현재 재생 중인 곡 설정
+                if (mainWindow.getPlaylistView() != null) {
+                    mainWindow.getPlaylistView().setCurrentPlayingMusic(event.getCurrentMusic());
+                }
+                
                 // 버튼 상태 업데이트
                 if (mainWindow.getControlsView() != null) {
                     mainWindow.getControlsView().setPlaybackState(true, false);
@@ -162,6 +230,10 @@ public class UIModule extends SyncTuneModule {
     @EventListener
     public void onPlaybackStopped(PlaybackStatusEvent.PlaybackStoppedEvent event) {
         log.info("정지됨");
+        
+        // 현재 재생 곡 초기화
+        currentPlayingMusic = null;
+        
         if (mainWindow != null) {
             Platform.runLater(() -> {
                 if (mainWindow.getControlsView() != null) {
@@ -251,6 +323,13 @@ public class UIModule extends SyncTuneModule {
     @EventListener
     public void onApplicationShutdown(SystemEvent.ApplicationShutdownEvent event) {
         log.info("ApplicationShutdownEvent를 수신했습니다. UI 종료를 준비합니다.");
+    }
+
+    /**
+     * 현재 재생 중인 곡 반환 (플레이리스트 관련 이벤트 처리에 사용)
+     */
+    public MusicInfo getCurrentPlayingMusic() {
+        return currentPlayingMusic;
     }
 
     public static UIModule getInstance() {
