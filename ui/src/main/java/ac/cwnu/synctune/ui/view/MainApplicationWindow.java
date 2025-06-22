@@ -48,6 +48,8 @@ public class MainApplicationWindow extends Stage {
     private PlaylistActionHandler playlistActionHandler;
     private WindowStateManager windowStateManager;
 
+    private int lastIndex = -1;
+
     public MainApplicationWindow(EventPublisher publisher) {
         this.eventPublisher = publisher;
         setTitle("SyncTune Player");

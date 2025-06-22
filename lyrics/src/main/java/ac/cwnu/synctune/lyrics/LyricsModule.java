@@ -122,8 +122,8 @@ public class LyricsModule extends SyncTuneModule {
                 
                 if (!currentLyrics.isEmpty()) {
                     publish(new LyricsEvent.LyricsFullTextEvent(
-                    currentMusic.getFilePath(),
-                    currentLyrics.stream().map(LrcLine::getText).toArray(String[]::new)
+                        currentMusic.getFilePath(),
+                        currentLyrics
                     ));
                     LrcLine firstLine = currentLyrics.get(0);
                     publish(new LyricsEvent.NextLyricsEvent(firstLine.getText(), firstLine.getTimeMillis()));

@@ -35,6 +35,7 @@ public class UIModule extends SyncTuneModule {
     @EventListener
     public void onLyricsFullText(LyricsEvent.LyricsFullTextEvent event) {
         log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().size());
+        log.info("전체 가사(FullText) 이벤트 수신: {}줄", event.getFullLyricsLines().size());
         if (mainWindow != null) {
             Platform.runLater(() -> mainWindow.setFullLyrics(event.getFullLyricsLines()));
         }
