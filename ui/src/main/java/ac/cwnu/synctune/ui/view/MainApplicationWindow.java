@@ -499,13 +499,21 @@ public class MainApplicationWindow extends Stage {
             if (lyrics == null || lyrics.trim().isEmpty() || lyrics.equals("가사를 찾을 수 없습니다")) {
                 lyricsView.showLyricsNotFound();
             } else {
+                // 현재 가사 라인만 하이라이트 (전체 가사는 이미 설정되어 있음)
                 lyricsView.updateLyrics(lyrics);
             }
         }
     }
     
+    public void showLyricsLoading() {
+        if (lyricsView != null) {
+            lyricsView.showLyricsLoading();
+        }
+    }
+
     public void showLyricsFound(String lrcPath) {
         if (lyricsView != null) {
+            // 가사 파일이 발견되었지만 아직 파싱이 완료되지 않은 상태
             lyricsView.showLyricsLoading();
         }
     }
@@ -513,6 +521,12 @@ public class MainApplicationWindow extends Stage {
     public void showLyricsNotFound() {
         if (lyricsView != null) {
             lyricsView.showLyricsNotFound();
+        }
+    }
+
+    public void showLyricsError(String errorMessage) {
+        if (lyricsView != null) {
+            lyricsView.showLyricsError(errorMessage);
         }
     }
 
@@ -547,5 +561,8 @@ public class MainApplicationWindow extends Stage {
     }
     public PlaylistView getPlaylistView() {
         return playlistView;
+    }
+    public LyricsView getLyricsView() {
+        return lyricsView;
     }
 }

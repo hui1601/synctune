@@ -9,11 +9,15 @@ import ac.cwnu.synctune.sdk.event.LyricsEvent;
 import ac.cwnu.synctune.sdk.event.PlaybackStatusEvent;
 import ac.cwnu.synctune.sdk.event.SystemEvent;
 import ac.cwnu.synctune.sdk.log.LogManager;
+import ac.cwnu.synctune.sdk.model.LrcLine;
 import ac.cwnu.synctune.sdk.module.SyncTuneModule;
 import ac.cwnu.synctune.ui.view.MainApplicationWindow;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.stage.Stage;
+
+import java.util.List;
+import java.util.ArrayList;
 
 @Module(name = "UI", version = "1.0.0")
 public class UIModule extends SyncTuneModule {
@@ -21,6 +25,10 @@ public class UIModule extends SyncTuneModule {
     private static UIModule instance;
     private MainApplicationWindow mainWindow;
     private volatile boolean javaFXReady = false;
+    
+    // 가사 데이터 저장
+    private List<LrcLine> currentLyrics = new ArrayList<>();
+    private String currentMusicPath = null;
 
     @Override
     public void start(EventPublisher publisher) {
@@ -128,6 +136,10 @@ public class UIModule extends SyncTuneModule {
     @EventListener
     public void onPlaybackStarted(PlaybackStatusEvent.PlaybackStartedEvent event) {
         log.info("재생 시작: {}", event.getCurrentMusic().getTitle());
+        currentMusicPath = event.getCurrentMusic().getFilePath();
+        // 새 곡이 시작되면 기존 가사 초기화
+        currentLyrics.clear();
+        
         if (mainWindow != null) {
             Platform.runLater(() -> {
                 mainWindow.updateCurrentMusic(event.getCurrentMusic());
@@ -135,6 +147,8 @@ public class UIModule extends SyncTuneModule {
                 if (mainWindow.getControlsView() != null) {
                     mainWindow.getControlsView().setPlaybackState(true, false);
                 }
+                // 가사 로딩 상태 표시
+                mainWindow.showLyricsLoading();
             });
         }
     }
@@ -170,11 +184,66 @@ public class UIModule extends SyncTuneModule {
         }
     }
 
+    // 🔧 새로운 가사 이벤트 리스너들
+
+    @EventListener
+    public void onLyricsFound(LyricsEvent.LyricsFoundEvent event) {
+        log.info("가사 파일 발견: {}", event.getLrcFilePath());
+        if (mainWindow != null) {
+            Platform.runLater(() -> {
+                mainWindow.showLyricsFound(event.getLrcFilePath());
+            });
+        }
+    }
+
+    @EventListener
+    public void onLyricsNotFound(LyricsEvent.LyricsNotFoundEvent event) {
+        log.info("가사 파일 없음: {}", event.getMusicFilePath());
+        if (mainWindow != null) {
+            Platform.runLater(() -> {
+                mainWindow.showLyricsNotFound();
+            });
+        }
+    }
+
+    @EventListener
+    public void onLyricsParseComplete(LyricsEvent.LyricsParseCompleteEvent event) {
+        log.info("가사 파싱 완료: {} (성공: {})", event.getMusicFilePath(), event.isSuccess());
+        
+        if (!event.isSuccess()) {
+            if (mainWindow != null) {
+                Platform.runLater(() -> {
+                    mainWindow.showLyricsNotFound();
+                });
+            }
+        }
+        // 성공한 경우는 NextLyricsEvent에서 처리
+    }
+
     @EventListener
     public void onNextLyrics(LyricsEvent.NextLyricsEvent event) {
-        log.info("가사 업데이트: {}", event.getLyricLine());
+        String lyricLine = event.getLyricLine();
+        long startTime = event.getStartTimeMillis();
+        
+        log.debug("가사 업데이트: {} ({}ms)", lyricLine, startTime);
+        
+        // 새로운 가사 라인을 currentLyrics에 추가 (중복 방지)
+        LrcLine newLrcLine = new LrcLine(startTime, lyricLine);
+        if (!currentLyrics.contains(newLrcLine)) {
+            currentLyrics.add(newLrcLine);
+            // 시간순으로 정렬
+            currentLyrics.sort((a, b) -> Long.compare(a.getTimeMillis(), b.getTimeMillis()));
+        }
+        
         if (mainWindow != null) {
-            Platform.runLater(() -> mainWindow.updateLyrics(event.getLyricLine()));
+            Platform.runLater(() -> {
+                // 전체 가사를 LyricsView에 설정
+                if (mainWindow.getLyricsView() != null) {
+                    mainWindow.getLyricsView().setFullLyrics(currentLyrics);
+                    // 현재 가사 라인 하이라이트
+                    mainWindow.updateLyrics(lyricLine);
+                }
+            });
         }
     }
 
